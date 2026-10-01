@@ -499,10 +499,10 @@ SET FOREIGN_KEY_CHECKS = 1;
           <div className="backup-card h-100 d-flex flex-column justify-content-between mb-0">
             <div>
               <div className="backup-option-header">
-                <div className="backup-option-icon-box blue">
+                <div className="backup-option-icon-box red">
                   <Download size={22} />
                 </div>
-                <span className="backup-option-badge blue">OPTION 1</span>
+                <span className="backup-option-badge red">OPTION 1</span>
               </div>
 
               <h3 className="backup-option-title">Take System Backup</h3>

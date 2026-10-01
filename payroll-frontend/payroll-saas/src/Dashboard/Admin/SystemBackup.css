@@ -1,4 +1,4 @@
-/* System Backup & Restore SaaS Theme Styles */
+/* System Backup & Restore SaaS Theme Styles (Kiaan Red & White Theme) */
 
 .backup-page-wrapper {
   padding: 1.5rem 1rem;
@@ -57,7 +57,7 @@
 
 .backup-refresh-btn {
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   color: #334155;
   font-size: 0.82rem;
   font-weight: 700;
@@ -72,9 +72,9 @@
 }
 
 .backup-refresh-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #0f172a;
+  background: #fee2e2;
+  border-color: #C62828;
+  color: #C62828;
 }
 
 /* Base Card Style */
@@ -118,8 +118,8 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: #fee2e2;
+  color: #C62828;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -235,16 +235,16 @@
 .backup-email-input:focus {
   background: #ffffff;
   border-color: #C62828;
-  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.1);
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12);
 }
 
 .backup-send-email-btn {
   height: 46px;
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
   color: #ffffff;
   border: none;
   border-radius: 10px;
-  padding: 0 20px;
+  padding: 0 22px;
   font-size: 0.88rem;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -256,13 +256,13 @@
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
 }
 
 .backup-send-email-btn:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.35);
 }
 
 .backup-send-email-btn:disabled {
@@ -297,9 +297,10 @@
   justify-content: center;
 }
 
-.backup-option-icon-box.blue {
-  background: #eef2ff;
-  color: #4f46e5;
+.backup-option-icon-box.blue,
+.backup-option-icon-box.red {
+  background: #fee2e2;
+  color: #C62828;
 }
 
 .backup-option-icon-box.green {
@@ -316,14 +317,17 @@
   letter-spacing: 0.5px;
 }
 
-.backup-option-badge.blue {
-  background: #e0e7ff;
-  color: #3730a3;
+.backup-option-badge.blue,
+.backup-option-badge.red {
+  background: #fee2e2;
+  color: #991B1B;
+  border: 1px solid #fca5a5;
 }
 
 .backup-option-badge.green {
   background: #d1fae5;
   color: #065f46;
+  border: 1px solid #a7f3d0;
 }
 
 .backup-option-title {
@@ -373,10 +377,10 @@
 }
 
 .backup-scope-pill.active {
-  background: #ffffff;
-  color: #0f172a;
+  background: #C62828;
+  color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px rgba(198, 40, 40, 0.25);
 }
 
 /* Dropzone */
@@ -392,8 +396,8 @@
 }
 
 .backup-dropzone:hover, .backup-dropzone.has-file {
-  border-color: #059669;
-  background: #f0fdf4;
+  border-color: #C62828;
+  background: #fff5f5;
 }
 
 .backup-dropzone-title {
@@ -428,30 +432,32 @@
 }
 
 .backup-action-btn.primary {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
 }
 
 .backup-action-btn.primary:hover {
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.35);
 }
 
 .backup-action-btn.restore {
-  background: #a7f3d0;
-  color: #065f46;
+  background: #fee2e2;
+  color: #991B1B;
+  border: 1px solid #fca5a5;
 }
 
 .backup-action-btn.restore.ready {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+  border: none;
 }
 
 .backup-action-btn.restore.ready:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
   transform: translateY(-1px);
 }
 
@@ -479,8 +485,8 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #fdf2f8;
-  color: #db2777;
+  background: #fee2e2;
+  color: #C62828;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -529,16 +535,16 @@
 
 .backup-select-field:focus {
   border-color: #C62828;
-  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.1);
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12);
 }
 
 .backup-save-schedule-btn {
-  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
   color: #ffffff;
   border: none;
   border-radius: 10px;
   height: 44px;
-  padding: 0 20px;
+  padding: 0 22px;
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -548,13 +554,24 @@
   gap: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.25);
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
 }
 
 .backup-save-schedule-btn:hover {
-  background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%);
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.35);
+}
+
+/* Custom Checkbox & Switch Red Accent */
+.form-check-input:checked {
+  background-color: #C62828 !important;
+  border-color: #C62828 !important;
+}
+
+.form-check-input:focus {
+  border-color: #C62828 !important;
+  box-shadow: 0 0 0 0.25rem rgba(198, 40, 40, 0.2) !important;
 }
 
 /* Bottom Warning Banner */
