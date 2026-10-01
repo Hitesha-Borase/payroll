@@ -1,0 +1,48 @@
+# Dependencies (all levels)
+**/node_modules/
+node_modules/
+
+# Environment variables (all levels)
+**/.env
+**/.env.*
+**/*.env
+**/- Copy.env
+!.env.example
+
+# Build & Output directories (all levels)
+**/dist/
+**/build/
+**/.gradle/
+**/.android/
+**/.cache/
+**/bin/
+**/obj/
+
+# Zip and archive files (all levels)
+**/*.zip
+**/*.tar
+**/*.tar.gz
+**/*.rar
+**/*.7z
+
+# APK & Mobile binaries
+**/*.apk
+**/*.aab
+
+# Backups & Uploads
+**/uploads/
+**/backups/
+**/*- Copy*
+
+# Logs & temp files
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+temp_admin.txt
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+**/.idea/
+**/.vscode/

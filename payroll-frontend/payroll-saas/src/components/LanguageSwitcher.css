@@ -1,0 +1,227 @@
+/* ============================================================
+   5 REGIONAL EDITIONS & LANGUAGE SWITCHER STYLES
+   ============================================================ */
+
+.kiaan-regional-wrapper {
+  position: relative;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  user-select: none;
+}
+
+/* Toggle Button in Navbar */
+.kiaan-regional-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 2px solid #1E293B;
+  border-radius: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  color: #0F172A;
+}
+
+.kiaan-regional-toggle-btn:hover,
+.kiaan-regional-toggle-btn.open {
+  background: #F8FAFC;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.kiaan-regional-globe-icon {
+  color: #14B8A6;
+  flex-shrink: 0;
+}
+
+.kiaan-regional-toggle-code {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0F172A;
+  margin-right: 2px;
+}
+
+.kiaan-regional-toggle-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.2px;
+}
+
+.kiaan-regional-arrow {
+  color: #64748B;
+  margin-left: 2px;
+  transition: transform 0.2s ease;
+}
+
+/* Dropdown Menu */
+.kiaan-regional-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 260px;
+  max-width: calc(100vw - 20px);
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  padding: 14px 8px 10px 8px;
+  box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.15), 0 10px 15px -5px rgba(0, 0, 0, 0.08);
+  z-index: 10050;
+  animation: regionalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Dropdown Header */
+.kiaan-regional-header {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #64748B;
+  letter-spacing: 0.06em;
+  padding: 0 10px 10px 10px;
+  text-transform: uppercase;
+}
+
+/* List of Editions */
+.kiaan-regional-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kiaan-regional-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.kiaan-regional-item:hover {
+  background: #F1F5F9;
+}
+
+.kiaan-regional-item:active {
+  transform: scale(0.98);
+}
+
+.kiaan-regional-item.selected {
+  background: #F0FDF4;
+}
+
+/* Code Badge */
+.kiaan-regional-code-badge {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #334155;
+  min-width: 26px;
+}
+
+.kiaan-regional-code-badge.selected {
+  color: #0F766E;
+  font-weight: 900;
+}
+
+/* Globe Item Icon */
+.kiaan-regional-globe-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+}
+
+.kiaan-globe-blue {
+  color: #0284C7;
+}
+
+/* Item Label */
+.kiaan-regional-item-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.kiaan-regional-item-label.selected {
+  color: #0F766E;
+  font-weight: 800;
+}
+
+/* Checkmark Icon */
+.kiaan-regional-check-icon {
+  color: #10B981;
+  stroke-width: 2.5;
+  flex-shrink: 0;
+}
+
+@keyframes regionalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================================================
+   MOBILE RESPONSIVE BREAKPOINTS
+   ============================================================ */
+
+/* Tablet & Mobile Screens (< 768px) */
+@media (max-width: 768px) {
+  .kiaan-regional-toggle-btn {
+    padding: 5px 10px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  .kiaan-regional-toggle-label {
+    display: none; /* Hide long country name on mobile */
+  }
+
+  .kiaan-regional-toggle-code {
+    font-size: 0.85rem;
+    font-weight: 800;
+    margin-right: 0;
+  }
+
+  .kiaan-regional-dropdown {
+    width: 240px;
+    right: -20px;
+  }
+}
+
+/* Small Mobile Screens (< 480px) */
+@media (max-width: 480px) {
+  .kiaan-regional-toggle-btn {
+    padding: 4px 8px;
+    gap: 4px;
+    border-width: 1.5px;
+    border-radius: 8px;
+  }
+
+  .kiaan-regional-globe-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .kiaan-regional-toggle-code {
+    font-size: 0.78rem;
+  }
+
+  .kiaan-regional-arrow {
+    width: 14px;
+    height: 14px;
+  }
+
+  .kiaan-regional-dropdown {
+    width: 230px;
+    right: -30px;
+  }
+}

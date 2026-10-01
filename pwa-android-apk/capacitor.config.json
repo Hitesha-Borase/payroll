@@ -1,0 +1,9 @@
+{
+  "appId": "com.kiaantechnology.payroll",
+  "appName": "Kiaan Payroll",
+  "webDir": "dist",
+  "server": {
+    "url": "https://payroll.kiaantechnology.com",
+    "cleartext": true
+  }
+}

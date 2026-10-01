@@ -1,0 +1,158 @@
+/* Sidebar Container */
+.sidebar-container {
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 270px;
+  background-color: #FFFFFF;
+  transition: all 0.3s ease;
+  z-index: 999;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  padding-top: 70px;
+  /* Height of navbar */
+}
+
+.sidebar-container.collapsed {
+  width: 70px;
+}
+
+/* Sidebar */
+.sidebar {
+  height: 100%;
+  overflow-y: auto;
+  padding: 10px 0 20px 0;
+}
+
+.sidebar-brand {
+  transition: all 0.3s ease;
+}
+
+/* Menu */
+.menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu-item {
+  margin-bottom: 5px;
+}
+
+.menu-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #4A4A4A;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 0;
+  position: relative;
+}
+
+.menu-link:hover {
+  background-color: rgba(198, 40, 40, 0.1);
+  color: #C62828;
+}
+
+.menu-link.active {
+  background-color: rgba(198, 40, 40, 0.15);
+  color: #C62828;
+  border-left: 4px solid #C62828;
+}
+
+.menu-icon {
+  font-size: 18px;
+  width: 30px;
+  text-align: center;
+}
+
+.menu-text {
+  margin-left: 10px;
+  font-weight: 500;
+}
+
+.arrow-icon {
+  margin-left: auto;
+  transition: transform 0.3s ease;
+  font-size: 12px;
+}
+
+.arrow-icon.rotate {
+  transform: rotate(180deg);
+}
+
+/* Submenu */
+.submenu {
+  list-style: none;
+  padding-left: 50px;
+  margin-top: 5px;
+}
+
+.submenu-item {
+  padding: 8px 15px;
+  color: #4A4A4A;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.submenu-item:hover {
+  background-color: rgba(198, 40, 40, 0.1);
+  color: #C62828;
+}
+
+.submenu-item.active-sub {
+  color: #C62828;
+  font-weight: 500;
+  border-left: 3px solid #C62828;
+}
+
+/* Collapsed state adjustments */
+.sidebar-container.collapsed .menu-text,
+.sidebar-container.collapsed .arrow-icon {
+  display: none;
+}
+
+.sidebar-container.collapsed .menu-link {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar-container.collapsed .menu-icon {
+  margin: 0;
+}
+
+/* Loading spinner */
+.spinner-border {
+  border: 4px solid rgba(198, 40, 40, 0.25);
+  border-top-color: #C62828;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sidebar-container {
+    width: 270px;
+    max-width: 85vw;
+    transform: translateX(-100%);
+  }
+
+  .sidebar-container:not(.collapsed) {
+    transform: translateX(0);
+  }
+
+  .sidebar-container.collapsed {
+    transform: translateX(-100%);
+  }
+}

@@ -1,0 +1,182 @@
+.kiaan-support-modal-dialog {
+  max-width: 620px !important;
+}
+
+@media (max-width: 576px) {
+  .kiaan-support-modal-dialog {
+    margin: 0.5rem auto !important;
+    max-width: calc(100% - 1rem) !important;
+  }
+}
+
+.kiaan-support-modal-content {
+  background-color: #0d1117 !important;
+  border: 1px solid #30363d !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.9) !important;
+  color: #FFFFFF !important;
+  overflow: hidden;
+}
+
+.kiaan-support-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.kiaan-support-close-btn:hover {
+  background-color: #374151;
+  color: #FFFFFF;
+  transform: scale(1.05);
+}
+
+.kiaan-support-badge {
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: #FACC15;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.kiaan-support-title {
+  font-size: 1.35rem;
+  letter-spacing: -0.3px;
+}
+
+@media (max-width: 576px) {
+  .kiaan-support-title {
+    font-size: 1.2rem;
+  }
+}
+
+.kiaan-gold-text {
+  color: #EAB308;
+  font-style: italic;
+}
+
+.kiaan-support-subtitle {
+  font-size: 0.82rem;
+  color: #94A3B8 !important;
+  line-height: 1.35;
+}
+
+.kiaan-support-card {
+  background-color: #161B22;
+  border: 1px solid #282E37;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.kiaan-support-card:hover {
+  border-color: rgba(234, 179, 8, 0.6);
+  background-color: #1C232D;
+  transform: translateY(-1px);
+}
+
+.kiaan-support-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  flex-shrink: 0;
+}
+
+.kiaan-support-card-link {
+  color: #E2E8F0 !important;
+  font-size: 0.78rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.kiaan-support-card-link:hover {
+  color: #FACC15 !important;
+  text-decoration: underline !important;
+}
+
+.kiaan-support-card-subtext {
+  color: #E2E8F0 !important;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.kiaan-support-form-container {
+  background-color: #12171E;
+  border: 1px solid #282E37;
+  border-radius: 12px;
+}
+
+.kiaan-form-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #CBD5E1;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.kiaan-form-input {
+  background-color: #1A212B !important;
+  border: 1px solid #303846 !important;
+  color: #FFFFFF !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-size: 0.84rem !important;
+  min-height: 36px;
+  transition: all 0.2s ease !important;
+}
+
+.kiaan-form-input::placeholder {
+  color: #94A3B8 !important;
+  opacity: 1 !important;
+  font-size: 0.82rem;
+}
+
+.kiaan-form-input:focus {
+  background-color: #1E2734 !important;
+  border-color: #EAB308 !important;
+  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.25) !important;
+  color: #FFFFFF !important;
+}
+
+.kiaan-form-input option {
+  background-color: #161B22 !important;
+  color: #FFFFFF !important;
+}
+
+.kiaan-textarea {
+  resize: vertical;
+  min-height: 75px !important;
+}
+
+.kiaan-submit-btn {
+  background-color: #EAB308 !important;
+  border-color: #EAB308 !important;
+  color: #0F172A !important;
+  border-radius: 6px !important;
+  font-size: 0.88rem !important;
+  font-weight: 700 !important;
+  padding: 7px 18px !important;
+  transition: all 0.2s ease !important;
+}
+
+.kiaan-submit-btn:hover {
+  background-color: #CA8A04 !important;
+  border-color: #CA8A04 !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3) !important;
+}
+
+

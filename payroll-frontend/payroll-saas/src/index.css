@@ -1,0 +1,72 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light;
+  color: #213547;
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --navbar-height: 58px;
+  --primary-color: #C62828;
+}
+
+.main-content {
+  min-height: 100vh;
+  display: flex !important;
+}
+
+.right-side-content {
+  flex: 1;
+}
+
+@media (max-width: 768px) {
+  .right-side-content {
+    margin-left: 0 !important;
+    padding: 15px;
+  }
+}
+
+/* Custom Action Buttons */
+.btn-action-edit {
+  background-color: #C62828 !important;
+  border: none !important;
+  color: white !important;
+  border-radius: 50px !important; /* Pill shape */
+  padding: 0.4rem 1.2rem !important; /* Wider padding for pill look */
+  box-shadow: 0 2px 4px rgba(198, 40, 40, 0.2);
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-action-edit:hover {
+  background-color: #B71C1C !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(198, 40, 40, 0.3);
+}
+
+.btn-action-delete {
+  background-color: #C62828 !important; /* Making it match the red theme in image */
+  border: none !important;
+  color: white !important;
+  border-radius: 6px !important; /* Slightly rounded square */
+  padding: 0.4rem 0.8rem !important;
+  box-shadow: 0 2px 4px rgba(198, 40, 40, 0.2);
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-action-delete:hover {
+  background-color: #B71C1C !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(198, 40, 40, 0.3);
+}

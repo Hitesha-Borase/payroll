@@ -1,0 +1,39 @@
+/* Responsive Pricing Section Styles */
+.pricing-card-col {
+  width: 100%;
+  flex: 0 0 100%;
+  max-width: 100%;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+@media (min-width: 576px) {
+  .pricing-card-col {
+    width: 50%;
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+@media (min-width: 992px) {
+  .pricing-card-col {
+    width: 33.333%;
+    flex: 0 0 33.333%;
+    max-width: 33.333%;
+  }
+}
+
+@media (min-width: 1200px) {
+  .pricing-card-col {
+    width: 20%;
+    flex: 0 0 20%;
+    max-width: 20%;
+  }
+}
+
+.pricing-card-inner {
+  height: 100%;
+  background-color: #ffffff;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}

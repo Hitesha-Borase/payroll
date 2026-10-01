@@ -1,0 +1,38 @@
+{
+  "packageId": "com.kiaantechnology.payroll",
+  "host": "payroll.kiaantechnology.com",
+  "name": "Kiaan Technology - Workforce & Payroll SaaS",
+  "launcherName": "Kiaan Payroll",
+  "themeColor": "#1E293B",
+  "navigationColor": "#000000",
+  "backgroundColor": "#FFFFFF",
+  "startUrl": "/",
+  "iconUrl": "https://payroll.kiaantechnology.com/kiaan_logo.png",
+  "maskableIconUrl": "https://payroll.kiaantechnology.com/kiaan_logo.png",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "splashScreenFadeOutDuration": 300,
+  "enableNotifications": true,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://payroll.kiaantechnology.com/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false
+}

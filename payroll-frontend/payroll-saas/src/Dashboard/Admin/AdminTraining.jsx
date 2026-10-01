@@ -1,0 +1,1083 @@
+import React, { useState, useEffect } from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { FaPlus, FaUpload, FaChartBar, FaBook, FaUsers, FaCheckCircle, FaTimesCircle, FaClock, FaGraduationCap, FaPlay, FaFileAlt, FaUserGraduate, FaTrash, FaEdit } from 'react-icons/fa';
+import { adminAPI } from '../../services/api';
+import { Spinner, Alert } from 'react-bootstrap';
+import toast from 'react-hot-toast';
+
+// Color scheme
+const colors = {
+  primary: '#C62828',
+  secondary: '#2c3e50',
+  success: '#2ecc71',
+  danger: '#e74c3c',
+  warning: '#f39c12',
+  info: '#9b59b6',
+  light: '#f8f9fa',
+  dark: '#343a40'
+};
+
+const AdminTraining = () => {
+  const [activeView, setActiveView] = useState('courses');
+  const [showAddCourseModal, setShowAddCourseModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showEditCourseModal, setShowEditCourseModal] = useState(false);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  const [trainingCourses, setTrainingCourses] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [trainingMaterials, setTrainingMaterials] = useState([]);
+  const [trainingResults, setTrainingResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch data from API
+  const refreshData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch employees
+      const empResponse = await adminAPI.getEmployees();
+      if (empResponse?.data?.success) {
+        const employeesData = empResponse.data.data || [];
+        setEmployees(employeesData.map(emp => ({
+          id: emp.id,
+          name: emp.user?.name || 'N/A',
+          department: emp.designation || 'N/A',
+          email: emp.user?.email || 'N/A',
+        })));
+      }
+
+      // Fetch Trainings
+      const trainingResponse = await adminAPI.getTrainings();
+      if (trainingResponse?.data?.success) {
+        setTrainingCourses(trainingResponse.data.data || []);
+      }
+
+      // Fetch Materials
+      const materialsResponse = await adminAPI.getTrainingMaterials();
+      if (materialsResponse?.data?.success) {
+        setTrainingMaterials(materialsResponse.data.data || []);
+      }
+
+      // Fetch Results
+      const resultsResponse = await adminAPI.getTrainingResults();
+      if (resultsResponse?.data?.success) {
+        const rawResults = resultsResponse.data.data || [];
+        // Map snake_case response to camelCase expected by component
+        setTrainingResults(rawResults.map(r => ({
+          id: r.id,
+          employeeName: r.employee_name,
+          courseTitle: r.course_title,
+          score: r.score,
+          status: r.status,
+          completionDate: r.completion_date ? new Date(r.completion_date).toLocaleDateString() : 'N/A',
+          certificate: r.certificate_status,
+        })));
+      }
+
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.message || 'Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  // Form states
+  const [courseForm, setCourseForm] = useState({
+    title: '',
+    instructor: '',
+    duration: '',
+    category: 'Technical',
+    description: ''
+  });
+
+  const [assignForm, setAssignForm] = useState({
+    courseId: '',
+    employees: [],
+    dueDate: ''
+  });
+
+  const [uploadForm, setUploadForm] = useState({
+    courseId: '',
+    fileName: '',
+    file: null
+  });
+
+  const [completionForm, setCompletionForm] = useState({
+    employeeId: '',
+    courseId: '',
+    score: '',
+    status: 'Completed'
+  });
+
+  // Update isMobile state on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+
+
+  const handleAddCourse = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await adminAPI.createTraining(courseForm);
+      if (response?.data?.success) {
+        toast.success('Training course added successfully!');
+        setShowAddCourseModal(false);
+        setCourseForm({ title: '', instructor: '', duration: '', category: 'Technical', description: '' });
+        refreshData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add course');
+    }
+  };
+
+  const handleAssignTraining = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await adminAPI.assignTraining({
+        trainingId: assignForm.courseId,
+        employeeIds: assignForm.employees,
+        dueDate: assignForm.dueDate
+      });
+      if (response?.data?.success) {
+        toast.success(`Training assigned successfully!`);
+        setShowAssignModal(false);
+        setAssignForm({ courseId: '', employees: [], dueDate: '' });
+        refreshData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to assign training');
+    }
+  };
+
+  const handleUploadMaterial = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await adminAPI.uploadTrainingMaterial({
+        courseId: uploadForm.courseId,
+        fileName: uploadForm.fileName,
+        // file: uploadForm.file // Need FormData for real file, but API expects JSON currently in controller mock
+      });
+      if (response?.data?.success) {
+        toast.success('Training material uploaded successfully!');
+        setShowUploadModal(false);
+        setUploadForm({ courseId: '', fileName: '', file: null });
+        refreshData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to upload material');
+    }
+  };
+
+  const handleMarkCompletion = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await adminAPI.markTrainingCompletion({
+        employeeId: completionForm.employeeId,
+        courseId: completionForm.courseId,
+        score: completionForm.score,
+        status: completionForm.status
+      });
+      if (response?.data?.success) {
+        toast.success('Training completion marked successfully!');
+        setShowCompletionModal(false);
+        setCompletionForm({ employeeId: '', courseId: '', score: '', status: 'Completed' });
+        refreshData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to mark completion');
+    }
+  };
+
+  const handleDeleteCourse = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this course? This will also delete all assignments and materials.")) {
+      return;
+    }
+    try {
+      const response = await adminAPI.deleteTraining(id);
+      if (response?.data?.success) {
+        toast.success("Training deleted successfully");
+        refreshData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete training');
+    }
+  };
+
+  const handleEditCourse = (course) => {
+    setEditingCourse(course);
+    setCourseForm({
+      title: course.title,
+      instructor: course.instructor,
+      duration: course.duration,
+      category: course.category,
+      description: course.description || '',
+      start_date: course.start_date ? course.start_date.substring(0, 10) : '',
+      end_date: course.end_date ? course.end_date.substring(0, 10) : '',
+      status: course.status || 'Upcoming'
+    });
+    setShowEditCourseModal(true);
+  };
+
+  const handleUpdateCourse = async (e) => {
+    e.preventDefault();
+    if (!editingCourse) return;
+    try {
+      const response = await adminAPI.updateTraining(editingCourse.id, courseForm);
+      if (response?.data?.success) {
+        toast.success('Training updated successfully');
+        setShowEditCourseModal(false);
+        setEditingCourse(null);
+        refreshData();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update training');
+    }
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'Active':
+        return 'bg-success';
+      case 'Completed':
+        return 'bg-primary';
+      case 'Upcoming':
+        return 'bg-warning';
+      case 'In Progress':
+        return 'bg-info';
+      default:
+        return 'bg-secondary';
+    }
+  };
+
+  const getScoreBadgeClass = (score) => {
+    if (score >= 90) return 'bg-success';
+    if (score >= 75) return 'bg-info';
+    if (score >= 60) return 'bg-warning';
+    return 'bg-danger';
+  };
+
+  return (
+    <div className="container-fluid py-4" style={{ minHeight: '100vh', backgroundColor: colors.light }}>
+      {/* Header */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <h1 className="fw-bold" style={{ color: colors.primary }}>Training Management</h1>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="row mb-4">
+        <div className="col-12 col-sm-6 col-lg-3 mb-3">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="flex-grow-1">
+                  <p className="mb-1 text-muted">Total Courses</p>
+                  <h3 className="fw-bold mb-0" style={{ color: colors.primary }}>{trainingCourses.length}</h3>
+                </div>
+                <div className="ms-3">
+                  <div className="rounded-circle d-flex align-items-center justify-content-center"
+                    style={{ backgroundColor: colors.primary, width: "50px", height: "50px" }}>
+                    <FaBook className="text-white" style={{ fontSize: '1.5rem' }}></FaBook>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-12 col-sm-6 col-lg-3 mb-3">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="flex-grow-1">
+                  <p className="mb-1 text-muted">Active Courses</p>
+                  <h3 className="fw-bold mb-0" style={{ color: colors.success }}>
+                    {trainingCourses.filter(c => c.status === 'Active').length}
+                  </h3>
+                </div>
+                <div className="ms-3">
+                  <div className="rounded-circle d-flex align-items-center justify-content-center"
+                    style={{ backgroundColor: colors.success, width: "50px", height: "50px" }}>
+                    <FaPlay className="text-white" style={{ fontSize: '1.5rem' }}></FaPlay>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-12 col-sm-6 col-lg-3 mb-3">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="flex-grow-1">
+                  <p className="mb-1 text-muted">Total Enrolled</p>
+                  <h3 className="fw-bold mb-0" style={{ color: colors.warning }}>
+                    {trainingCourses.reduce((sum, course) => sum + course.enrolled, 0)}
+                  </h3>
+                </div>
+                <div className="ms-3">
+                  <div className="rounded-circle d-flex align-items-center justify-content-center"
+                    style={{ backgroundColor: colors.warning, width: "50px", height: "50px" }}>
+                    <FaUsers className="text-white" style={{ fontSize: '1.5rem' }}></FaUsers>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-12 col-sm-6 col-lg-3 mb-3">
+          <div className="card shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="flex-grow-1">
+                  <p className="mb-1 text-muted">Completed</p>
+                  <h3 className="fw-bold mb-0" style={{ color: colors.info }}>
+                    {trainingCourses.reduce((sum, course) => sum + course.completed, 0)}
+                  </h3>
+                </div>
+                <div className="ms-3">
+                  <div className="rounded-circle d-flex align-items-center justify-content-center"
+                    style={{ backgroundColor: colors.info, width: "50px", height: "50px" }}>
+                    <FaCheckCircle className="text-white" style={{ fontSize: '1.5rem' }}></FaCheckCircle>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm">
+            <div className="card-body">
+              <div className="d-flex flex-wrap gap-2">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setShowAddCourseModal(true)}
+                >
+                  <FaPlus className="me-2" />Add Training Course
+                </button>
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => setShowAssignModal(true)}
+                >
+                  <FaUsers className="me-2" />Assign Training
+                </button>
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => setShowUploadModal(true)}
+                >
+                  <FaUpload className="me-2" />Upload Material
+                </button>
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => setShowCompletionModal(true)}
+                >
+                  <FaCheckCircle className="me-2" />Mark Completion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm">
+            <div className="card-body">
+              <ul className="nav nav-tabs">
+                <li className="nav-item">
+                  <button
+                    className={`nav-link ${activeView === 'courses' ? 'active' : ''}`}
+                    onClick={() => setActiveView('courses')}
+                  >
+                    <FaBook className="me-2" />Courses
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    className={`nav-link ${activeView === 'materials' ? 'active' : ''}`}
+                    onClick={() => setActiveView('materials')}
+                  >
+                    <FaFileAlt className="me-2" />Materials
+                  </button>
+                </li>
+                <li className="nav-item">
+                  <button
+                    className={`nav-link ${activeView === 'results' ? 'active' : ''}`}
+                    onClick={() => setActiveView('results')}
+                  >
+                    <FaChartBar className="me-2" />Results Dashboard
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Courses View */}
+      {activeView === 'courses' && (
+        <div className="row">
+          <div className="col-12">
+            <div className="card shadow-sm">
+              <div className="card-header bg-white">
+                <h5 className="mb-0">Training Courses</h5>
+              </div>
+              <div className="card-body">
+                {/* Desktop Table View */}
+                <div className="table-responsive d-none d-lg-block">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Course Title</th>
+                        <th>Instructor</th>
+                        <th>Duration</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Enrolled</th>
+                        <th>Completed</th>
+                        <th>Progress</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trainingCourses.map((course) => (
+                        <tr key={course.id}>
+                          <td>{course.title}</td>
+                          <td>{course.instructor}</td>
+                          <td>{course.duration}</td>
+                          <td>{course.category}</td>
+                          <td>
+                            <span className={`badge ${getStatusBadgeClass(course.status)}`}>
+                              {course.status}
+                            </span>
+                          </td>
+                          <td>{course.enrolled}</td>
+                          <td>{course.completed}</td>
+                          <td>
+                            <div className="progress" style={{ height: '20px' }}>
+                              <div
+                                className="progress-bar"
+                                role="progressbar"
+                                style={{
+                                  width: `${course.enrolled > 0 ? (course.completed / course.enrolled) * 100 : 0}%`,
+                                  backgroundColor: colors.primary
+                                }}
+                              >
+                                {course.enrolled > 0 ? Math.round((course.completed / course.enrolled) * 100) : 0}%
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex gap-2">
+                              <button className="btn btn-sm btn-danger" onClick={() => handleEditCourse(course)}>
+                                <FaEdit />
+                              </button>
+                              <button className="btn btn-sm btn-danger" onClick={() => handleDeleteCourse(course.id)}>
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="d-lg-none">
+                  {trainingCourses.map((course) => (
+                    <div key={course.id} className="card mb-3 shadow-sm">
+                      <div className="card-body">
+                        <div className="d-flex justify-content-between align-items-start mb-3">
+                          <h6 className="mb-0 fw-bold">{course.title}</h6>
+                          <span className={`badge ${getStatusBadgeClass(course.status)}`}>
+                            {course.status}
+                          </span>
+                        </div>
+
+                        <div className="mb-2">
+                          <small className="text-muted">Instructor:</small>
+                          <div>{course.instructor}</div>
+                        </div>
+
+                        <div className="row mb-2">
+                          <div className="col-6">
+                            <small className="text-muted">Duration:</small>
+                            <div>{course.duration}</div>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-muted">Category:</small>
+                            <div>{course.category}</div>
+                          </div>
+                        </div>
+
+                        <div className="row mb-2">
+                          <div className="col-6">
+                            <small className="text-muted">Enrolled:</small>
+                            <div>{course.enrolled}</div>
+                          </div>
+                          <div className="col-6">
+                            <small className="text-muted">Completed:</small>
+                            <div>{course.completed}</div>
+                          </div>
+                        </div>
+
+                        <div className="mb-3">
+                          <small className="text-muted">Progress:</small>
+                          <div className="progress mt-1" style={{ height: '20px' }}>
+                            <div
+                              className="progress-bar"
+                              role="progressbar"
+                              style={{
+                                width: `${course.enrolled > 0 ? (course.completed / course.enrolled) * 100 : 0}%`,
+                                backgroundColor: colors.primary
+                              }}
+                            >
+                              {course.enrolled > 0 ? Math.round((course.completed / course.enrolled) * 100) : 0}%
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-sm btn-primary flex-fill"
+                            onClick={() => handleEditCourse(course)}
+                          >
+                            <FaEdit className="me-1" /> Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger flex-fill"
+                            onClick={() => handleDeleteCourse(course.id)}
+                          >
+                            <FaTrash className="me-1" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Materials View */}
+      {activeView === 'materials' && (
+        <div className="row">
+          <div className="col-12">
+            <div className="card shadow-sm">
+              <div className="card-header bg-white">
+                <h5 className="mb-0">Training Materials</h5>
+              </div>
+              <div className="card-body">
+                <div className="table-responsive">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>File Name</th>
+                        <th>Course</th>
+                        <th>Type</th>
+                        <th>File Size</th>
+                        <th>Upload Date</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trainingMaterials.map((material) => (
+                        <tr key={material.id}>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <FaFileAlt className="me-2 text-primary" />
+                              {material.fileName}
+                            </div>
+                          </td>
+                          <td>{trainingCourses.find(c => c.id === material.courseId)?.title || 'Unknown'}</td>
+                          <td>
+                            <span className="badge bg-secondary">{material.type}</span>
+                          </td>
+                          <td>{material.fileSize}</td>
+                          <td>{material.uploadDate}</td>
+                          <td>
+                            <button className="btn btn-sm btn-outline-primary me-1">Download</button>
+                            <button className="btn btn-sm btn-outline-danger">Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Results Dashboard View */}
+      {activeView === 'results' && (
+        <div className="row">
+          <div className="col-12">
+            <div className="card shadow-sm">
+              <div className="card-header bg-white">
+                <h5 className="mb-0">Training Results Dashboard</h5>
+              </div>
+              <div className="card-body">
+                <div className="table-responsive">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th>Course</th>
+                        <th>Score</th>
+                        <th>Status</th>
+                        <th>Completion Date</th>
+                        <th>Certificate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trainingResults.map((result) => (
+                        <tr key={result.id}>
+                          <td>{result.employeeName}</td>
+                          <td>{result.courseTitle}</td>
+                          <td>
+                            <span className={`badge ${getScoreBadgeClass(result.score)}`}>
+                              {result.score}%
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge ${getStatusBadgeClass(result.status)}`}>
+                              {result.status}
+                            </span>
+                          </td>
+                          <td>{result.completionDate}</td>
+                          <td>
+                            <span className={`badge ${result.certificate === 'Generated' ? 'bg-success' : 'bg-warning'}`}>
+                              {result.certificate}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Course Modal */}
+      {showEditCourseModal && (
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Edit Training Course</h5>
+                <button type="button" className="btn-close" onClick={() => setShowEditCourseModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <form onSubmit={handleUpdateCourse}>
+                  <div className="mb-3">
+                    <label className="form-label">Course Title</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={courseForm.title}
+                      onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Instructor</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={courseForm.instructor}
+                      onChange={(e) => setCourseForm({ ...courseForm, instructor: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Duration</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={courseForm.duration}
+                      onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Category</label>
+                    <select
+                      className="form-select"
+                      value={courseForm.category}
+                      onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
+                    >
+                      <option value="Technical">Technical</option>
+                      <option value="Soft Skills">Soft Skills</option>
+                      <option value="Management">Management</option>
+                      <option value="Compliance">Compliance</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Status</label>
+                    <select
+                      className="form-select"
+                      value={courseForm.status}
+                      onChange={(e) => setCourseForm({ ...courseForm, status: e.target.value })}
+                    >
+                      <option value="Upcoming">Upcoming</option>
+                      <option value="Active">Active</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      className="form-control"
+                      value={courseForm.description}
+                      onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Start Date</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={courseForm.start_date}
+                        onChange={(e) => setCourseForm({ ...courseForm, start_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">End Date</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={courseForm.end_date}
+                        onChange={(e) => setCourseForm({ ...courseForm, end_date: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="d-flex justify-content-end">
+                    <button type="button" className="btn btn-secondary me-2" onClick={() => setShowEditCourseModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary">Update Course</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+      }
+
+      {/* Add Course Modal (Continued...) */}
+      {
+        showAddCourseModal && (
+          <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Add Training Course</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowAddCourseModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <form onSubmit={handleAddCourse}>
+                    <div className="mb-3">
+                      <label className="form-label">Course Title</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={courseForm.title}
+                        onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Instructor</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={courseForm.instructor}
+                        onChange={(e) => setCourseForm({ ...courseForm, instructor: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Duration</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={courseForm.duration}
+                        onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Category</label>
+                      <select
+                        className="form-select"
+                        value={courseForm.category}
+                        onChange={(e) => setCourseForm({ ...courseForm, category: e.target.value })}
+                      >
+                        <option value="Technical">Technical</option>
+                        <option value="Soft Skills">Soft Skills</option>
+                        <option value="Management">Management</option>
+                        <option value="Compliance">Compliance</option>
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Description</label>
+                      <textarea
+                        className="form-control"
+                        rows="3"
+                        value={courseForm.description}
+                        onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                      ></textarea>
+                    </div>
+                    <div className="d-flex justify-content-end">
+                      <button type="button" className="btn btn-secondary me-2" onClick={() => setShowAddCourseModal(false)}>Cancel</button>
+                      <button type="submit" className="btn btn-primary">Add Course</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Assign Training Modal */}
+      {
+        showAssignModal && (
+          <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Assign Training to Employees</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowAssignModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <form onSubmit={handleAssignTraining}>
+                    <div className="mb-3">
+                      <label className="form-label">Select Course</label>
+                      <select
+                        className="form-select"
+                        value={assignForm.courseId}
+                        onChange={(e) => setAssignForm({ ...assignForm, courseId: e.target.value })}
+                        required
+                      >
+                        <option value="">Select Course</option>
+                        {trainingCourses.map((course) => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Select Employees</label>
+                      <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {employees.map((employee) => (
+                          <div key={employee.id} className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id={`emp-${employee.id}`}
+                              checked={assignForm.employees.includes(employee.id.toString())}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setAssignForm({ ...assignForm, employees: [...assignForm.employees, employee.id.toString()] });
+                                } else {
+                                  setAssignForm({ ...assignForm, employees: assignForm.employees.filter(id => id !== employee.id.toString()) });
+                                }
+                              }}
+                            />
+                            <label className="form-check-label" htmlFor={`emp-${employee.id}`}>
+                              {employee.name} - {employee.department}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Due Date</label>
+                      <input
+                        type="date"
+                        className="form-control"
+                        value={assignForm.dueDate}
+                        onChange={(e) => setAssignForm({ ...assignForm, dueDate: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="d-flex justify-content-end">
+                      <button type="button" className="btn btn-secondary me-2" onClick={() => setShowAssignModal(false)}>Cancel</button>
+                      <button type="submit" className="btn btn-primary">Assign Training</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Upload Material Modal */}
+      {
+        showUploadModal && (
+          <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Upload Training Material</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowUploadModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <form onSubmit={handleUploadMaterial}>
+                    <div className="mb-3">
+                      <label className="form-label">Select Course</label>
+                      <select
+                        className="form-select"
+                        value={uploadForm.courseId}
+                        onChange={(e) => setUploadForm({ ...uploadForm, courseId: e.target.value })}
+                        required
+                      >
+                        <option value="">Select Course</option>
+                        {trainingCourses.map((course) => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">File Name</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={uploadForm.fileName}
+                        onChange={(e) => setUploadForm({ ...uploadForm, fileName: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Choose File</label>
+                      <input
+                        type="file"
+                        className="form-control"
+                        onChange={(e) => setUploadForm({ ...uploadForm, file: e.target.files[0] })}
+                        required
+                      />
+                    </div>
+                    <div className="d-flex justify-content-end">
+                      <button type="button" className="btn btn-secondary me-2" onClick={() => setShowUploadModal(false)}>Cancel</button>
+                      <button type="submit" className="btn btn-primary">Upload</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Mark Completion Modal */}
+      {
+        showCompletionModal && (
+          <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Mark Training Completion</h5>
+                  <button type="button" className="btn-close" onClick={() => setShowCompletionModal(false)}></button>
+                </div>
+                <div className="modal-body">
+                  <form onSubmit={handleMarkCompletion}>
+                    <div className="mb-3">
+                      <label className="form-label">Select Employee</label>
+                      <select
+                        className="form-select"
+                        value={completionForm.employeeId}
+                        onChange={(e) => setCompletionForm({ ...completionForm, employeeId: e.target.value })}
+                        required
+                      >
+                        <option value="">Select Employee</option>
+                        {employees.map((employee) => (
+                          <option key={employee.id} value={employee.id}>{employee.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Select Course</label>
+                      <select
+                        className="form-select"
+                        value={completionForm.courseId}
+                        onChange={(e) => setCompletionForm({ ...completionForm, courseId: e.target.value })}
+                        required
+                      >
+                        <option value="">Select Course</option>
+                        {trainingCourses.map((course) => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Score (%)</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        min="0"
+                        max="100"
+                        value={completionForm.score}
+                        onChange={(e) => setCompletionForm({ ...completionForm, score: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="form-label">Status</label>
+                      <select
+                        className="form-select"
+                        value={completionForm.status}
+                        onChange={(e) => setCompletionForm({ ...completionForm, status: e.target.value })}
+                      >
+                        <option value="Completed">Completed</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Failed">Failed</option>
+                      </select>
+                    </div>
+                    <div className="d-flex justify-content-end">
+                      <button type="button" className="btn btn-secondary me-2" onClick={() => setShowCompletionModal(false)}>Cancel</button>
+                      <button type="submit" className="btn btn-primary">Mark Completion</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
+  );
+};
+
+export default AdminTraining;

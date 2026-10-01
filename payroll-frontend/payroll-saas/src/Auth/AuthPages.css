@@ -1,0 +1,55 @@
+/* Auth Pages (Login & Signup) - Spacing Fix */
+
+/* Ensure proper spacing and prevent sticking to edges */
+.container-fluid.min-vh-100 {
+    min-height: 100vh;
+    padding: 2rem 1rem !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid.min-vh-100 {
+        padding: 1.5rem 1rem !important;
+    }
+
+    /* Form section padding on mobile */
+    .card .col-md-6.p-4 {
+        padding: 2rem 1.5rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid.min-vh-100 {
+        padding: 1rem 0.75rem !important;
+    }
+
+    /* Smaller padding on very small screens */
+    .card .col-md-6.p-4 {
+        padding: 1.5rem 1rem !important;
+    }
+}
+
+/* Ensure card doesn't overflow */
+.card {
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+/* Smooth scrolling for card content */
+.card::-webkit-scrollbar {
+    width: 6px;
+}
+
+.card::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.card::-webkit-scrollbar-thumb {
+    background: #C62828;
+    border-radius: 10px;
+}
+
+.card::-webkit-scrollbar-thumb:hover {
+    background: #B71C1C;
+}

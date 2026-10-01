@@ -1,0 +1,243 @@
+/* ============================================================
+   KIAAN TECHNOLOGY - PREMIUM RESPONSIVE SPLASH SCREEN STYLES
+   ============================================================ */
+
+.kiaan-splash-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999999;
+  background-color: #0B1120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  overflow: hidden;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease;
+  pointer-events: all;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+}
+
+/* Smooth Fade Out Class */
+.kiaan-splash-container.kiaan-splash-fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Radial Glow Background Effect */
+.kiaan-splash-bg-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 500px;
+  height: 500px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(198, 40, 40, 0.18) 0%, rgba(229, 166, 56, 0.08) 40%, rgba(11, 17, 32, 0) 70%);
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  animation: splashPulseGlow 4s ease-in-out infinite alternate;
+}
+
+/* Central Content */
+.kiaan-splash-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0 24px;
+  animation: splashSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Logo Box */
+.kiaan-splash-logo-wrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  border-radius: 22px;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  padding: 12px;
+}
+
+.kiaan-splash-logo-glow {
+  position: absolute;
+  inset: -6px;
+  background: linear-gradient(135deg, #C62828, #E5A638);
+  border-radius: 26px;
+  z-index: -1;
+  opacity: 0.5;
+  filter: blur(8px);
+  animation: splashBorderRotate 3s linear infinite;
+}
+
+.kiaan-splash-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* Typography */
+.kiaan-splash-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #FFFFFF;
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+
+.kiaan-splash-title-highlight {
+  color: #E5A638;
+}
+
+.kiaan-splash-subtitle {
+  font-size: 0.95rem;
+  color: #94A3B8;
+  margin: 0 0 28px 0;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Progress Bar */
+.kiaan-splash-progress-track {
+  width: 200px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.kiaan-splash-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #C62828 0%, #E5A638 50%, #C62828 100%);
+  border-radius: 999px;
+  animation: splashProgressSweep 1.4s ease-in-out infinite;
+}
+
+/* Status Badge */
+.kiaan-splash-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50px;
+  font-size: 0.75rem;
+  color: #CBD5E1;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+.kiaan-splash-badge-dot {
+  width: 6px;
+  height: 6px;
+  background: #22C55E;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #22C55E;
+}
+
+/* Footer Note */
+.kiaan-splash-footer {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: #64748B;
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Keyframe Animations */
+@keyframes splashSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splashPulseGlow {
+  0% {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes splashProgressSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes splashBorderRotate {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Mobile & Tablet Responsiveness */
+@media (max-width: 640px) {
+  .kiaan-splash-logo-wrapper {
+    width: 76px;
+    height: 76px;
+    border-radius: 18px;
+    margin-bottom: 20px;
+  }
+  .kiaan-splash-title {
+    font-size: 1.45rem;
+  }
+  .kiaan-splash-subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 22px;
+  }
+  .kiaan-splash-progress-track {
+    width: 160px;
+    height: 3px;
+    margin-bottom: 20px;
+  }
+  .kiaan-splash-footer {
+    bottom: 16px;
+    font-size: 0.7rem;
+    padding: 0 12px;
+    white-space: normal;
+  }
+}
