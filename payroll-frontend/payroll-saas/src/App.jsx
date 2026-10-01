@@ -177,6 +177,7 @@ function App() {
                                 <Route path="/superadmin/payments-subscriptions" element={<ProtectedRoute allowedRoles={['superadmin']}><PaymentsSubscriptions /></ProtectedRoute>} />
                                 <Route path="/superadmin/support-tickets" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperAdminSupport /></ProtectedRoute>} />
                                 <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><Settings /></ProtectedRoute>} />
+                                <Route path="/superadmin/backups" element={<ProtectedRoute allowedRoles={['superadmin', 'admin']}><SystemBackup /></ProtectedRoute>} />
 
 
                                 {/* ---------------- ADMIN ---------------- */}
