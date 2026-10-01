@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { vendorAPI } from '../../../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
 import toast from 'react-hot-toast';
+import { useRegional } from '../../../context/RegionalContext';
 
 const COLORS = {
   primary: "#C62828",
@@ -96,18 +97,20 @@ const styles = {
       ...styles.card.base(isMobile),
       display: "flex",
       alignItems: "center",
-      gap: "16px"
+      gap: isMobile ? "14px" : "16px",
+      padding: isMobile ? "14px 16px" : "18px 20px"
     }),
     icon: (color) => ({
-      width: "48px",
-      height: "48px",
+      width: "44px",
+      height: "44px",
+      flexShrink: 0,
       borderRadius: "50%",
       backgroundColor: color + "20",
       color: color,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      margin: "0 auto"
+      margin: 0
     }),
     sectionTitle: (isMobile) => ({
       fontSize: isMobile ? "18px" : "20px",
@@ -362,6 +365,7 @@ const styles = {
 };
 
 const VendorPayments = () => {
+  const { formatCurrency } = useRegional();
   const [activeTab, setActiveTab] = useState("payments");
   const [payments, setPayments] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -700,37 +704,37 @@ const VendorPayments = () => {
             }}>
               <div style={styles.card.stat(isMobile)}>
                 <div style={styles.card.icon(COLORS.chartLine)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="1" x2="12" y2="23"></line>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontSize: "14px", color: COLORS.text, marginBottom: "4px" }}>Total Received</div>
-                  <div style={{ fontSize: "24px", fontWeight: 700, color: COLORS.black }}>${totalAmount.toLocaleString()}</div>
+                  <div style={{ fontSize: "13px", color: COLORS.text, marginBottom: "2px" }}>Total Received</div>
+                  <div style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 700, color: COLORS.black }}>{formatCurrency(totalAmount)}</div>
                 </div>
               </div>
               <div style={styles.card.stat(isMobile)}>
                 <div style={styles.card.icon(COLORS.oliveLabel)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontSize: "14px", color: COLORS.text, marginBottom: "4px" }}>Completed</div>
-                  <div style={{ fontSize: "24px", fontWeight: 700, color: COLORS.black }}>{payments.filter(p => p.status === "Completed").length}</div>
+                  <div style={{ fontSize: "13px", color: COLORS.text, marginBottom: "2px" }}>Completed</div>
+                  <div style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 700, color: COLORS.black }}>{payments.filter(p => p.status === "Completed").length}</div>
                 </div>
               </div>
               <div style={styles.card.stat(isMobile)}>
                 <div style={styles.card.icon(COLORS.warning)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontSize: "14px", color: COLORS.text, marginBottom: "4px" }}>Pending</div>
-                  <div style={{ fontSize: "24px", fontWeight: 700, color: COLORS.black }}>${summary.pendingAmount || payments.filter(p => p.status === "Pending").reduce((sum, p) => sum + p.amount, 0).toLocaleString()}</div>
+                  <div style={{ fontSize: "13px", color: COLORS.text, marginBottom: "2px" }}>Pending</div>
+                  <div style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: 700, color: COLORS.black }}>{formatCurrency(summary.pendingAmount || payments.filter(p => p.status === "Pending").reduce((sum, p) => sum + p.amount, 0))}</div>
                 </div>
               </div>
             </div>
@@ -838,7 +842,7 @@ const VendorPayments = () => {
                       </div>
                       <div style={styles.mobilePaymentCard.footer}>
                         <div style={styles.mobilePaymentCard.amount}>
-                          ${payment.amount.toLocaleString()}
+                          {formatCurrency(payment.amount)}
                         </div>
                         <button
                           style={styles.button.view}
@@ -883,7 +887,7 @@ const VendorPayments = () => {
                             </span>
                           </td>
                           <td style={{ ...styles.table.cell, textAlign: "right", fontWeight: 600, color: COLORS.oliveLabel }}>
-                            ${payment.amount.toLocaleString()}
+                            {formatCurrency(payment.amount)}
                           </td>
                           <td style={{ ...styles.table.cell, textAlign: "center" }}>
                             <button
@@ -911,11 +915,11 @@ const VendorPayments = () => {
               display: "flex",
               justifyContent: "space-between",
               marginTop: "20px",
-              flexDirection: isMobile ? "column" : "row",
-              gap: isMobile ? "12px" : "0"
+              flexDirection: "row",
+              gap: "12px"
             }}>
               <button
-                style={styles.button.primary(isMobile)}
+                style={{ ...styles.button.primary(isMobile), flex: 1 }}
                 onClick={handleImportPDF}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "8px" }}>
@@ -926,7 +930,7 @@ const VendorPayments = () => {
                 {isMobile ? "Import" : "Import PDF"}
               </button>
               <button
-                style={styles.button.primary(isMobile)}
+                style={{ ...styles.button.primary(isMobile), flex: 1 }}
                 onClick={handleExportPDF}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: "8px" }}>

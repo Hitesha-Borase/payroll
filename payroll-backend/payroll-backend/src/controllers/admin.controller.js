@@ -3,6 +3,7 @@ const paymentService = require('../services/payment.service');
 const bcrypt = require('bcrypt');
 const auditService = require('../services/audit.service');
 const emailService = require('../services/email.service');
+const whatsappService = require('../services/whatsapp.service');
 
 
 /**
@@ -906,7 +907,7 @@ const getAllEmployees = async (req, res, next) => {
   try {
     const adminCompanyId = req.user.company_id;
     const [employees] = await db.query(`
-      SELECT emp.*, u.name as u_name, u.email as u_email, u.status as u_status,
+      SELECT emp.*, u.name as u_name, u.email as u_email, u.phone as u_phone, u.status as u_status,
       e.company_name
       FROM employees emp
       JOIN users u ON emp.user_id = u.id
@@ -922,12 +923,14 @@ const getAllEmployees = async (req, res, next) => {
       designation: emp.designation,
       salary: emp.salary,
       status: emp.status,
+      phone: emp.phone || emp.u_phone || null,
       created_at: emp.created_at,
       updated_at: emp.updated_at,
       user: {
         id: emp.user_id,
         name: emp.u_name,
         email: emp.u_email,
+        phone: emp.u_phone || emp.phone || null,
         status: emp.u_status
       },
       employer: emp.company_id ? {
@@ -1658,6 +1661,28 @@ const markAttendance = async (req, res, next) => {
         [employeeId, date, status, check_in, check_out, workingHours, workingHours]
       );
     }
+
+    // Non-blocking async WhatsApp Attendance Notification
+    (async () => {
+      try {
+        const [empRows] = await db.query(
+          'SELECT e.*, u.name, u.phone FROM employees e JOIN users u ON e.user_id = u.id WHERE e.id = ?',
+          [employeeId]
+        );
+        if (empRows.length > 0) {
+          whatsappService.sendAttendanceAlert({
+            tenantId: req.user?.company_id || 1,
+            employeeName: empRows[0].name,
+            employeePhone: empRows[0].phone,
+            date: date,
+            time: check_in || new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+            status: status || 'Present'
+          });
+        }
+      } catch (err) {
+        console.error('[WhatsApp] Admin markAttendance notification error:', err.message);
+      }
+    })();
 
     res.json({ success: true, message: 'Attendance updated.' });
   } catch (error) {

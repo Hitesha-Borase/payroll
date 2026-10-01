@@ -9,9 +9,11 @@ import TrialExpiryModal from '../../components/TrialExpiryModal';
 import { ShieldCheck, CheckCircle2, Zap, ArrowRight, Lock, Clock, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { useRegional } from '../../context/RegionalContext';
 
 const UpgradePlan = () => {
   const navigate = useNavigate();
+  const { formatCurrency } = useRegional();
   const [plans, setPlans] = useState([]);
   const [currentSub, setCurrentSub] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -316,7 +318,7 @@ const UpgradePlan = () => {
 
                       <div className="mb-3">
                         <span style={{ fontSize: '32px', fontWeight: '900', color: '#FFFFFF' }}>
-                          ₹{priceVal.toLocaleString('en-IN')}
+                          {formatCurrency(priceVal)}
                         </span>
                         <span style={{ color: '#A7F3D0', fontSize: '12px' }}> /{plan.duration_months || 1} Month</span>
                       </div>
@@ -395,7 +397,7 @@ const UpgradePlan = () => {
                 
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <span>Subscription Price:</span>
-                  <strong style={{ fontSize: '20px', color: '#10B981' }}>₹{parseFloat(selectedPlan.price).toLocaleString('en-IN')}</strong>
+                  <strong style={{ fontSize: '20px', color: '#10B981' }}>{formatCurrency(selectedPlan.price)}</strong>
                 </div>
                 <div className="d-flex justify-content-between align-items-center mb-2" style={{ fontSize: '13px' }}>
                   <span>Billing Period:</span>

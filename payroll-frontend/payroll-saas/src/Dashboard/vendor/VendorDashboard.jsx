@@ -5,6 +5,7 @@ import { FaMoneyBillWave, FaShoppingCart, FaCheckCircle, FaClipboardList, FaSign
 import { useAuth } from "../../hooks/useAuth";
 import { useFetchVendorProfile } from "../../hooks/useAPI";
 import { vendorAPI } from "../../services/api";
+import { useRegional } from "../../context/RegionalContext";
 
 const colors = {
   primary: "#C62828",
@@ -24,6 +25,7 @@ const colors = {
 const VendorDashboard = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { formatCurrency: regionalFormatCurrency } = useRegional();
   const { profile, loading: profileLoading } = useFetchVendorProfile();
 
   const [loading, setLoading] = useState(true);
@@ -83,11 +85,7 @@ const VendorDashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount || 0);
+    return regionalFormatCurrency(amount || 0);
   };
 
   const formatDate = (dateString) => {
@@ -158,8 +156,8 @@ const VendorDashboard = () => {
       <h2 style={{ color: colors.black }}>All Contracts</h2>
 
       <Card style={cardStyle}>
-        <div style={{ overflowX: 'auto' }}>
-          <Table hover className="align-middle mb-0" style={{ fontSize: '13px', minWidth: '600px' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+          <Table hover className="align-middle mb-0" style={{ fontSize: isMobile ? '12px' : '13px', minWidth: isMobile ? '500px' : '600px' }}>
             <thead>
               <tr style={{ backgroundColor: colors.grayLight }}>
                 <th>Contract ID</th>

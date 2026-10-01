@@ -60,5 +60,33 @@ html {
   color: #fff !important;
   border: 1px solid #2F6A87 !important;
 }
-
 /* pagination css end */
+
+/* PWA / Mobile APK Responsive Enhancements */
+@media (max-width: 768px) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .table-responsive,
+  div[style*="overflowX: auto"],
+  div[style*="overflow-x: auto"] {
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  .modal-dialog {
+    margin: 12px auto !important;
+    max-width: 95vw !important;
+  }
+
+  .card {
+    border-radius: 12px !important;
+  }
+
+  /* Keep buttons tap-friendly */
+  .btn, button {
+    touch-action: manipulation;
+  }
+}

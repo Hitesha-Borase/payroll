@@ -6,8 +6,10 @@ import { superadminAPI } from '../../services/api';
 import SuperAdminLayout from './SuperAdminLayout';
 import WhatsAppWidget from '../../components/WhatsAppWidget';
 import { Layers, ShieldCheck, CheckCircle2, Sparkles, AlertCircle } from 'lucide-react';
+import { useRegional } from '../../context/RegionalContext';
 
 const PlansManagement = () => {
+  const { formatCurrency } = useRegional();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -244,7 +246,7 @@ const PlansManagement = () => {
                   </Badge>
                 </div>
                 <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: '900', color: '#C62828', marginTop: '6px' }}>
-                  ₹{parseFloat(p.price || 0).toLocaleString('en-IN')} <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 'normal' }}>/{p.duration_months}mo</span>
+                  {formatCurrency(p.price || 0)} <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 'normal' }}>/{p.duration_months}mo</span>
                 </div>
                 <div style={{ fontSize: isMobile ? '10px' : '12px', color: '#64748B', marginTop: '3px' }}>
                   👥 {p.max_employees ? `Up to ${p.max_employees} Staff` : 'Unlimited Staff'}
@@ -302,7 +304,7 @@ const PlansManagement = () => {
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontWeight: '900', color: '#C62828', fontSize: '16px' }}>
-                            ₹{priceVal.toLocaleString('en-IN')}
+                            {formatCurrency(priceVal)}
                           </div>
                           <Badge bg={plan.is_active ? 'success' : 'danger'} style={{ fontSize: '9px', marginTop: '2px' }}>
                             {plan.is_active ? 'Active' : 'Inactive'}
@@ -365,7 +367,7 @@ const PlansManagement = () => {
                             {priceVal === 0 && <Badge bg="warning" text="dark" className="ms-2" style={{ fontSize: '10px' }}>Free Trial</Badge>}
                           </td>
                           <td style={{ fontWeight: '900', color: '#C62828', fontSize: '15px' }}>
-                            ₹{priceVal.toLocaleString('en-IN')}
+                            {formatCurrency(priceVal)}
                           </td>
                           <td style={{ color: '#475569' }}>{plan.duration_months || 1} Month/s</td>
                           <td style={{ fontWeight: '700', color: '#0F172A' }}>
@@ -410,126 +412,124 @@ const PlansManagement = () => {
         )}
 
         {/* Add/Edit Plan Modal */}
-        <Modal show={showModal} onHide={handleCloseModal} centered size="lg" contentClassName="border-0">
-          <div style={{ maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px', overflow: 'hidden' }}>
-            <Modal.Header closeButton style={{ backgroundColor: '#0F172A', color: '#FFFFFF', padding: isMobile ? '12px 16px' : '16px 24px' }}>
-              <Modal.Title style={{ fontSize: isMobile ? '15px' : '16px', fontWeight: '800' }}>
-                {isEditMode ? 'Edit Subscription Plan' : 'Create New Subscription Plan'}
-              </Modal.Title>
-            </Modal.Header>
-            <Modal.Body style={{ backgroundColor: '#FFFFFF', color: '#0F172A', padding: isMobile ? '16px' : '28px' }}>
-              <Form>
-                <Row className="g-3">
-                  <Col md={6}>
-                    <Form.Group>
-                      <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Plan Name</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="name"
-                        value={currentPlan.name || ''}
-                        onChange={handleInputChange}
-                        placeholder="e.g. Basic / Professional / Enterprise"
-                        style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </Form.Group>
-                  </Col>
+        <Modal show={showModal} onHide={handleCloseModal} centered scrollable size="lg" contentClassName="border-0 shadow-lg" style={{ zIndex: 1055 }}>
+          <Modal.Header closeButton style={{ backgroundColor: '#0F172A', color: '#FFFFFF', padding: isMobile ? '12px 16px' : '16px 24px', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+            <Modal.Title style={{ fontSize: isMobile ? '15px' : '16px', fontWeight: '800' }}>
+              {isEditMode ? 'Edit Subscription Plan' : 'Create New Subscription Plan'}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body style={{ backgroundColor: '#FFFFFF', color: '#0F172A', padding: isMobile ? '16px' : '24px' }}>
+            <Form>
+              <Row className="g-3">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Plan Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="name"
+                      value={currentPlan.name || ''}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Basic / Professional / Enterprise"
+                      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                    />
+                  </Form.Group>
+                </Col>
 
-                  <Col md={6}>
-                    <Form.Group>
-                      <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Price (INR ₹)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="priceMonthly"
-                        value={currentPlan.priceMonthly !== undefined ? currentPlan.priceMonthly : ''}
-                        onChange={handleInputChange}
-                        placeholder="e.g. 0 for Free Trial, 999, 1299"
-                        style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </Form.Group>
-                  </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Price (INR ₹)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      name="priceMonthly"
+                      value={currentPlan.priceMonthly !== undefined ? currentPlan.priceMonthly : ''}
+                      onChange={handleInputChange}
+                      placeholder="e.g. 0 for Free Trial, 999, 1299"
+                      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                    />
+                  </Form.Group>
+                </Col>
 
-                  <Col md={6}>
-                    <Form.Group>
-                      <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Validity Duration (Months)</Form.Label>
-                      <Form.Control
-                        type="number"
-                        name="duration_months"
-                        value={currentPlan.duration_months || ''}
-                        onChange={handleInputChange}
-                        min="1"
-                        style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </Form.Group>
-                  </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Validity Duration (Months)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      name="duration_months"
+                      value={currentPlan.duration_months || ''}
+                      onChange={handleInputChange}
+                      min="1"
+                      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                    />
+                  </Form.Group>
+                </Col>
 
-                  <Col md={6}>
-                    <Form.Group>
-                      <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Max Staff / Employee Limit</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="users"
-                        value={currentPlan.users === 'Unlimited' ? '' : (currentPlan.users || '')}
-                        onChange={handleInputChange}
-                        placeholder="Leave empty or type 'Unlimited'"
-                        style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </Form.Group>
-                  </Col>
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Max Staff / Employee Limit</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="users"
+                      value={currentPlan.users === 'Unlimited' ? '' : (currentPlan.users || '')}
+                      onChange={handleInputChange}
+                      placeholder="Leave empty or type 'Unlimited'"
+                      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                    />
+                  </Form.Group>
+                </Col>
 
-                  <Col md={12}>
-                    <Form.Group>
-                      <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Plan Description</Form.Label>
-                      <Form.Control
-                        type="text"
-                        name="description"
-                        value={currentPlan.description || ''}
-                        onChange={handleInputChange}
-                        placeholder="e.g. Essential payroll for small teams"
-                        style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
-                      />
-                    </Form.Group>
-                  </Col>
+                <Col md={12}>
+                  <Form.Group>
+                    <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Plan Description</Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="description"
+                      value={currentPlan.description || ''}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Essential payroll for small teams"
+                      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                    />
+                  </Form.Group>
+                </Col>
 
-                  <Col md={12}>
-                    <Form.Group>
-                      <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Enabled Features List (One per line)</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        rows={3}
-                        name="featuresText"
-                        value={currentPlan.featuresText || ''}
-                        onChange={handleInputChange}
-                        placeholder="Automated Payroll & Salary Slip Generation&#10;PF, ESI & TDS Statutory Compliance Reports"
-                        style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '12px' }}
-                      />
-                    </Form.Group>
-                  </Col>
+                <Col md={12}>
+                  <Form.Group>
+                    <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Enabled Features List (One per line)</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={3}
+                      name="featuresText"
+                      value={currentPlan.featuresText || ''}
+                      onChange={handleInputChange}
+                      placeholder="Automated Payroll & Salary Slip Generation&#10;PF, ESI & TDS Statutory Compliance Reports"
+                      style={{ backgroundColor: '#FFFFFF', color: '#0F172A', borderColor: '#CBD5E1', borderRadius: '8px', fontSize: '12px' }}
+                    />
+                  </Form.Group>
+                </Col>
 
-                  <Col md={12}>
-                    <Form.Group>
-                      <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Plan Active Status</Form.Label>
-                      <Form.Check
-                        type="switch"
-                        id="plan-status-switch"
-                        label={currentPlan.status === 'Active' ? 'Active' : 'Inactive'}
-                        checked={currentPlan.status === 'Active'}
-                        onChange={handleStatusToggle}
-                        style={{ color: '#0F172A', fontWeight: 'bold' }}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Form>
-            </Modal.Body>
-            <Modal.Footer style={{ backgroundColor: '#F8FAFC', borderTop: '1px solid #E2E8F0', padding: isMobile ? '10px 16px' : '14px 24px' }}>
-              <Button variant="outline-secondary" onClick={handleCloseModal} style={{ borderRadius: '8px', fontSize: '13px' }}>
-                <FaTimes className="me-1" /> Cancel
-              </Button>
-              <Button onClick={handleSave} style={{ backgroundColor: '#C62828', borderColor: '#C62828', color: '#FFFFFF', borderRadius: '8px', fontWeight: '700', fontSize: '13px' }}>
-                <FaSave className="me-1" /> Save Plan Record
-              </Button>
-            </Modal.Footer>
-          </div>
+                <Col md={12}>
+                  <Form.Group>
+                    <Form.Label style={{ fontWeight: '700', fontSize: '12px', color: '#475569' }}>Plan Active Status</Form.Label>
+                    <Form.Check
+                      type="switch"
+                      id="plan-status-switch"
+                      label={currentPlan.status === 'Active' ? 'Active' : 'Inactive'}
+                      checked={currentPlan.status === 'Active'}
+                      onChange={handleStatusToggle}
+                      style={{ color: '#0F172A', fontWeight: 'bold' }}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Form>
+          </Modal.Body>
+          <Modal.Footer style={{ backgroundColor: '#F8FAFC', borderTop: '1px solid #E2E8F0', padding: isMobile ? '12px 16px' : '14px 24px', display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <Button variant="outline-secondary" onClick={handleCloseModal} style={{ borderRadius: '8px', fontSize: '13px', padding: '8px 16px' }}>
+              <FaTimes className="me-1" /> Cancel
+            </Button>
+            <Button onClick={handleSave} style={{ backgroundColor: '#C62828', borderColor: '#C62828', color: '#FFFFFF', borderRadius: '8px', fontWeight: '700', fontSize: '13px', padding: '8px 20px' }}>
+              <FaSave className="me-1" /> Save Plan Record
+            </Button>
+          </Modal.Footer>
         </Modal>
 
         {/* Floating WhatsApp Support */}

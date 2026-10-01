@@ -20,7 +20,7 @@ const axiosInstance = axios.create({
 // Add request interceptor to attach token
 axiosInstance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -372,6 +372,17 @@ export const publicAPI = {
     // Razorpay Online Checkout (Public / Registration)
     createRazorpayOrder: (data) => axiosInstance.post('payment/razorpay/create-order', data),
     verifyAndRegister: (data) => axiosInstance.post('payment/razorpay/verify-and-register', data),
+};
+
+// ==================== WHATSAPP CONNECTIVITY API ====================
+export const whatsappAPI = {
+    getStatus: () => axiosInstance.get('/admin/whatsapp/status'),
+    connect: (phoneNumber) => axiosInstance.post('/admin/whatsapp/connect', { phoneNumber }),
+    getPairingCode: (phoneNumber) => axiosInstance.post('/admin/whatsapp/pairing-code', { phoneNumber }),
+    disconnect: () => axiosInstance.post('/admin/whatsapp/disconnect'),
+    updatePreferences: (data) => axiosInstance.put('/admin/whatsapp/preferences', data),
+    sendTestMessage: (data) => axiosInstance.post('/admin/whatsapp/test', data),
+    getLogs: (limit = 50) => axiosInstance.get(`/admin/whatsapp/logs?limit=${limit}`),
 };
 
 export default axiosInstance;

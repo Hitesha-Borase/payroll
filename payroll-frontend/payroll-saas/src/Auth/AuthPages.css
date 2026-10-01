@@ -1,55 +1,119 @@
-/* Auth Pages (Login & Signup) - Spacing Fix */
+/* Auth Pages (Login & Signup) - Modern Responsive Styles */
 
-/* Ensure proper spacing and prevent sticking to edges */
-.container-fluid.min-vh-100 {
+.auth-container {
     min-height: 100vh;
     padding: 2rem 1rem !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    background-color: #F7EFE9;
 }
 
-/* Responsive adjustments */
+.auth-card {
+    border-radius: 1.5rem !important;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    background-color: #ffffff;
+    width: 100%;
+    margin: auto 0;
+}
+
+/* Auth Left Visual Column */
+.auth-image-col {
+    position: relative;
+    overflow: hidden;
+    min-height: 100%;
+    display: flex;
+    align-items: stretch;
+}
+
+.auth-image-col img {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-image-col:hover img {
+    transform: scale(1.03);
+}
+
+/* Auth Right Form Column */
+.auth-form-col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2.25rem 2.5rem;
+    box-sizing: border-box;
+}
+
+/* Form input styling */
+.auth-form-label {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.35rem;
+    display: block;
+}
+
+.auth-form-control {
+    font-family: inherit;
+    font-size: 0.88rem;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    transition: all 0.2s ease-in-out;
+    background-color: #FAFAFA;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.auth-form-control:focus {
+    background-color: #FFFFFF;
+    border-color: #C62828 !important;
+    box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12) !important;
+    outline: none;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 991px) {
+    .auth-form-col {
+        padding: 2rem 1.75rem;
+    }
+}
+
 @media (max-width: 768px) {
-    .container-fluid.min-vh-100 {
-        padding: 1.5rem 1rem !important;
+    .auth-container {
+        padding: 1.25rem 0.75rem !important;
+        justify-content: flex-start;
     }
 
-    /* Form section padding on mobile */
-    .card .col-md-6.p-4 {
-        padding: 2rem 1.5rem !important;
-    }
-}
-
-@media (max-width: 576px) {
-    .container-fluid.min-vh-100 {
-        padding: 1rem 0.75rem !important;
+    .auth-card {
+        border-radius: 1.25rem !important;
+        margin: 0;
     }
 
-    /* Smaller padding on very small screens */
-    .card .col-md-6.p-4 {
-        padding: 1.5rem 1rem !important;
+    .auth-form-col {
+        padding: 1.5rem 1.25rem;
     }
 }
 
-/* Ensure card doesn't overflow */
-.card {
-    max-height: 95vh;
-    overflow-y: auto;
-}
+@media (max-width: 480px) {
+    .auth-container {
+        padding: 0.75rem 0.5rem !important;
+    }
 
-/* Smooth scrolling for card content */
-.card::-webkit-scrollbar {
-    width: 6px;
-}
+    .auth-form-col {
+        padding: 1.25rem 1rem;
+    }
 
-.card::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
-}
-
-.card::-webkit-scrollbar-thumb {
-    background: #C62828;
-    border-radius: 10px;
-}
-
-.card::-webkit-scrollbar-thumb:hover {
-    background: #B71C1C;
+    .auth-form-control {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+    }
 }

@@ -288,7 +288,7 @@ const PayrollPricingSection = ({ onSelectPlan }) => {
                   {/* Price */}
                   <div className="d-flex align-items-baseline gap-1 mb-4 pb-3 border-bottom" style={{ borderColor: '#F1F5F9' }}>
                     <span className="display-6 fw-bold" style={{ fontSize: '2.1rem', color: '#0F172A', fontWeight: '900' }}>
-                      {plan.price}
+                      {edition?.prices?.[plan.id] || plan.price}
                     </span>
                     <span className="small font-medium" style={{ color: '#64748B', fontSize: '0.85rem' }}>{plan.period}</span>
                   </div>

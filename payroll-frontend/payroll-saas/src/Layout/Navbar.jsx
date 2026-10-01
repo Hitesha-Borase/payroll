@@ -1,18 +1,34 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaUserCircle, FaBars, FaSignOutAlt } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { FaUserCircle, FaBars, FaSignOutAlt, FaUser, FaHeadset, FaBookOpen } from "react-icons/fa";
+import { useNavigate, useLocation } from "react-router-dom";
 import toast from 'react-hot-toast';
 import { useAuth } from "../hooks/useAuth";
 import Profile from "../Profile/Profile";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import HowToUseModal from "../components/HowToUseModal";
 
 const Navbar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showHowToUse, setShowHowToUse] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const firstFocusableRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Load user profile from AuthContext
   useEffect(() => {
@@ -45,14 +61,15 @@ const Navbar = ({ toggleSidebar }) => {
 
     // Handle Escape key
     const handleEscape = (e) => {
-      if (e.key === 'Escape' && showProfileModal) {
-        setShowProfileModal(false);
+      if (e.key === 'Escape') {
+        if (showProfileModal) setShowProfileModal(false);
+        if (showDropdown) setShowDropdown(false);
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [showProfileModal]);
+  }, [showProfileModal, showDropdown]);
 
   const handleSaveProfile = async () => {
     setLoading(true);
@@ -124,12 +141,61 @@ const Navbar = ({ toggleSidebar }) => {
             background: transparent;
             cursor: pointer;
             transition: transform 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
           }
 
           .profile-icon-btn:hover {
-            transform: scale(1.1);
+            transform: scale(1.08);
           }
-           .nav-link-custom {
+
+          .profile-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 225px;
+            border-radius: 12px;
+            background-color: #FFFFFF;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+            border: 1px solid #E2E8F0;
+            z-index: 1060;
+            animation: fadeInScale 0.15s ease-out;
+            overflow: hidden;
+          }
+
+          @keyframes fadeInScale {
+            from {
+              opacity: 0;
+              transform: scale(0.95) translateY(-6px);
+            }
+            to {
+              opacity: 1;
+              transform: scale(1) translateY(0);
+            }
+          }
+
+          .profile-dropdown-item {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            padding: 9px 16px;
+            font-size: 0.84rem;
+            font-weight: 500;
+            color: #334155;
+            background: transparent;
+            border: none;
+            text-align: left;
+            transition: all 0.15s ease;
+            cursor: pointer;
+          }
+
+          .profile-dropdown-item:hover {
+            background-color: #FEF2F2;
+            color: #C62828;
+          }
+
+          .nav-link-custom {
             text-decoration: none;
             color: #4A4A4A;
             font-weight: 600;
@@ -210,42 +276,143 @@ const Navbar = ({ toggleSidebar }) => {
           <div className="d-flex align-items-center gap-2 gap-sm-3">
             <LanguageSwitcher />
 
-            <button
-              className="profile-icon-btn"
-              onClick={() => setShowProfileModal(true)}
-              aria-label="Open Profile"
-            >
-              <FaUserCircle size={28} color="#C62828" />
-            </button>
+            {/* Profile Icon with Dropdown */}
+            <div className="position-relative" ref={dropdownRef}>
+              <button
+                className="profile-icon-btn"
+                onClick={() => setShowDropdown(!showDropdown)}
+                aria-label="User Account Menu"
+                aria-expanded={showDropdown}
+              >
+                <FaUserCircle size={28} color="#C62828" />
+              </button>
 
-            <button
-              onClick={handleLogout}
-              className="btn d-flex align-items-center gap-1 gap-sm-2 logout-btn"
-              aria-label="Logout"
-            >
-              <FaSignOutAlt size={15} />
-              <span className="d-none d-sm-inline">Logout</span>
-            </button>
+              {showDropdown && (
+                <div className="profile-dropdown-menu">
+                  {/* User info header */}
+                  <div className="px-3 py-2.5 border-bottom bg-light">
+                    <div className="fw-bold text-truncate text-dark" style={{ fontSize: '0.88rem' }}>
+                      {user?.name || "User Account"}
+                    </div>
+                    <div className="text-muted small text-truncate" style={{ fontSize: '0.74rem' }}>
+                      {user?.email || ""}
+                    </div>
+                    <div className="mt-1">
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: '#FEF2F2',
+                          color: '#C62828',
+                          border: '1px solid #FECACA',
+                          fontSize: '0.68rem',
+                          fontWeight: 600,
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {user?.role ? user.role.toUpperCase() : 'USER'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Dropdown items */}
+                  <div className="py-1">
+                    <button
+                      className="profile-dropdown-item"
+                      onClick={() => {
+                        setShowDropdown(false);
+                        setShowProfileModal(true);
+                      }}
+                    >
+                      <FaUser className="me-2 text-danger" style={{ fontSize: '0.85rem' }} />
+                      <span>Profile</span>
+                    </button>
+
+                    <button
+                      className="profile-dropdown-item"
+                      onClick={() => {
+                        setShowDropdown(false);
+                        setShowHowToUse(true);
+                      }}
+                    >
+                      <FaBookOpen className="me-2 text-danger" style={{ fontSize: '0.85rem' }} />
+                      <div className="d-flex align-items-center justify-content-between w-100">
+                        <span>How to Use Guide</span>
+                        <span 
+                          className="badge ms-2"
+                          style={{ 
+                            backgroundColor: '#FEF2F2', 
+                            color: '#C62828', 
+                            border: '1px solid #FECACA', 
+                            fontSize: '0.62rem', 
+                            padding: '2px 5px' 
+                          }}
+                        >
+                          MANUAL
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      className="profile-dropdown-item"
+                      onClick={() => {
+                        setShowDropdown(false);
+                        const role = (user?.role || '').toLowerCase();
+                        if (role === 'superadmin') {
+                          navigate('/superadmin/support-tickets');
+                        } else {
+                          navigate('/admin/support-tickets');
+                        }
+                      }}
+                    >
+                      <FaHeadset className="me-2 text-danger" style={{ fontSize: '0.85rem' }} />
+                      <span>Support Tickets</span>
+                    </button>
+                  </div>
+
+                  <div className="border-top py-1">
+                    <button
+                      className="profile-dropdown-item text-danger"
+                      onClick={() => {
+                        setShowDropdown(false);
+                        handleLogout();
+                      }}
+                    >
+                      <FaSignOutAlt className="me-2" style={{ fontSize: '0.85rem' }} />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
+
+      {/* How to Use Interactive Guide Modal */}
+      <HowToUseModal
+        show={showHowToUse}
+        onClose={() => setShowHowToUse(false)}
+        userRole={user?.role}
+        currentPath={location.pathname}
+      />
 
       {showProfileModal && (
         <div
           className="modal fade show"
           tabIndex="-1"
-          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
+          style={{ display: "block", backgroundColor: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(3px)", zIndex: 1060 }}
           onClick={() => setShowProfileModal(false)}
         >
           <div
-            className="modal-dialog modal-lg modal-dialog-centered"
+            className="modal-dialog modal-dialog-centered modal-dialog-scrollable"
+            style={{ maxWidth: '680px', width: '95%', margin: '1.5rem auto' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-content">
-              <div className="modal-header border-0 pb-0">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+              <div className="modal-header border-0 pb-0 pt-3 px-3 px-sm-4 bg-light d-flex justify-content-end">
                 <button
                   type="button"
-                  className="btn-close"
+                  className="btn-close shadow-none"
                   onClick={() => setShowProfileModal(false)}
                   aria-label="Close"
                 ></button>
@@ -253,7 +420,6 @@ const Navbar = ({ toggleSidebar }) => {
 
               <div className="modal-body p-0">
                 <Profile onUpdate={(updated) => {
-                  // Optional: update local user context if needed
                   setShowProfileModal(false);
                 }} />
               </div>

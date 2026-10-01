@@ -132,5 +132,14 @@ router.get('/audit-logs', adminController.getAuditLogs);
 router.get('/audit-logs/stats', adminController.getAuditStats);
 router.get('/audit-logs/actions', adminController.getAuditActions);
 
+// WhatsApp Connectivity (Admin)
+const whatsappController = require('../controllers/whatsapp.controller');
+router.get('/whatsapp/status', whatsappController.getStatus);
+router.post('/whatsapp/connect', whatsappController.connect);
+router.post('/whatsapp/disconnect', whatsappController.disconnect);
+router.put('/whatsapp/preferences', whatsappController.updatePreferences);
+router.post('/whatsapp/test', whatsappController.sendTestMessage);
+router.get('/whatsapp/logs', whatsappController.getLogs);
+
 module.exports = router;
 

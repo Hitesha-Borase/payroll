@@ -64,7 +64,7 @@ const SubmitResume = () => {
   const containerStyle = {
     maxWidth: '800px',
     margin: '0 auto',
-    padding: '0 15px',
+    padding: windowWidth < 768 ? '10px 12px 80px 12px' : '0 15px 40px 15px',
   };
 
   const cardStyle = {
@@ -72,10 +72,8 @@ const SubmitResume = () => {
     border: `1px solid ${colors.lightGray}`,
     borderRadius: '12px',
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    marginBottom: '20px',
+    marginBottom: '30px',
     transition: 'transform 0.3s ease',
-    height: '100%',
-    overflow: 'hidden',
   };
 
   const headerStyle = {
@@ -570,17 +568,17 @@ const SubmitResume = () => {
                 </div>
               )}
 
-              <div className="d-flex justify-content-between">
+              <div className="d-flex flex-wrap gap-2 justify-content-between pt-3 border-top mt-4">
                 <Button
                   variant="secondary"
-                  onClick={() => navigate('/JobSeeker/dashboard')}
-                  style={{ fontSize: '13px' }}
+                  onClick={() => navigate(-1)}
+                  style={{ fontSize: '13px', padding: '8px 20px' }}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  style={buttonStyle}
+                  style={{ ...buttonStyle, padding: '8px 24px', flex: windowWidth < 500 ? 1 : 'none' }}
                   disabled={isSubmitting}
                   onMouseEnter={(e) => !isSubmitting && (e.target.style.backgroundColor = colors.darkRed)}
                   onMouseLeave={(e) => !isSubmitting && (e.target.style.backgroundColor = colors.primaryRed)}
