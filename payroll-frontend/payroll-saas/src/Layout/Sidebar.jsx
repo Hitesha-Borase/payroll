@@ -101,11 +101,6 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 name: "Support Tickets",
                 icon: faHeadset,
                 path: "/superadmin/support-tickets",
-            },
-            {
-                name: "Settings",
-                icon: faGear,
-                path: "/superadmin/settings",
             }
         ],
 
