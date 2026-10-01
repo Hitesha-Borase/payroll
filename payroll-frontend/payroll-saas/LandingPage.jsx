@@ -23,6 +23,7 @@ import SupportCenterModal from './src/components/SupportCenterModal';
 import ContactUsModal from './src/components/ContactUsModal';
 import LanguageSwitcher from './src/components/LanguageSwitcher';
 import PayrollPricingSection from './src/components/PayrollPricingSection';
+import Captcha from './src/components/Captcha';
 import { useRegional } from './src/context/RegionalContext';
 import ktLogo from './src/assets/kt_logo_transparent.png';
 
@@ -167,6 +168,7 @@ const LandingPage = () => {
 
     const [submissionStatus, setSubmissionStatus] = useState({ loading: false, error: null, success: false });
     const [paymentCompleted, setPaymentCompleted] = useState(false);
+    const signupCaptchaRef = useRef(null);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -228,6 +230,12 @@ const LandingPage = () => {
         if (signupData.password.length < 6) {
             toast.error("Password must be at least 6 characters.");
             setSubmissionStatus({ loading: false, error: "Password must be at least 6 characters.", success: false });
+            return;
+        }
+
+        // Security Verification CAPTCHA
+        if (signupCaptchaRef.current && !signupCaptchaRef.current.validate()) {
+            setSubmissionStatus({ loading: false, error: "Please enter the correct CAPTCHA verification code.", success: false });
             return;
         }
 
@@ -1600,6 +1608,9 @@ const LandingPage = () => {
                                         {selectedPlanDetails.id === 'trial' ? ' No credit card required for 7-day trial.' : ' Instant plan activation upon payment.'}
                                     </span>
                                 </div>
+
+                                {/* Security Verification CAPTCHA */}
+                                <Captcha ref={signupCaptchaRef} className="mb-3" />
 
                                 {/* Submit Button */}
                                 <button
