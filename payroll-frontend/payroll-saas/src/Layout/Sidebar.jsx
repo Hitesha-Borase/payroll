@@ -165,6 +165,11 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 icon: faHeadset,
                 path: "/admin/support-tickets",
             },
+            {
+                name: "Settings",
+                icon: faGear,
+                path: "/admin/settings",
+            },
         ],
 
         EMPLOYER: [

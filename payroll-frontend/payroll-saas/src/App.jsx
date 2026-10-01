@@ -27,6 +27,7 @@ import PaymentSetup from "./Dashboard/Admin/PaymentSetup";
 import AttendanceManagement from "./Dashboard/Admin/AttendanceManagement";
 import AdminTraining from "./Dashboard/Admin/AdminTraining";
 import UpgradePlan from "./Dashboard/Admin/UpgradePlan";
+import AdminSettings from "./Dashboard/Admin/AdminSettings";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsConditions from "./pages/TermsConditions";
 import Documentation from "./pages/Documentation";
@@ -194,6 +195,7 @@ function App() {
                                 <Route path="/admin/admin-training" element={<ProtectedRoute allowedRoles={['admin']}><AdminTraining /></ProtectedRoute>} />
                                 <Route path="/admin/upgrade-plan" element={<ProtectedRoute allowedRoles={['admin']}><UpgradePlan /></ProtectedRoute>} />
                                 <Route path="/admin/support-tickets" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><SuperAdminSupport /></ProtectedRoute>} />
+                                <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
 
 
                                 {/* ---------------- EMPLOYER ---------------- */}
