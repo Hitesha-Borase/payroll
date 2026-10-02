@@ -94,9 +94,15 @@ router.get('/audit-logs', superadminController.getAuditLogs);
 router.get('/audit-logs/stats', superadminController.getAuditStats);
 router.get('/audit-logs/actions', superadminController.getAuditActions);
 
+// SMTP / Email Gateway Configuration
+router.get('/smtp-config', superadminController.getSMTPConfig);
+router.put('/smtp-config', superadminController.updateSMTPConfig);
+router.post('/smtp-config/test', superadminController.testSMTPConfig);
+
 // Profile
 router.put('/profile', superadminController.updateProfile);
 router.get('/profile', superadminController.getProfile);
+
 
 // WhatsApp Connectivity (SuperAdmin)
 const whatsappController = require('../controllers/whatsapp.controller');

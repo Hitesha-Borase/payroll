@@ -291,6 +291,10 @@ export const superadminAPI = {
     getAuditLogs: (params) => axiosInstance.get('/superadmin/audit-logs', { params }),
     getAuditStats: () => axiosInstance.get('/superadmin/audit-logs/stats'),
     getAuditActions: () => axiosInstance.get('/superadmin/audit-logs/actions'),
+    // SMTP Configuration
+    getSMTPConfig: () => axiosInstance.get('/superadmin/smtp-config'),
+    updateSMTPConfig: (data) => axiosInstance.put('/superadmin/smtp-config', data),
+    testSMTPConfig: (data) => axiosInstance.post('/superadmin/smtp-config/test', data),
     // Backup & Recovery System
     getBackups: () => axiosInstance.get('/superadmin/backups'),
     createBackup: (data) => axiosInstance.post('/superadmin/backups/create', data),

@@ -1,19 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaUserCircle, FaBars, FaSignOutAlt, FaUser, FaHeadset, FaBookOpen } from "react-icons/fa";
+import { FaUserCircle, FaBars, FaSignOutAlt, FaUser, FaHeadset, FaBookOpen, FaGlobe, FaCheck, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import toast from 'react-hot-toast';
 import { useAuth } from "../hooks/useAuth";
+import { useRegional } from "../context/RegionalContext";
 import Profile from "../Profile/Profile";
-import LanguageSwitcher from "../components/LanguageSwitcher";
-import HowToUseModal from "../components/HowToUseModal";
 
 const Navbar = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { i18n } = useTranslation();
+  const { edition: currentEdition, changeEdition, editions } = useRegional();
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showHowToUse, setShowHowToUse] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const firstFocusableRef = useRef(null);
@@ -154,7 +156,7 @@ const Navbar = ({ toggleSidebar }) => {
             position: absolute;
             top: calc(100% + 8px);
             right: 0;
-            min-width: 225px;
+            min-width: 260px;
             border-radius: 12px;
             background-color: #FFFFFF;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
@@ -222,15 +224,37 @@ const Navbar = ({ toggleSidebar }) => {
             }
           }
 
+          .navbar-how-to-use-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background-color: #FFFFFF;
+            border: 1.5px solid #C62828;
+            color: #C62828;
+            border-radius: 12px;
+            padding: 6px 14px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(198, 40, 40, 0.08);
+            transition: all 0.2s ease;
+          }
+
+          .navbar-how-to-use-btn:hover {
+            background-color: #C62828;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+            transform: translateY(-1px);
+          }
+
+          .navbar-how-to-use-btn:active {
+            transform: translateY(0);
+          }
+
           @media (max-width: 576px) {
-            .navbar-brand-text {
-              display: none;
-            }
-            .navbar-toggle-btn {
-              padding: 0.35rem 0.45rem;
-            }
-            .logout-btn {
-              padding: 0.35rem 0.55rem;
+            .navbar-how-to-use-btn {
+              padding: 5px 8px;
+              font-size: 0.78rem;
             }
           }
         `}
@@ -274,7 +298,51 @@ const Navbar = ({ toggleSidebar }) => {
           </div>
 
           <div className="d-flex align-items-center gap-2 gap-sm-3">
-            <LanguageSwitcher />
+            {/* Header 'How to Use' Button */}
+            <button
+              type="button"
+              className="navbar-how-to-use-btn"
+              onClick={() => {
+                const curPath = (location.pathname || '').toLowerCase();
+                const role = (user?.role || localStorage.getItem('userRole') || '').toLowerCase();
+                
+                let target = '/admin/how-to-use';
+                if (curPath.includes('/superadmin') || role.includes('super')) {
+                  target = '/superadmin/how-to-use';
+                } else if (curPath.includes('/employer') || role.includes('employer')) {
+                  target = '/employer/how-to-use';
+                } else if (curPath.includes('/employee') || role.includes('employee')) {
+                  target = '/employee/how-to-use';
+                } else if (curPath.includes('/vendor') || role.includes('vendor')) {
+                  target = '/vendor/how-to-use';
+                } else if (curPath.includes('/job') || role.includes('job')) {
+                  target = '/job-portal/how-to-use';
+                }
+                navigate(target);
+              }}
+              title="How to Use this Dashboard"
+            >
+              <FaBookOpen size={14} />
+              <span>How to Use</span>
+            </button>
+
+            {/* Header 'Help Desk' Button next to How to Use */}
+            <button
+              type="button"
+              className="navbar-how-to-use-btn"
+              onClick={() => {
+                const role = (user?.role || localStorage.getItem('userRole') || '').toLowerCase();
+                if (role.includes('super')) {
+                  navigate('/superadmin/support-tickets');
+                } else {
+                  navigate('/admin/support-tickets');
+                }
+              }}
+              title="Open Help Desk / Support Tickets"
+            >
+              <FaHeadset size={14} />
+              <span>Help Desk</span>
+            </button>
 
             {/* Profile Icon with Dropdown */}
             <div className="position-relative" ref={dropdownRef}>
@@ -288,18 +356,19 @@ const Navbar = ({ toggleSidebar }) => {
               </button>
 
               {showDropdown && (
-                <div className="profile-dropdown-menu">
+                <div className="profile-dropdown-menu notranslate" translate="no">
                   {/* User info header */}
-                  <div className="px-3 py-2.5 border-bottom bg-light">
-                    <div className="fw-bold text-truncate text-dark" style={{ fontSize: '0.88rem' }}>
+                  <div className="px-3 py-2.5 border-bottom bg-light notranslate" translate="no">
+                    <div className="fw-bold text-truncate text-dark notranslate" translate="no" style={{ fontSize: '0.88rem' }}>
                       {user?.name || "User Account"}
                     </div>
-                    <div className="text-muted small text-truncate" style={{ fontSize: '0.74rem' }}>
+                    <div className="text-muted small text-truncate notranslate" translate="no" style={{ fontSize: '0.74rem' }}>
                       {user?.email || ""}
                     </div>
-                    <div className="mt-1">
+                    <div className="mt-1 notranslate" translate="no">
                       <span
-                        className="badge"
+                        className="badge notranslate"
+                        translate="no"
                         style={{
                           backgroundColor: '#FEF2F2',
                           color: '#C62828',
@@ -314,71 +383,112 @@ const Navbar = ({ toggleSidebar }) => {
                     </div>
                   </div>
 
-                  {/* Dropdown items */}
-                  <div className="py-1">
+                  {/* Language / Region Switcher Section inside Dropdown */}
+                  <div className="border-bottom py-1 notranslate" translate="no">
                     <button
-                      className="profile-dropdown-item"
+                      type="button"
+                      className="profile-dropdown-item d-flex justify-content-between align-items-center notranslate"
+                      translate="no"
+                      onClick={() => setShowLangMenu(!showLangMenu)}
+                      style={{ userSelect: 'none' }}
+                    >
+                      <div className="d-flex align-items-center notranslate" translate="no">
+                        <FaGlobe className="me-2 text-danger" style={{ fontSize: '0.85rem' }} />
+                        <span className="notranslate" translate="no">Language / Region</span>
+                      </div>
+                      <div className="d-flex align-items-center gap-1 text-muted small notranslate" translate="no">
+                        <span
+                          className="badge notranslate"
+                          translate="no"
+                          style={{
+                            backgroundColor: '#FEF2F2',
+                            color: '#C62828',
+                            border: '1px solid #FECACA',
+                            fontSize: '0.7rem',
+                            fontWeight: 700
+                          }}
+                        >
+                          {currentEdition?.code || 'IN'} ({currentEdition?.currency || '₹'})
+                        </span>
+                        {showLangMenu ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
+                      </div>
+                    </button>
+
+                    {showLangMenu && (
+                      <div className="bg-light px-2 py-1.5 border-top notranslate" translate="no" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {editions.map((ed) => {
+                          const isSelected = currentEdition?.id === ed.id;
+                          return (
+                            <button
+                              key={ed.id}
+                              type="button"
+                              translate="no"
+                              className="d-flex align-items-center justify-content-between w-100 border-0 py-1.5 px-2 rounded text-start mb-1 notranslate"
+                              style={{
+                                backgroundColor: isSelected ? '#FEF2F2' : 'transparent',
+                                color: isSelected ? '#C62828' : '#334155',
+                                fontSize: '0.8rem',
+                                fontWeight: isSelected ? 700 : 500,
+                                cursor: 'pointer',
+                                transition: 'background-color 0.15s'
+                              }}
+                              onClick={() => {
+                                changeEdition(ed);
+                                if (ed.lang) {
+                                  i18n.changeLanguage(ed.lang);
+                                }
+                              }}
+                            >
+                              <div className="d-flex align-items-center gap-2 notranslate" translate="no">
+                                <span
+                                  className="badge notranslate"
+                                  translate="no"
+                                  style={{
+                                    backgroundColor: isSelected ? '#C62828' : '#E2E8F0',
+                                    color: isSelected ? '#FFFFFF' : '#475569',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 800,
+                                    minWidth: '26px'
+                                  }}
+                                >
+                                  {ed.code}
+                                </span>
+                                <span className="notranslate" translate="no">{ed.label}</span>
+                              </div>
+                              {isSelected && <FaCheck size={12} color="#C62828" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dropdown items */}
+                  <div className="py-1 notranslate" translate="no">
+                    <button
+                      className="profile-dropdown-item notranslate"
+                      translate="no"
                       onClick={() => {
                         setShowDropdown(false);
                         setShowProfileModal(true);
                       }}
                     >
                       <FaUser className="me-2 text-danger" style={{ fontSize: '0.85rem' }} />
-                      <span>Profile</span>
-                    </button>
-
-                    <button
-                      className="profile-dropdown-item"
-                      onClick={() => {
-                        setShowDropdown(false);
-                        setShowHowToUse(true);
-                      }}
-                    >
-                      <FaBookOpen className="me-2 text-danger" style={{ fontSize: '0.85rem' }} />
-                      <div className="d-flex align-items-center justify-content-between w-100">
-                        <span>How to Use Guide</span>
-                        <span 
-                          className="badge ms-2"
-                          style={{ 
-                            backgroundColor: '#FEF2F2', 
-                            color: '#C62828', 
-                            border: '1px solid #FECACA', 
-                            fontSize: '0.62rem', 
-                            padding: '2px 5px' 
-                          }}
-                        >
-                          MANUAL
-                        </span>
-                      </div>
-                    </button>
-
-                    <button
-                      className="profile-dropdown-item"
-                      onClick={() => {
-                        setShowDropdown(false);
-                        const role = (user?.role || '').toLowerCase();
-                        if (role === 'superadmin') {
-                          navigate('/superadmin/support-tickets');
-                        } else {
-                          navigate('/admin/support-tickets');
-                        }
-                      }}
-                    >
-                      <FaHeadset className="me-2 text-danger" style={{ fontSize: '0.85rem' }} />
-                      <span>Support Tickets</span>
+                      <span className="notranslate" translate="no">Profile</span>
                     </button>
                   </div>
 
-                  <div className="border-top py-1">
+                  <div className="border-top py-1 notranslate" translate="no">
                     <button
-                      className="profile-dropdown-item text-danger"
+                      className="profile-dropdown-item text-danger notranslate"
+                      translate="no"
                       onClick={() => {
                         setShowDropdown(false);
                         handleLogout();
                       }}
                     >
                       <FaSignOutAlt className="me-2" style={{ fontSize: '0.85rem' }} />
-                      <span>Logout</span>
+                      <span className="notranslate" translate="no">Logout</span>
                     </button>
                   </div>
                 </div>
@@ -387,14 +497,6 @@ const Navbar = ({ toggleSidebar }) => {
           </div>
         </div>
       </nav>
-
-      {/* How to Use Interactive Guide Modal */}
-      <HowToUseModal
-        show={showHowToUse}
-        onClose={() => setShowHowToUse(false)}
-        userRole={user?.role}
-        currentPath={location.pathname}
-      />
 
       {showProfileModal && (
         <div

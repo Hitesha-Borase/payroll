@@ -24,6 +24,7 @@ import {
     faGear,
     faHeadset,
     faDatabase,
+    faEnvelope,
     faSignOutAlt
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "../hooks/useAuth";
@@ -109,6 +110,11 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 name: "Payments & Subscriptions",
                 icon: faWallet,
                 path: "/superadmin/payments-subscriptions",
+            },
+            {
+                name: "SMTP Config",
+                icon: faEnvelope,
+                path: "/superadmin/smtp-config",
             }
         ],
 

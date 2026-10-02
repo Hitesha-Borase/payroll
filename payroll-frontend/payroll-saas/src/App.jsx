@@ -72,12 +72,14 @@ import CompanyManagement from "./Dashboard/SuperAdmin/CompanyManagement";
 import PaymentsSubscriptions from "./Dashboard/SuperAdmin/PaymentsSubscriptions";
 
 import Settings from "./Dashboard/SuperAdmin/Settings";
+import SMTPConfig from "./Dashboard/SuperAdmin/SMTPConfig";
 import CompanyRequests from "./Dashboard/SuperAdmin/CompanyRequests";
 import UserRequests from "./Dashboard/SuperAdmin/UserRequests";
 import SuperAdminSupport from "./Dashboard/SuperAdmin/SuperAdminSupport";
 import AdminManagement from "./Dashboard/SuperAdmin/AdminManagement";
 import SystemBackup from "./Dashboard/Admin/SystemBackup";
 import AdminAuditLogs from "./Dashboard/Admin/AdminAuditLogs";
+import HowToUsePage from "./pages/HowToUsePage";
 
 // PWA Install Prompt & Splash Screen
 import PWAInstallPrompt from "./PWA/PWAInstallPrompt";
@@ -178,7 +180,9 @@ function App() {
                                 <Route path="/superadmin/payments-subscriptions" element={<ProtectedRoute allowedRoles={['superadmin']}><PaymentsSubscriptions /></ProtectedRoute>} />
                                 <Route path="/superadmin/support-tickets" element={<ProtectedRoute allowedRoles={['superadmin']}><SuperAdminSupport /></ProtectedRoute>} />
                                 <Route path="/superadmin/settings" element={<ProtectedRoute allowedRoles={['superadmin']}><Settings /></ProtectedRoute>} />
+                                <Route path="/superadmin/smtp-config" element={<ProtectedRoute allowedRoles={['superadmin']}><SMTPConfig /></ProtectedRoute>} />
                                 <Route path="/superadmin/backups" element={<ProtectedRoute allowedRoles={['superadmin', 'admin']}><SystemBackup /></ProtectedRoute>} />
+                                <Route path="/superadmin/how-to-use" element={<ProtectedRoute allowedRoles={['superadmin', 'admin']}><HowToUsePage /></ProtectedRoute>} />
 
 
                                 {/* ---------------- ADMIN ---------------- */}
@@ -196,6 +200,7 @@ function App() {
                                 <Route path="/admin/upgrade-plan" element={<ProtectedRoute allowedRoles={['admin']}><UpgradePlan /></ProtectedRoute>} />
                                 <Route path="/admin/support-tickets" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><SuperAdminSupport /></ProtectedRoute>} />
                                 <Route path="/admin/settings" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><AdminSettings /></ProtectedRoute>} />
+                                <Route path="/admin/how-to-use" element={<ProtectedRoute allowedRoles={['admin', 'superadmin']}><HowToUsePage /></ProtectedRoute>} />
 
 
                                 {/* ---------------- EMPLOYER ---------------- */}
@@ -207,6 +212,7 @@ function App() {
                                 <Route path="/employer/job-vacancies" element={<ProtectedRoute allowedRoles={['employer']}><JobVacancies /></ProtectedRoute>} />
                                 <Route path="/employer/employer-attendance" element={<ProtectedRoute allowedRoles={['employer']}><EmployerAttendance /></ProtectedRoute>} />
                                 <Route path="/employer/employer-training" element={<ProtectedRoute allowedRoles={['employer']}><EmployerTraining /></ProtectedRoute>} />
+                                <Route path="/employer/how-to-use" element={<ProtectedRoute allowedRoles={['employer', 'admin', 'superadmin']}><HowToUsePage /></ProtectedRoute>} />
 
 
                                 {/* ---------------- EMPLOYEE ---------------- */}
@@ -218,16 +224,19 @@ function App() {
                                 <Route path="/employee/check-in" element={<ProtectedRoute allowedRoles={['employee']}><CheckInOut /></ProtectedRoute>} />
                                 <Route path="/employee/bank-details" element={<ProtectedRoute allowedRoles={['employee']}><MonthlySalary /></ProtectedRoute>} />
                                 <Route path="/employee/job-application" element={<ProtectedRoute allowedRoles={['employee']}><JobApplication /></ProtectedRoute>} />
+                                <Route path="/employee/how-to-use" element={<ProtectedRoute allowedRoles={['employee', 'admin', 'superadmin']}><HowToUsePage /></ProtectedRoute>} />
 
                                 {/* ---------------- JOB PORTAL ---------------- */}
                                 <Route path="/job-portal/dashboard" element={<ProtectedRoute allowedRoles={['jobseeker', 'admin', 'superadmin', 'employer', 'employee']}><JobDashboard /></ProtectedRoute>} />
-                                <Route path="/job-portal/profile" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin']}><UserProfilePage /></ProtectedRoute>} />
+                                <Route path="/job-portal/profile" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin', 'superadmin']}><UserProfilePage /></ProtectedRoute>} />
                                 <Route path="/job-portal/job-list" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin', 'superadmin']}><JobList /></ProtectedRoute>} />
-                                <Route path="/job-portal/submit-resume" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin']}><SubmitResume /></ProtectedRoute>} />
+                                <Route path="/job-portal/submit-resume" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin', 'superadmin']}><SubmitResume /></ProtectedRoute>} />
+                                <Route path="/job-portal/how-to-use" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin', 'superadmin']}><HowToUsePage /></ProtectedRoute>} />
 
                                 {/* ---------------- VENDOR ---------------- */}
-                                <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={['vendor']}><VendorDashboard /></ProtectedRoute>} />
-                                <Route path="/vendor/payments" element={<ProtectedRoute allowedRoles={['vendor']}><VendorPayments /></ProtectedRoute>} />
+                                <Route path="/vendor/dashboard" element={<ProtectedRoute allowedRoles={['vendor', 'admin', 'superadmin']}><VendorDashboard /></ProtectedRoute>} />
+                                <Route path="/vendor/payments" element={<ProtectedRoute allowedRoles={['vendor', 'admin', 'superadmin']}><VendorPayments /></ProtectedRoute>} />
+                                <Route path="/vendor/how-to-use" element={<ProtectedRoute allowedRoles={['vendor', 'admin', 'superadmin']}><HowToUsePage /></ProtectedRoute>} />
 
                                 {/* ---------------- SYSTEM / 403 ---------------- */}
                                 <Route path="/unauthorized" element={<Unauthorized />} />
