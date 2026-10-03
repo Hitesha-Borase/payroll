@@ -7,6 +7,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, ArcElement,
 import { useAuth } from "../../hooks/useAuth";
 import { useFetchAdminProfile } from "../../hooks/useAPI";
 import { adminAPI } from "../../services/api";
+import { useRegional } from "../../context/RegionalContext";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, ArcElement);
 
@@ -24,6 +25,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { profile, loading: profileLoading } = useFetchAdminProfile();
+  const { formatCurrency } = useRegional();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -97,14 +99,6 @@ const AdminDashboard = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   const lineData = {

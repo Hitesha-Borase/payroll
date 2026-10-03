@@ -10,6 +10,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, ArcElement,
 import { useAuth } from "../../hooks/useAuth";
 import { useFetchEmployerProfile } from "../../hooks/useAPI";
 import { employerAPI } from "../../services/api";
+import { useRegional } from "../../context/RegionalContext";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, ArcElement);
 
@@ -27,6 +28,7 @@ const EmployerDashboard = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { profile, loading: profileLoading } = useFetchEmployerProfile();
+  const { formatCurrency } = useRegional();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -95,14 +97,6 @@ const EmployerDashboard = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   const formatDate = (dateString) => {

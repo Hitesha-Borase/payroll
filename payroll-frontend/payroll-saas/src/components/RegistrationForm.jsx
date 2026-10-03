@@ -6,6 +6,7 @@ import emailjs from '@emailjs/browser';
 import Captcha from './Captcha';
 import '../../LandingPage.css';
 import { publicAPI } from '../services/api';
+import { useRegional } from '../context/RegionalContext';
 
 // ========== EMAIL NOTIFICATION CONFIGURATION ==========
 // Set to true to send email notifications, false to disable
@@ -16,16 +17,56 @@ const RegistrationForm = () => {
     const navigate = useNavigate();
     const { type } = useParams();
     const currentType = type || 'employers';
+    const { convertAmount, currencyCode } = useRegional();
+    
+    // Check if we are in plan checkout mode
+    const searchParams = new URLSearchParams(window.location.search);
+    const planParam = searchParams.get('plan');
+    const isPlanCheckout = !!planParam;
+
     const [formData, setFormData] = useState({
         name: '',
         address: '',
         city: '',
         state: '',
         country: '',
-        mobile: ''
+        mobile: '',
+        // For plan checkout
+        email: '',
+        password: '',
+        company_name: ''
     });
     const [submitted, setSubmitted] = useState(false);
+    const [plans, setPlans] = useState([]);
+    const [activePlan, setActivePlan] = useState(null);
     const captchaRef = useRef(null);
+
+    React.useEffect(() => {
+        if (isPlanCheckout) {
+            fetchPlans();
+        }
+    }, [isPlanCheckout]);
+
+    const fetchPlans = async () => {
+        try {
+            const res = await publicAPI.getActivePlans();
+            if (res?.data?.success) {
+                const fetchedPlans = res.data.data;
+                setPlans(fetchedPlans);
+                // Map string plan param to actual plan
+                let matchedPlan = null;
+                if (planParam === 'starter') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('starter'));
+                else if (planParam === 'pro') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('pro'));
+                else if (planParam === 'premium') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('premium'));
+                else if (planParam === 'trial') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('trial') || p.price == 0);
+                
+                if (matchedPlan) setActivePlan(matchedPlan);
+                else setActivePlan(fetchedPlans[0]); // fallback
+            }
+        } catch (error) {
+            console.error("Failed to fetch plans", error);
+        }
+    };
 
     // Security Check: Block Admin Registration
     if (currentType === 'admin') {
@@ -71,49 +112,136 @@ const RegistrationForm = () => {
         e.preventDefault();
         setError(null);
 
-        // Security Verification CAPTCHA
         if (captchaRef.current && !captchaRef.current.validate()) {
             return;
         }
 
         setLoading(true);
 
-        try {
-            // Step 1: Save to backend database
-            await publicAPI.createRequest({
-                ...formData,
-                request_type: currentType
-            });
-
-            // Step 2: Send email notification if enabled
-            if (SEND_EMAIL_NOTIFICATION) {
-                try {
-                    const SERVICE_ID = 'service_ebslx2i';
-                    const TEMPLATE_ID = 'template_y5xlrd7';
-                    const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
-
-                    const templateParams = {
-                        to_email: 'info@kiaantechnology.com',
-                        user_name: formData.name,
-                        user_email: formData.mobile, // Using mobile as user_email field
-                        message: `New ${typeLabels[currentType] || 'Registration'} registration request received.\n\nDetails:\nAddress: ${formData.address}\nCity: ${formData.city}\nState: ${formData.state}\nCountry: ${formData.country}\nMobile: ${formData.mobile}`,
-                        source: `${typeLabels[currentType] || 'Registration'} Registration Form`
-                    };
-
-                    await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-                    console.log('Email notification sent successfully');
-                } catch (emailError) {
-                    console.error('Email notification failed:', emailError);
-                    // Don't throw error - registration was successful, email is just a notification
-                }
+        if (isPlanCheckout) {
+            if (!activePlan) {
+                setError("No valid plan selected.");
+                setLoading(false);
+                return;
             }
 
-            setSubmitted(true);
-        } catch (err) {
-            console.error(err);
-            setError(err.response?.data?.message || 'Something went wrong. Please try again.');
-        } finally {
-            setLoading(false);
+            try {
+                // 1. Create Order
+                const convertedAmount = convertAmount(activePlan.price, 'INR', currencyCode);
+                const orderRes = await publicAPI.createRazorpayOrder({ 
+                    plan_id: activePlan.id,
+                    amount: convertedAmount,
+                    currency: currencyCode 
+                });
+                if (!orderRes?.data?.success) throw new Error("Failed to create order");
+                
+                const { order_id, key_id, amount, currency, plan_name } = orderRes.data.data;
+                
+                const options = {
+                    key: key_id,
+                    amount: amount,
+                    currency: currency,
+                    name: 'Payroll',
+                    description: `${plan_name} SaaS Subscription`,
+                    image: '/kiaan_logo.png',
+                    order_id: order_id,
+                    handler: async function (response) {
+                        try {
+                            setLoading(true);
+                            const verifyRes = await publicAPI.verifyAndRegister({
+                                name: formData.name,
+                                email: formData.email,
+                                password: formData.password,
+                                company_name: formData.company_name,
+                                phone: formData.mobile,
+                                plan_id: activePlan.id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id
+                            });
+                            
+                            if (verifyRes?.data?.success) {
+                                setSubmitted(true);
+                            } else {
+                                setError(verifyRes?.data?.message || 'Payment verification failed.');
+                            }
+                        } catch (err) {
+                            setError(err.response?.data?.message || 'Verification failed.');
+                        } finally {
+                            setLoading(false);
+                        }
+                    },
+                    prefill: {
+                        name: formData.name,
+                        email: formData.email,
+                        contact: formData.mobile
+                    },
+                    theme: { color: '#C62828' }
+                };
+
+                if (window.Razorpay) {
+                    const rzp = new window.Razorpay(options);
+                    rzp.on('payment.failed', function (response){
+                        setError("Payment failed: " + response.error.description);
+                    });
+                    rzp.open();
+                } else {
+                    // Fallback test
+                    const verifyRes = await publicAPI.verifyAndRegister({
+                        name: formData.name,
+                        email: formData.email,
+                        password: formData.password,
+                        company_name: formData.company_name,
+                        phone: formData.mobile,
+                        plan_id: activePlan.id,
+                        razorpay_order_id: order_id,
+                        razorpay_payment_id: `pay_${Date.now()}_test`
+                    });
+                    if (verifyRes?.data?.success) {
+                        setSubmitted(true);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                setError(err.response?.data?.message || err.message || 'Payment initiation failed.');
+            } finally {
+                setLoading(false);
+            }
+
+        } else {
+            // STANDARD REGISTRATION
+            try {
+                await publicAPI.createRequest({
+                    ...formData,
+                    request_type: currentType
+                });
+
+                if (SEND_EMAIL_NOTIFICATION) {
+                    try {
+                        const SERVICE_ID = 'service_ebslx2i';
+                        const TEMPLATE_ID = 'template_y5xlrd7';
+                        const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
+
+                        const templateParams = {
+                            to_email: 'info@kiaantechnology.com',
+                            user_name: formData.name,
+                            user_email: formData.mobile,
+                            message: `New ${typeLabels[currentType] || 'Registration'} registration request received.\n\nDetails:\nAddress: ${formData.address}\nCity: ${formData.city}\nState: ${formData.state}\nCountry: ${formData.country}\nMobile: ${formData.mobile}`,
+                            source: `${typeLabels[currentType] || 'Registration'} Registration Form`
+                        };
+
+                        await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+                    } catch (emailError) {
+                        console.error('Email notification failed:', emailError);
+                    }
+                }
+
+                setSubmitted(true);
+            } catch (err) {
+                console.error(err);
+                setError(err.response?.data?.message || 'Something went wrong. Please try again.');
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -136,7 +264,11 @@ const RegistrationForm = () => {
                 >
                     <Card className="shadow-lg border-0" style={{ maxWidth: '600px', margin: '0 auto' }}>
                         <Card.Header className="bg-primary text-white text-center py-4">
-                            <h2 className="mb-0">{typeLabels[currentType] || 'Registration'} Form</h2>
+                            <h2 className="mb-0">
+                                {isPlanCheckout 
+                                    ? `Subscribe to ${activePlan ? activePlan.name : 'Plan'}` 
+                                    : `${typeLabels[currentType] || 'Registration'} Form`}
+                            </h2>
                         </Card.Header>
                         <Card.Body className="p-5">
                             {submitted ? (
@@ -168,83 +300,118 @@ const RegistrationForm = () => {
                                             {error}
                                         </Alert>
                                     )}
-                                    <Form.Group className="mb-4">
-                                        <Form.Label className="fw-semibold">Name <span className="text-danger">*</span></Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            name="name"
-                                            value={formData.name}
-                                            onChange={handleChange}
-                                            required
-                                            placeholder="Enter your full name"
-                                            size="lg"
-                                        />
-                                    </Form.Group>
 
-                                    <Form.Group className="mb-4">
-                                        <Form.Label className="fw-semibold">Address <span className="text-danger">*</span></Form.Label>
-                                        <Form.Control
-                                            as="textarea"
-                                            rows={3}
-                                            name="address"
-                                            value={formData.address}
-                                            onChange={handleChange}
-                                            required
-                                            placeholder="Enter your address"
-                                        />
-                                    </Form.Group>
+                                    {isPlanCheckout && activePlan && (
+                                        <Alert variant="info" className="mb-4 text-center">
+                                            <h5>{activePlan.name} Plan</h5>
+                                            <p className="mb-0 fw-bold fs-5">₹ {activePlan.price} <span className="fs-6 fw-normal">/ {activePlan.duration_months} Month(s)</span></p>
+                                        </Alert>
+                                    )}
 
-                                    <Form.Group className="mb-4">
-                                        <Form.Label className="fw-semibold">City <span className="text-danger">*</span></Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            name="city"
-                                            value={formData.city}
-                                            onChange={handleChange}
-                                            required
-                                            placeholder="Enter your city"
-                                            size="lg"
-                                        />
-                                    </Form.Group>
+                                    {isPlanCheckout ? (
+                                        <>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Company Name <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control type="text" name="company_name" value={formData.company_name} onChange={handleChange} required placeholder="Enter Company Name" size="lg" />
+                                            </Form.Group>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Contact Person Name <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="Enter your full name" size="lg" />
+                                            </Form.Group>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Email Address <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="name@company.com" size="lg" />
+                                            </Form.Group>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Password <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="Create a password" size="lg" minLength="6" />
+                                            </Form.Group>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Mobile No <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control type="tel" name="mobile" value={formData.mobile} onChange={handleChange} required placeholder="Enter your mobile number" size="lg" />
+                                            </Form.Group>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Name <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="name"
+                                                    value={formData.name}
+                                                    onChange={handleChange}
+                                                    required
+                                                    placeholder="Enter your full name"
+                                                    size="lg"
+                                                />
+                                            </Form.Group>
 
-                                    <Form.Group className="mb-4">
-                                        <Form.Label className="fw-semibold">State <span className="text-danger">*</span></Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            name="state"
-                                            value={formData.state}
-                                            onChange={handleChange}
-                                            required
-                                            placeholder="Enter your state"
-                                            size="lg"
-                                        />
-                                    </Form.Group>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Address <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control
+                                                    as="textarea"
+                                                    rows={3}
+                                                    name="address"
+                                                    value={formData.address}
+                                                    onChange={handleChange}
+                                                    required
+                                                    placeholder="Enter your address"
+                                                />
+                                            </Form.Group>
 
-                                    <Form.Group className="mb-4">
-                                        <Form.Label className="fw-semibold">Country <span className="text-danger">*</span></Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            name="country"
-                                            value={formData.country}
-                                            onChange={handleChange}
-                                            required
-                                            placeholder="Enter your country"
-                                            size="lg"
-                                        />
-                                    </Form.Group>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">City <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="city"
+                                                    value={formData.city}
+                                                    onChange={handleChange}
+                                                    required
+                                                    placeholder="Enter your city"
+                                                    size="lg"
+                                                />
+                                            </Form.Group>
 
-                                    <Form.Group className="mb-4">
-                                        <Form.Label className="fw-semibold">Mobile No <span className="text-danger">*</span></Form.Label>
-                                        <Form.Control
-                                            type="tel"
-                                            name="mobile"
-                                            value={formData.mobile}
-                                            onChange={handleChange}
-                                            required
-                                            placeholder="Enter your mobile number"
-                                            size="lg"
-                                        />
-                                    </Form.Group>
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">State <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="state"
+                                                    value={formData.state}
+                                                    onChange={handleChange}
+                                                    required
+                                                    placeholder="Enter your state"
+                                                    size="lg"
+                                                />
+                                            </Form.Group>
+
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Country <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control
+                                                    type="text"
+                                                    name="country"
+                                                    value={formData.country}
+                                                    onChange={handleChange}
+                                                    required
+                                                    placeholder="Enter your country"
+                                                    size="lg"
+                                                />
+                                            </Form.Group>
+
+                                            <Form.Group className="mb-4">
+                                                <Form.Label className="fw-semibold">Mobile No <span className="text-danger">*</span></Form.Label>
+                                                <Form.Control
+                                                    type="tel"
+                                                    name="mobile"
+                                                    value={formData.mobile}
+                                                    onChange={handleChange}
+                                                    required
+                                                    placeholder="Enter your mobile number"
+                                                    size="lg"
+                                                />
+                                            </Form.Group>
+                                        </>
+                                    )}
 
                                     {/* Security Verification CAPTCHA */}
                                     <Captcha ref={captchaRef} className="mb-4" />
@@ -257,7 +424,7 @@ const RegistrationForm = () => {
                                             className="fw-semibold"
                                             disabled={loading}
                                         >
-                                            {loading ? 'Submitting...' : 'Submit Registration'}
+                                            {loading ? 'Processing...' : (isPlanCheckout ? 'Proceed to Payment' : 'Submit Registration')}
                                         </Button>
                                         <Button
                                             variant="outline-secondary"

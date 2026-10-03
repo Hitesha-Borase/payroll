@@ -7,35 +7,51 @@ import {
   QrCode, Smartphone, RefreshCw, Power, CheckCircle, XCircle, LogOut, PhoneCall,
   Users, User, History, CheckSquare, Clock, Filter, Sparkles, SendHorizontal
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import emailjs from '@emailjs/browser';
-import { whatsappAPI, adminAPI } from '../../services/api';
+import { whatsappAPI, adminAPI, publicAPI } from '../../services/api';
+import { loadRazorpayScript } from '../../utils/razorpay';
+import { useRegional } from '../../context/RegionalContext';
 import './AdminSettings.css';
 
 const AdminSettings = () => {
+  const navigate = useNavigate();
+  const { formatCurrency, currencyCode, convertAmount } = useRegional();
   const [activeTab, setActiveTab] = useState('smtp');
+  const [smtpProvider, setSmtpProvider] = useState('gmail');
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
 
   // 1. Email SMTP Settings State (Empty by default without prefilled hardcoded emails)
-  const [smtpForm, setSmtpForm] = useState(() => {
-    const saved = localStorage.getItem('company_smtp_settings');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {}
-    }
-    return {
-      host: 'smtp.gmail.com',
-      port: '587',
-      username: '',
-      password: '',
-      senderEmail: '',
-      senderName: '',
-      status: true
-    };
+  const [smtpForm, setSmtpForm] = useState({
+    host: 'smtp.gmail.com',
+    port: '587',
+    username: '',
+    password: '',
+    senderEmail: '',
+    senderName: '',
+    status: true
   });
+
+  useEffect(() => {
+    const loadSmtpSettings = async () => {
+      try {
+        const res = await adminAPI.getSystemSetting('smtp_settings');
+        if (res?.data?.success && res.data.data) {
+          setSmtpForm(res.data.data);
+        } else {
+          // Fallback to localStorage if no backend data
+          const saved = localStorage.getItem('company_smtp_settings');
+          if (saved) setSmtpForm(JSON.parse(saved));
+        }
+      } catch (err) {
+        console.warn('Failed to load SMTP settings from backend');
+      }
+    };
+    loadSmtpSettings();
+  }, []);
 
   // 2. Business Profile State
   const [businessProfile, setBusinessProfile] = useState(() => {
@@ -89,6 +105,107 @@ const AdminSettings = () => {
   const [pairingCode, setPairingCode] = useState('');
   const [isGettingPairingCode, setIsGettingPairingCode] = useState(false);
 
+  // Billing & Subscription State
+  const [currentSub, setCurrentSub] = useState(null);
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [availablePlans, setAvailablePlans] = useState([]);
+  const [isBillingLoading, setIsBillingLoading] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  const fetchBillingData = async () => {
+    setIsBillingLoading(true);
+    try {
+      const [subRes, payRes, plansRes] = await Promise.all([
+        adminAPI.getMySubscription(),
+        adminAPI.getMyPayments(),
+        publicAPI.getActivePlans()
+      ]);
+      if (subRes?.data?.success && subRes.data.data) {
+        setCurrentSub(subRes.data.data);
+      }
+      if (payRes?.data?.success && Array.isArray(payRes.data.data)) {
+        setPaymentHistory(payRes.data.data);
+      }
+      if (plansRes?.data?.success && Array.isArray(plansRes.data.data)) {
+        setAvailablePlans(plansRes.data.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch billing data', err);
+    } finally {
+      setIsBillingLoading(false);
+    }
+  };
+
+  const handleRenewPlan = async (planKeyword) => {
+    const plan = availablePlans.find(p => p.name.toLowerCase().includes(planKeyword.toLowerCase()));
+    if (!plan) {
+      toast.error(`Plan data not available yet. Please wait or refresh.`);
+      return;
+    }
+    
+    setIsProcessingPayment(true);
+    const toastId = toast.loading('Initiating secure payment gateway...');
+    try {
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded) {
+        toast.error('Failed to load Razorpay SDK. Check network.', { id: toastId });
+        return;
+      }
+
+      const orderRes = await adminAPI.createRazorpayOrder({ plan_id: plan.id });
+      if (!orderRes?.data?.success) throw new Error(orderRes?.data?.message || 'Failed to generate order.');
+      
+      toast.dismiss(toastId);
+      const { order_id, key_id, amount, currency, plan_name } = orderRes.data.data;
+      
+      const options = {
+        key: key_id,
+        amount: amount,
+        currency: currency,
+        name: 'Payroll',
+        description: `${plan_name} SaaS Subscription`,
+        order_id: order_id,
+        handler: async function (response) {
+          try {
+            toast.loading('Verifying payment & activating plan...');
+            const verifyRes = await adminAPI.verifyRazorpayPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              plan_id: plan.id
+            });
+            toast.dismiss();
+            if (verifyRes?.data?.success) {
+              toast.success('Subscription Payment Verified & Activated!');
+              fetchBillingData(); // refresh table and sub
+            } else {
+              toast.error('Payment verification failed.');
+            }
+          } catch (err) {
+            toast.dismiss();
+            toast.error('Payment verification failed.');
+          }
+        },
+        prefill: {
+          name: localStorage.getItem('userName') || 'HR Admin',
+          email: localStorage.getItem('userEmail') || 'admin@company.com',
+          contact: '9999999999'
+        },
+        theme: {
+          color: '#3b82f6'
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Payment initiation failed.', { id: toastId });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   // Fetch WhatsApp Status & Logs
   const fetchWhatsAppStatus = async () => {
     try {
@@ -133,6 +250,9 @@ const AdminSettings = () => {
     if (activeTab === 'whatsapp') {
       fetchWhatsAppStatus();
       fetchWhatsAppLogs();
+    }
+    if (activeTab === 'billing') {
+      fetchBillingData();
     }
   }, [activeTab]);
 
@@ -637,8 +757,8 @@ const AdminSettings = () => {
 
   // Test SMTP Connection
   const handleTestConnection = async () => {
-    if (!smtpForm.username || !smtpForm.username.includes('@')) {
-      toast.error('Please enter a valid SMTP Username / Email to test connection.');
+    if (!smtpForm.host || !smtpForm.username || !smtpForm.password) {
+      toast.error('Please enter Host, Username, and Password to test connection.');
       return;
     }
 
@@ -646,45 +766,43 @@ const AdminSettings = () => {
     const toastId = toast.loading(`Testing SMTP connection to ${smtpForm.host}:${smtpForm.port}...`);
 
     try {
-      // Send a test ping email via EmailJS or backend test endpoint
-      const SERVICE_ID = 'service_ebslx2i';
-      const TEMPLATE_ID = 'template_y5xlrd7';
-      const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
-
-      await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
-        to_email: smtpForm.username.trim(),
-        user_name: smtpForm.senderName || 'Administrator',
-        user_email: smtpForm.username.trim(),
-        message: `Kiaan Technology SMTP Connection Test Successful!\nHost: ${smtpForm.host}\nPort: ${smtpForm.port}\nSender: ${smtpForm.senderName || 'HR Department'}\nStatus: Verified`,
-        source: 'SMTP Settings Test'
-      }, PUBLIC_KEY).catch(() => {});
-
-      toast.success(`Connection test successful! Verified ping sent to ${smtpForm.username}.`, { id: toastId });
+      const res = await adminAPI.testSmtpConnection({
+        host: smtpForm.host,
+        port: smtpForm.port,
+        username: smtpForm.username,
+        password: smtpForm.password
+      });
+      
+      if (res?.data?.success) {
+        toast.success(`Connection test successful! Valid credentials.`, { id: toastId });
+      } else {
+        toast.error('SMTP Connection test failed. Check your credentials.', { id: toastId });
+      }
     } catch (err) {
-      console.error(err);
-      toast.error('SMTP Connection test failed. Please verify your host and App Password.', { id: toastId });
+      toast.error(err.response?.data?.message || 'SMTP Connection test failed. Please verify your host and password.', { id: toastId });
     } finally {
       setIsTesting(false);
     }
   };
 
   // Save SMTP Settings
-  const handleSaveSmtpSettings = () => {
+  const handleSaveSmtpSettings = async () => {
     setIsSaving(true);
     try {
+      await adminAPI.saveSystemSetting('smtp_settings', smtpForm);
       localStorage.setItem('company_smtp_settings', JSON.stringify(smtpForm));
       toast.success('SMTP Email settings saved successfully!');
     } catch (err) {
-      toast.error('Failed to save settings.');
+      toast.error('Failed to save settings to backend.');
     } finally {
       setTimeout(() => setIsSaving(false), 400);
     }
   };
 
   // Remove SMTP
-  const handleRemoveSmtp = () => {
+  const handleRemoveSmtp = async () => {
     if (window.confirm('Are you sure you want to remove the current SMTP configuration?')) {
-      setSmtpForm({
+      const emptySmtp = {
         host: 'smtp.gmail.com',
         port: '587',
         username: '',
@@ -692,9 +810,15 @@ const AdminSettings = () => {
         senderEmail: '',
         senderName: '',
         status: false
-      });
-      localStorage.removeItem('company_smtp_settings');
-      toast.success('SMTP settings cleared.');
+      };
+      setSmtpForm(emptySmtp);
+      try {
+        await adminAPI.saveSystemSetting('smtp_settings', emptySmtp);
+        localStorage.removeItem('company_smtp_settings');
+        toast.success('SMTP settings cleared.');
+      } catch (err) {
+        toast.error('Failed to clear settings from backend.');
+      }
     }
   };
 
@@ -841,6 +965,66 @@ const AdminSettings = () => {
                   </button>
                 </div>
 
+                {/* EMAIL SERVICE PROVIDER SELECTION */}
+                <div className="mb-4 mt-4">
+                  <label className="admin-settings-label text-uppercase mb-2">Select Email Service Provider</label>
+                  <div className="d-flex w-100 rounded-pill p-1" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                    <button 
+                      onClick={() => {
+                        setSmtpProvider('gmail');
+                        setSmtpForm(prev => ({ ...prev, host: 'smtp.gmail.com', port: '587' }));
+                      }}
+                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
+                      style={{ backgroundColor: smtpProvider === 'gmail' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'gmail' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'gmail' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'gmail' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                    >
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444' }}></div>
+                      GMAIL / WORKSPACE
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setSmtpProvider('brevo');
+                        setSmtpForm(prev => ({ ...prev, host: 'smtp-relay.brevo.com', port: '587' }));
+                      }}
+                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
+                      style={{ backgroundColor: smtpProvider === 'brevo' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'brevo' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'brevo' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'brevo' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                    >
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3B82F6' }}></div>
+                      BREVO (SENDINBLUE)
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setSmtpProvider('resend');
+                        setSmtpForm(prev => ({ ...prev, host: 'smtp.resend.com', port: '587', username: 'resend' }));
+                      }}
+                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
+                      style={{ backgroundColor: smtpProvider === 'resend' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'resend' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'resend' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'resend' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                    >
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#8B5CF6' }}></div>
+                      RESEND (API & SMTP)
+                    </button>
+                  </div>
+                </div>
+
+                {/* DYNAMIC ALERT MESSAGE */}
+                {smtpProvider === 'gmail' && (
+                  <div className="alert d-flex align-items-center gap-2 mb-4" style={{ backgroundColor: '#FEF2F2', border: 'none', color: '#991B1B', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EF4444', flexShrink: 0 }}></div>
+                    <div><strong>Gmail Setup:</strong> Use your standard Gmail address and generate a 16-character Google App Password (myaccount.google.com → Security → 2-Step Verification → App Passwords). Standard password will not work.</div>
+                  </div>
+                )}
+                {smtpProvider === 'brevo' && (
+                  <div className="alert d-flex align-items-center gap-2 mb-4" style={{ backgroundColor: '#EFF6FF', border: 'none', color: '#1E40AF', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#3B82F6', flexShrink: 0 }}></div>
+                    <div><strong>Brevo (Sendinblue) Setup:</strong> Host (<code>smtp-relay.brevo.com</code>) is pre-filled. Enter your Brevo Login Email in Username and your Brevo SMTP Master Key in Password/Key. (Brevo Dashboard → SMTP & API → Generate a new SMTP key).</div>
+                  </div>
+                )}
+                {smtpProvider === 'resend' && (
+                  <div className="alert d-flex align-items-center gap-2 mb-4" style={{ backgroundColor: '#F5F3FF', border: 'none', color: '#5B21B6', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#8B5CF6', flexShrink: 0 }}></div>
+                    <div><strong>Resend Setup:</strong> Host (<code>smtp.resend.com:587</code>) and Username (<code>resend</code>) are pre-configured. Enter your Resend API Key starting with <code>re_...</code> in the Password/Key field and your verified domain email as Sender Email.</div>
+                  </div>
+                )}
+
                 {/* Form Fields Grid */}
                 <div className="row g-3">
                   {/* 1. SMTP HOST */}
@@ -850,7 +1034,7 @@ const AdminSettings = () => {
                       type="text"
                       name="host"
                       className="admin-settings-input"
-                      placeholder="smtp.gmail.com"
+                      placeholder={smtpProvider === 'gmail' ? 'smtp.gmail.com' : (smtpProvider === 'brevo' ? 'smtp-relay.brevo.com' : 'smtp.resend.com')}
                       value={smtpForm.host}
                       onChange={handleSmtpChange}
                     />
@@ -871,12 +1055,14 @@ const AdminSettings = () => {
 
                   {/* 3. SMTP USERNAME */}
                   <div className="col-md-6">
-                    <label className="admin-settings-label">SMTP USERNAME</label>
+                    <label className="admin-settings-label">
+                      {smtpProvider === 'gmail' ? 'SMTP USERNAME' : (smtpProvider === 'brevo' ? 'BREVO LOGIN EMAIL / USERNAME' : 'RESEND USERNAME (DEFAULT: RESEND)')}
+                    </label>
                     <input 
-                      type="email"
+                      type={smtpProvider === 'resend' ? "text" : "email"}
                       name="username"
                       className="admin-settings-input"
-                      placeholder="your-company-email@gmail.com"
+                      placeholder={smtpProvider === 'gmail' ? 'your-email@gmail.com' : (smtpProvider === 'brevo' ? 'your-brevo-account@email.com' : 'resend')}
                       value={smtpForm.username}
                       onChange={handleSmtpChange}
                     />
@@ -884,13 +1070,15 @@ const AdminSettings = () => {
 
                   {/* 4. SMTP PASSWORD */}
                   <div className="col-md-6">
-                    <label className="admin-settings-label">SMTP PASSWORD</label>
+                    <label className="admin-settings-label">
+                      {smtpProvider === 'gmail' ? 'SMTP PASSWORD / APP PASSWORD' : (smtpProvider === 'brevo' ? 'BREVO SMTP MASTER KEY' : 'RESEND API KEY')}
+                    </label>
                     <div className="admin-settings-pass-wrap">
                       <input 
                         type={showPassword ? "text" : "password"}
                         name="password"
                         className="admin-settings-input"
-                        placeholder="••••••••••••••••"
+                        placeholder={smtpProvider === 'gmail' ? '16-character App Password' : (smtpProvider === 'brevo' ? 'xsmtpib-...' : 're_123456789...')}
                         value={smtpForm.password}
                         onChange={handleSmtpChange}
                       />
@@ -903,7 +1091,7 @@ const AdminSettings = () => {
                       </button>
                     </div>
                     <div className="admin-settings-input-helper">
-                      Use App Passwords for Gmail/M365
+                      {smtpProvider === 'gmail' ? 'Use App Passwords for Gmail' : (smtpProvider === 'brevo' ? 'Generate from Brevo → SMTP & API Keys' : 'Generate from resend.com → API Keys')}
                     </div>
                   </div>
 
@@ -914,7 +1102,7 @@ const AdminSettings = () => {
                       type="email"
                       name="senderEmail"
                       className="admin-settings-input"
-                      placeholder="hr@yourcompany.com"
+                      placeholder="noreply@company.com"
                       value={smtpForm.senderEmail}
                       onChange={handleSmtpChange}
                     />
@@ -927,7 +1115,7 @@ const AdminSettings = () => {
                       type="text"
                       name="senderName"
                       className="admin-settings-input"
-                      placeholder="HR Department / Kiaan Technology"
+                      placeholder="HR Department"
                       value={smtpForm.senderName}
                       onChange={handleSmtpChange}
                     />
@@ -987,30 +1175,67 @@ const AdminSettings = () => {
                 {/* Help Card */}
                 <div className="admin-settings-help-card">
                   <div className="admin-settings-help-header">
-                    <HelpCircle size={18} color="#C62828" />
-                    <span>How to Setup SMTP &amp; Gmail App Password</span>
+                    <HelpCircle size={18} color={smtpProvider === 'gmail' ? '#C62828' : (smtpProvider === 'brevo' ? '#2563EB' : '#7C3AED')} />
+                    <span>
+                      {smtpProvider === 'gmail' ? 'How to Setup Gmail SMTP & App Password' : (smtpProvider === 'brevo' ? 'How to Setup Brevo (Sendinblue) SMTP & Master Key' : 'How to Setup Resend SMTP & API Key')}
+                    </span>
                   </div>
                   <div className="admin-settings-help-sub">
-                    To send automated emails (payslips, notifications, backups), configure your email provider. If using Gmail, use an App Password.
+                    {smtpProvider === 'gmail' 
+                      ? 'To send automated emails (payslips, notifications), you must configure your Gmail account. Standard Google login password will not work; you must use a 16-character App Password.'
+                      : (smtpProvider === 'brevo' 
+                        ? 'Brevo is ideal for high-deliverability transactional emails with free 300 emails/day quota.' 
+                        : 'Resend provides modern transactional email infrastructure with fast deliverability.')}
                   </div>
 
                   <div className="admin-settings-help-grid">
                     <div>
-                      <div className="admin-settings-help-section-title">1. STANDARD SETTINGS</div>
+                      <div className="admin-settings-help-section-title">
+                        {smtpProvider === 'gmail' ? '1. STANDARD GMAIL SETTINGS' : (smtpProvider === 'brevo' ? '1. BREVO RELAY PARAMETERS' : '1. STANDARD RESEND PARAMETERS')}
+                      </div>
                       <div className="small text-dark mb-1">
-                        <strong>SMTP Host:</strong> <span className="admin-settings-help-code">smtp.gmail.com</span>
+                        <strong>SMTP Host:</strong> <span className="admin-settings-help-code">{smtpProvider === 'gmail' ? 'smtp.gmail.com' : (smtpProvider === 'brevo' ? 'smtp-relay.brevo.com' : 'smtp.resend.com')}</span>
+                      </div>
+                      <div className="small text-dark mb-1">
+                        <strong>SMTP Port:</strong> <span className="admin-settings-help-code">587</span> {smtpProvider === 'gmail' ? '(TLS recommended)' : '(STARTTLS)'}
+                      </div>
+                      <div className="small text-dark mb-1">
+                        <strong>SMTP Username:</strong> {smtpProvider === 'resend' ? <span className="admin-settings-help-code">resend</span> : (smtpProvider === 'brevo' ? 'Your Brevo account email' : 'Your actual Gmail address')} {smtpProvider === 'resend' && '(Always "resend")'}
                       </div>
                       <div className="small text-dark">
-                        <strong>SMTP Port:</strong> <span className="admin-settings-help-code">587</span> (TLS recommended)
+                        <strong>Sender Email:</strong> {smtpProvider === 'gmail' ? 'Same as your Gmail address' : 'Your verified domain email (e.g. hr@company.com)'}
                       </div>
                     </div>
 
                     <div>
-                      <div className="admin-settings-help-section-title">2. GMAIL APP PASSWORD STEPS</div>
+                      <div className="admin-settings-help-section-title">
+                        {smtpProvider === 'gmail' ? '2. GOOGLE APP PASSWORD STEPS' : (smtpProvider === 'brevo' ? '2. BREVO SMTP KEY STEPS' : '2. RESEND API KEY STEPS')}
+                      </div>
                       <ol className="admin-settings-help-steps">
-                        <li>Enable 2-Step Verification on your Google Account.</li>
-                        <li>Go to Google App Passwords settings.</li>
-                        <li>Generate a 16-character password and paste in "SMTP PASSWORD".</li>
+                        {smtpProvider === 'gmail' && (
+                          <>
+                            <li>Enable 2-Step Verification on your Google Account.</li>
+                            <li>Visit <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" style={{color: '#C62828', fontWeight: 'bold'}}>Google App Passwords</a>.</li>
+                            <li>Enter App Name (e.g. "HRM System") &amp; click Create/Generate.</li>
+                            <li>Copy the generated 16-character code and paste it into the SMTP Password field above.</li>
+                          </>
+                        )}
+                        {smtpProvider === 'brevo' && (
+                          <>
+                            <li>Log in to your account at <a href="https://app.brevo.com" target="_blank" rel="noreferrer" style={{color: '#2563EB', fontWeight: 'bold'}}>brevo.com</a>.</li>
+                            <li>Click your profile name (top-right) → select <strong>SMTP &amp; API</strong>.</li>
+                            <li>Under <strong>SMTP</strong> tab, click <strong>Generate a new SMTP key</strong>.</li>
+                            <li>Copy the master key starting with <code>xsmtpib-...</code> and paste it into the field above.</li>
+                          </>
+                        )}
+                        {smtpProvider === 'resend' && (
+                          <>
+                            <li>Log in to your account at <a href="https://resend.com" target="_blank" rel="noreferrer" style={{color: '#7C3AED', fontWeight: 'bold'}}>resend.com</a>.</li>
+                            <li>Navigate to <strong>API Keys</strong> in the sidebar.</li>
+                            <li>Click <strong>Create API Key</strong> (Permission: Sending access).</li>
+                            <li>Copy the key starting with <code>re_...</code> and paste it into the field above.</li>
+                          </>
+                        )}
                       </ol>
                     </div>
                   </div>
@@ -1116,62 +1341,141 @@ const AdminSettings = () => {
               <div>
                 <div className="admin-settings-panel-header">
                   <div className="admin-settings-panel-title-group">
-                    <div className="admin-settings-panel-icon">
-                      <Building2 size={22} />
+                    <div className="admin-settings-panel-icon" style={{ backgroundColor: '#e0e7ff', color: '#4f46e5' }}>
+                      <Globe size={22} />
                     </div>
                     <div>
-                      <h2 className="admin-settings-panel-title">Business Profile</h2>
-                      <div className="admin-settings-panel-sub">MANAGE YOUR COMPANY DETAILS &amp; LEGAL IDENTIFIERS</div>
+                      <h2 className="admin-settings-panel-title">Business Identity</h2>
+                      <div className="admin-settings-panel-sub">COMPANY DETAILS FOR REPORTS &amp; PAYSLIPS</div>
                     </div>
                   </div>
                 </div>
 
-                <div className="row g-3">
+                <div className="row g-4 mt-1">
                   <div className="col-md-6">
-                    <label className="admin-settings-label">Company Brand Name</label>
-                    <input 
-                      type="text" 
-                      className="admin-settings-input" 
-                      value={businessProfile.companyName}
-                      onChange={(e) => setBusinessProfile({ ...businessProfile, companyName: e.target.value })}
-                    />
+                    <label className="admin-settings-label">BUSINESS NAME</label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="text" 
+                        className="admin-settings-input bg-light" 
+                        value={businessProfile.businessName || businessProfile.companyName || 'Sonu and Sons'}
+                        onChange={(e) => setBusinessProfile({ ...businessProfile, businessName: e.target.value })}
+                        disabled
+                      />
+                      <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      </span>
+                    </div>
+                    <div className="small text-muted mt-1" style={{ fontSize: '0.75rem' }}>
+                      Managed by Super Admin. Contact your provider to change.
+                    </div>
                   </div>
                   <div className="col-md-6">
-                    <label className="admin-settings-label">Legal Registered Name</label>
-                    <input 
-                      type="text" 
-                      className="admin-settings-input" 
-                      value={businessProfile.legalName}
-                      onChange={(e) => setBusinessProfile({ ...businessProfile, legalName: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="admin-settings-label">GSTIN Number</label>
-                    <input 
-                      type="text" 
-                      className="admin-settings-input" 
-                      placeholder="e.g. 23AAAAA0000A1Z5"
-                      value={businessProfile.gstNumber}
-                      onChange={(e) => setBusinessProfile({ ...businessProfile, gstNumber: e.target.value })}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="admin-settings-label">Company PAN</label>
-                    <input 
-                      type="text" 
-                      className="admin-settings-input" 
-                      placeholder="e.g. ABCDE1234F"
-                      value={businessProfile.panNumber}
-                      onChange={(e) => setBusinessProfile({ ...businessProfile, panNumber: e.target.value })}
-                    />
+                    <label className="admin-settings-label">CONTACT PHONE</label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="text" 
+                        className="admin-settings-input bg-light" 
+                        value={businessProfile.contactPhone || businessProfile.phone || '64366436'}
+                        onChange={(e) => setBusinessProfile({ ...businessProfile, contactPhone: e.target.value })}
+                        disabled
+                      />
+                      <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      </span>
+                    </div>
                   </div>
                   <div className="col-12">
-                    <label className="admin-settings-label">Registered Office Address</label>
+                    <label className="admin-settings-label">EMAIL ADDRESS</label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="email" 
+                        className="admin-settings-input bg-light" 
+                        value={businessProfile.emailAddress || businessProfile.contactEmail || 'sonu@gmail.com'}
+                        onChange={(e) => setBusinessProfile({ ...businessProfile, emailAddress: e.target.value })}
+                        disabled
+                      />
+                      <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="admin-settings-label">OPERATING COUNTRY</label>
+                    <select 
+                      className="admin-settings-input"
+                      value={businessProfile.operatingCountry || 'India (IN) - INR (₹)'}
+                      onChange={(e) => setBusinessProfile({ ...businessProfile, operatingCountry: e.target.value })}
+                    >
+                      <option>India (IN) - INR (₹)</option>
+                      <option>United States (US) - USD ($)</option>
+                      <option>United Kingdom (UK) - GBP (£)</option>
+                      <option>United Arab Emirates (AE) - AED</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="d-flex justify-content-between align-items-end">
+                      <label className="admin-settings-label mb-0">SYSTEM CURRENCY</label>
+                      <span style={{ fontSize: '0.7rem', color: '#4f46e5', fontWeight: '600' }}>⚡ Live API 1 USD = ₹83.31</span>
+                    </div>
+                    <select 
+                      className="admin-settings-input mt-2"
+                      value={businessProfile.systemCurrency || 'INR (₹) - Indian Rupee'}
+                      onChange={(e) => setBusinessProfile({ ...businessProfile, systemCurrency: e.target.value })}
+                    >
+                      <option>INR (₹) - Indian Rupee</option>
+                      <option>USD ($) - US Dollar</option>
+                      <option>GBP (£) - British Pound</option>
+                      <option>AED (د.إ) - UAE Dirham</option>
+                    </select>
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="admin-settings-label">SYSTEM LANGUAGE</label>
+                    <select 
+                      className="admin-settings-input"
+                      value={businessProfile.systemLanguage || 'English (en)'}
+                      onChange={(e) => setBusinessProfile({ ...businessProfile, systemLanguage: e.target.value })}
+                    >
+                      <option>English (en)</option>
+                      <option>Hindi (hi)</option>
+                      <option>Spanish (es)</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="admin-settings-label">TIMEZONE</label>
+                    <select 
+                      className="admin-settings-input"
+                      value={businessProfile.timezone || 'Asia/Kolkata (IST +5:30) - In India'}
+                      onChange={(e) => setBusinessProfile({ ...businessProfile, timezone: e.target.value })}
+                    >
+                      <option>Asia/Kolkata (IST +5:30) - In India</option>
+                      <option>America/New_York (EST -5:00)</option>
+                      <option>Europe/London (GMT +0:00)</option>
+                    </select>
+                  </div>
+
+                  <div className="col-12">
+                    <label className="admin-settings-label">DATE FORMAT</label>
+                    <select 
+                      className="admin-settings-input"
+                      value={businessProfile.dateFormat || 'DD/MM/YYYY (UK, India, UAE, Spain, Germany)'}
+                      onChange={(e) => setBusinessProfile({ ...businessProfile, dateFormat: e.target.value })}
+                    >
+                      <option>DD/MM/YYYY (UK, India, UAE, Spain, Germany)</option>
+                      <option>MM/DD/YYYY (United States)</option>
+                      <option>YYYY-MM-DD (ISO Standard)</option>
+                    </select>
+                  </div>
+
+                  <div className="col-12">
+                    <label className="admin-settings-label">ADDRESS</label>
                     <textarea 
                       className="admin-settings-input" 
-                      rows="2"
-                      style={{ height: 'auto', padding: '10px 14px' }}
-                      value={businessProfile.address}
+                      rows="3"
+                      style={{ height: 'auto', padding: '12px 14px' }}
+                      value={businessProfile.address || 'Street, City, Province, Code'}
                       onChange={(e) => setBusinessProfile({ ...businessProfile, address: e.target.value })}
                     />
                   </div>
@@ -2121,36 +2425,178 @@ const AdminSettings = () => {
               <div>
                 <div className="admin-settings-panel-header">
                   <div className="admin-settings-panel-title-group">
-                    <div className="admin-settings-panel-icon">
+                    <div className="admin-settings-panel-icon" style={{ backgroundColor: '#d1fae5', color: '#10b981' }}>
                       <CreditCard size={22} />
                     </div>
                     <div>
                       <h2 className="admin-settings-panel-title">Subscription &amp; Billing</h2>
-                      <div className="admin-settings-panel-sub">MANAGE YOUR ACTIVE SAAS PLAN &amp; INVOICES</div>
+                      <div className="admin-settings-panel-sub">MANAGE YOUR PLAN AND LICENSES</div>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-4 text-white mb-4" style={{ background: 'linear-gradient(135deg, #C62828 0%, #991B1B 100%)' }}>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <span className="badge bg-white text-danger fw-bold mb-2">ACTIVE PLAN</span>
-                      <h3 className="fw-bold mb-1">ENTERPRISE CLOUD HRMS</h3>
-                      <p className="mb-0 opacity-75 small">Full Access to Payroll, Attendance, Bio-metric Sync, and LMS</p>
-                    </div>
-                    <div className="text-end">
-                      <div className="h4 fw-bold mb-0">₹ 1,499 / mo</div>
-                      <small className="opacity-75">Auto-renews monthly</small>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="d-flex justify-content-between align-items-center p-3 bg-light rounded-3">
+                {/* Current Plan Banner */}
+                <div className="p-4 rounded-4 text-white mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3" style={{ backgroundColor: '#0f172a' }}>
                   <div>
-                    <strong>Payment Gateway:</strong> Razorpay (UPI, Net Banking, Cards)
+                    <span className="badge mb-2" style={{ backgroundColor: '#1e293b', color: '#94a3b8', fontSize: '0.7rem', letterSpacing: '0.5px' }}>CURRENT ACTIVE PLAN</span>
+                    <h3 className="fw-bold mb-2 text-white">
+                      {isBillingLoading ? 'Loading...' : currentSub?.plan?.name || 'Free Trial / Starter Plan'}
+                    </h3>
+                    <div className="d-flex align-items-center gap-3 flex-wrap" style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                      <span className="fw-semibold">Next billing date: {currentSub?.end_date ? new Date(currentSub.end_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+                      {currentSub?.end_date && (
+                        <span className="badge bg-light text-dark fw-bold" style={{ fontSize: '0.7rem' }}>
+                          {Math.max(0, Math.ceil((new Date(currentSub.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))}D LEFT
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <span className="badge bg-success">Verified</span>
+                  <div>
+                    <span className="badge px-3 py-2 rounded-pill text-uppercase" style={{ backgroundColor: '#064e3b', color: '#34d399', border: '1px solid #059669', fontSize: '0.8rem' }}>
+                      {currentSub?.status || 'ACTIVE'}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Available Upgrades Section */}
+                <h5 className="fw-bold mb-3" style={{ color: '#334155', fontSize: '1.1rem' }}>Available Upgrades</h5>
+                <div className="row g-3 mb-5">
+                  {availablePlans.length === 0 ? (
+                    <div className="col-12 text-center text-muted">No plans available at the moment.</div>
+                  ) : (
+                    [...availablePlans]
+                      .filter(plan => !plan.name.toLowerCase().includes('free'))
+                      .sort((a, b) => {
+                        const aIsCustom = a.name.toLowerCase().includes('custom');
+                        const bIsCustom = b.name.toLowerCase().includes('custom');
+                        if (aIsCustom && !bIsCustom) return 1;
+                        if (!aIsCustom && bIsCustom) return -1;
+                        return 0;
+                      })
+                      .map((plan, index) => {
+                      const isStarter = plan.name.toLowerCase().includes('starter') || index === 0;
+                      const isPopular = plan.name.toLowerCase().includes('pro') || index === 2;
+                      
+                      let featuresList = [];
+                      try {
+                        featuresList = typeof plan.features === 'string' ? JSON.parse(plan.features) : (Array.isArray(plan.features) ? plan.features : []);
+                      } catch (e) {
+                        featuresList = [];
+                      }
+
+                      const dotColor = isStarter ? '#3b82f6' : '#94a3b8';
+                      const btnBg = isStarter ? '#2563eb' : '#f8fafc';
+                      const btnColor = isStarter ? '#fff' : '#94a3b8';
+                      const btnBorder = isStarter ? 'none' : '1px solid #e2e8f0';
+
+                      return (
+                        <div className="col-md-4" key={plan.id}>
+                          <div className={`card h-100 border rounded-4 ${isStarter ? 'shadow-sm' : ''} position-relative`} style={{ borderColor: isStarter ? '#e2e8f0' : '#f1f5f9', borderTop: isStarter ? '4px solid #3b82f6' : 'none' }}>
+                            {isPopular && (
+                              <div className="position-absolute" style={{ top: '-10px', right: '15px' }}>
+                                <span className="badge rounded-pill shadow-sm" style={{ backgroundColor: '#ef4444', color: '#fff', fontSize: '0.65rem', padding: '4px 8px' }}>MOST POPULAR</span>
+                              </div>
+                            )}
+                            <div className="card-body p-4 d-flex flex-column">
+                              <h5 className="fw-bold text-dark mb-1">{plan.name}</h5>
+                              <div className="mb-4">
+                                {plan.name.toLowerCase().includes('custom') ? (
+                                  <span className={`h3 fw-bold ${isStarter ? 'text-primary' : 'text-dark'} mb-0`}>Let's Talk</span>
+                                ) : (
+                                  <>
+                                    <span className={`h3 fw-bold ${isStarter ? 'text-primary' : 'text-dark'} mb-0`}>{formatCurrency(plan.price)}</span>
+                                    <span className="text-muted small ms-1">/{plan.duration_months || 1} month</span>
+                                  </>
+                                )}
+                              </div>
+                              <ul className="list-unstyled mb-4 flex-grow-1" style={{ fontSize: '0.85rem', color: '#475569' }}>
+                                <li className="mb-2 d-flex align-items-center gap-2">
+                                  <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: dotColor }}></div> 
+                                  {plan.max_employees ? `Up to ${plan.max_employees} Employees` : 'Unlimited Employees'}
+                                </li>
+                                {featuresList.map((feat, idx) => (
+                                  <li key={idx} className="mb-2 d-flex align-items-center gap-2">
+                                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: dotColor }}></div> 
+                                    {feat}
+                                  </li>
+                                ))}
+                              </ul>
+                              <button onClick={() => {
+                                if (plan.name.toLowerCase().includes('custom')) {
+                                  window.open('https://wa.me/919770273892?text=Hi%20Kiaan%20Technology,%20I%20want%20to%20upgrade%20my%20Payroll%20subscription%20to%20a%20Custom%20Plan.', '_blank');
+                                } else {
+                                  handleRenewPlan(plan.name);
+                                }
+                              }} disabled={isProcessingPayment && !plan.name.toLowerCase().includes('custom')} className="btn w-100 fw-bold rounded-3" style={{ backgroundColor: btnBg, color: btnColor, border: btnBorder, padding: '10px' }}>
+                                {plan.name.toLowerCase().includes('custom') ? 'CONTACT US' : (isProcessingPayment ? 'PROCESSING...' : 'RENEW')}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Payment History & Invoices */}
+                <div className="d-flex justify-content-between align-items-center mb-1">
+                  <div className="d-flex align-items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <h6 className="fw-bold mb-0 text-dark">Payment History &amp; Invoices</h6>
+                  </div>
+                  <button onClick={fetchBillingData} disabled={isBillingLoading} className="btn btn-link text-decoration-none fw-bold p-0" style={{ fontSize: '0.8rem', color: '#3b82f6' }}>
+                    {isBillingLoading ? 'Refreshing...' : 'Refresh Invoices'}
+                  </button>
+                </div>
+                <div className="text-muted small mb-3" style={{ fontSize: '0.8rem' }}>Official billing records and payment receipts for your company.</div>
+                
+                {isBillingLoading ? (
+                  <div className="card border-0 bg-light rounded-4" style={{ minHeight: '180px' }}>
+                    <div className="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <Spinner animation="border" size="sm" className="mb-2" />
+                      <div className="text-muted small">Loading invoices...</div>
+                    </div>
+                  </div>
+                ) : paymentHistory.length === 0 ? (
+                  <div className="card border-0 bg-light rounded-4" style={{ minHeight: '180px' }}>
+                    <div className="card-body d-flex flex-column align-items-center justify-content-center text-center">
+                      <div className="mb-2 p-2 rounded-circle bg-white shadow-sm d-inline-flex">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                      </div>
+                      <div className="fw-bold text-dark" style={{ fontSize: '0.9rem' }}>No payment invoices yet.</div>
+                      <div className="text-muted mt-1" style={{ fontSize: '0.75rem', maxWidth: '400px' }}>Invoices will appear here automatically after your first subscription payment.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="table-responsive border rounded-3 bg-white">
+                    <table className="table table-hover align-middle mb-0" style={{ fontSize: '0.85rem' }}>
+                      <thead className="bg-light">
+                        <tr>
+                          <th>Date</th>
+                          <th>Transaction ID</th>
+                          <th>Plan Name</th>
+                          <th>Amount</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentHistory.map((payment) => (
+                          <tr key={payment.id}>
+                            <td className="text-muted">{new Date(payment.created_at).toLocaleDateString('en-IN')}</td>
+                            <td className="fw-bold text-dark">{payment.razorpay_payment_id || `TRX-${payment.id}`}</td>
+                            <td>{payment.plan?.name || 'Subscription Plan'}</td>
+                            <td className="fw-bold">{formatCurrency(payment.amount)}</td>
+                            <td>
+                              <span className={`badge ${payment.status === 'success' || payment.status === 'PAID' ? 'bg-success' : 'bg-warning text-dark'}`}>
+                                {payment.status === 'success' || payment.status === 'PAID' ? 'PAID' : payment.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>

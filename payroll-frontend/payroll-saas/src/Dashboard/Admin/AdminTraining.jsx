@@ -515,11 +515,19 @@ const AdminTraining = () => {
                               </div>
                             </td>
                             <td>
-                              <div className="d-flex gap-2">
-                                <button className="btn btn-sm btn-outline-primary" onClick={() => handleEditCourse(course)}>
+                              <div className="d-flex gap-2 align-items-center">
+                                <button 
+                                  className="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center" 
+                                  style={{ borderRadius: '6px', padding: '6px 10px' }}
+                                  onClick={() => handleEditCourse(course)}
+                                >
                                   <FaEdit />
                                 </button>
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteCourse(course.id)}>
+                                <button 
+                                  className="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center" 
+                                  style={{ borderRadius: '6px', padding: '6px 10px' }}
+                                  onClick={() => handleDeleteCourse(course.id)}
+                                >
                                   <FaTrash />
                                 </button>
                               </div>

@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 import { useFetchEmployeeProfile, useFetchEmployeeAttendance } from '../../hooks/useAPI';
 import { employeeAPI } from '../../services/api';
+import { useRegional } from '../../context/RegionalContext';
 
 const colors = {
   primaryRed: '#C62828',
@@ -27,6 +28,7 @@ const EmployeeDashboard = () => {
   const { logout, user } = useAuth();
   const { profile, loading: profileLoading, error: profileError, updateProfile: updateProfileAPI } = useFetchEmployeeProfile();
   const { attendance, loading: attendanceLoading, markAttendance } = useFetchEmployeeAttendance();
+  const { formatCurrency } = useRegional();
 
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showAllTransactions, setShowAllTransactions] = useState(false);
@@ -133,15 +135,6 @@ const EmployeeDashboard = () => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
-  };
-
-  // Formatting functions
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   const formatDate = (dateString) => {

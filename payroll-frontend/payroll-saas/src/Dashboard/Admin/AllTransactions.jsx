@@ -4,6 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { adminAPI } from '../../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
 import toast from 'react-hot-toast';
+import { useRegional } from '../../context/RegionalContext';
 
 // Color scheme as specified
 const colors = {
@@ -18,6 +19,7 @@ const colors = {
 
 const Transactions = () => {
   const navigate = useNavigate();
+  const { formatCurrency } = useRegional();
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   // Update isMobile state on window resize
@@ -318,7 +320,7 @@ const Transactions = () => {
                       )}
                       <div className="col-6">
                         <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Amount</small>
-                        <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>${transaction.amount.toLocaleString()}</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>{formatCurrency(transaction.amount)}</span>
                       </div>
                       <div className="col-6">
                         <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Type</small>
@@ -395,7 +397,7 @@ const Transactions = () => {
                       {activeTab === "employee" && (
                         <td className="py-3" style={{ color: colors.blackText }}>{transaction.employee}</td>
                       )}
-                      <td className="py-3" style={{ color: colors.blackText }}>${transaction.amount.toLocaleString()}</td>
+                      <td className="py-3" style={{ color: colors.blackText }}>{formatCurrency(transaction.amount)}</td>
                       <td className="py-3">
                         <span style={{ color: getTypeColor(transaction.type), fontWeight: "600" }}>
                           {transaction.type}
@@ -519,7 +521,7 @@ const Transactions = () => {
                 )}
                 <div className="mb-3">
                   <h6 style={{ color: colors.darkGrayText, fontSize: isMobile ? '0.875rem' : '1rem' }}>Amount</h6>
-                  <p style={{ color: colors.blackText, fontSize: isMobile ? '0.875rem' : '1rem' }}>${selectedTransaction.amount.toLocaleString()}</p>
+                  <p style={{ color: colors.blackText, fontSize: isMobile ? '0.875rem' : '1rem' }}>{formatCurrency(selectedTransaction.amount)}</p>
                 </div>
                 <div className="mb-3">
                   <h6 style={{ color: colors.darkGrayText, fontSize: isMobile ? '0.875rem' : '1rem' }}>Type</h6>

@@ -10,6 +10,12 @@ router.use(authorize('admin'));
 
 router.get('/dashboard', adminController.getDashboard);
 router.get('/dashboard-summary', adminController.getDashboardSummary);
+
+// System Settings
+router.get('/settings/:key', adminController.getSystemSetting);
+router.post('/settings', adminController.saveSystemSetting);
+router.post('/settings/smtp/test', adminController.testSmtpConnection);
+
 router.get('/transactions', adminController.getTransactions);
 router.delete('/transactions/:id', adminController.deleteTransaction);
 

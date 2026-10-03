@@ -7,8 +7,10 @@ import { Spinner, Alert } from 'react-bootstrap';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useRegional } from '../../context/RegionalContext';
 
 const CreditBalance = () => {
+  const { formatCurrency } = useRegional();
   const [showLowBalanceAlert, setShowLowBalanceAlert] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -424,7 +426,7 @@ const CreditBalance = () => {
               <div className="d-flex justify-content-between align-items-start mb-4">
                 <div>
                   <p className="mb-2 text-white-50">Current Balance</p>
-                  <h1 className="fw-bold mb-0" style={{ fontSize: "clamp(1.5rem, 5vw, 2.5rem)" }}>${creditBalance.toLocaleString()}</h1>
+                  <h1 className="fw-bold mb-0" style={{ fontSize: "clamp(1.5rem, 5vw, 2.5rem)" }}>{formatCurrency(creditBalance)}</h1>
                 </div>
                 <div className="d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: "60px", height: "60px", borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.2)" }}>
                   <FaCreditCard size={30} color="white" />
@@ -450,7 +452,7 @@ const CreditBalance = () => {
                   <FaArrowTrendUp size={20} color="#2e7d32" />
                 </div>
               </div>
-              <h3 className="fw-bold text-success mb-2" style={{ fontSize: "clamp(1.25rem, 4vw, 1.75rem)" }}>${totalAdded.toLocaleString()}</h3>
+              <h3 className="fw-bold text-success mb-2" style={{ fontSize: "clamp(1.25rem, 4vw, 1.75rem)" }}>{formatCurrency(totalAdded)}</h3>
               <div className="progress" style={{ height: "6px" }}>
                 <div className="progress-bar bg-success" role="progressbar" style={{ width: `${totalAdded > 0 ? (totalAdded / (totalAdded + totalDeducted) * 100) : 0}%` }}></div>
               </div>
@@ -468,7 +470,7 @@ const CreditBalance = () => {
                   <FaArrowTrendDown size={20} color="#c62828" />
                 </div>
               </div>
-              <h3 className="fw-bold text-danger mb-2" style={{ fontSize: "clamp(1.25rem, 4vw, 1.75rem)" }}>${totalDeducted.toLocaleString()}</h3>
+              <h3 className="fw-bold text-danger mb-2" style={{ fontSize: "clamp(1.25rem, 4vw, 1.75rem)" }}>{formatCurrency(totalDeducted)}</h3>
               <div className="progress" style={{ height: "6px" }}>
                 <div className="progress-bar bg-danger" role="progressbar" style={{ width: `${totalDeducted > 0 ? (totalDeducted / (totalAdded + totalDeducted) * 100) : 0}%` }}></div>
               </div>
@@ -596,7 +598,7 @@ const CreditBalance = () => {
                     </td>
 
                     <td className={`fw-semibold ${item.type === 'Added' ? 'text-success' : 'text-danger'}`}>
-                      {item.type === 'Added' ? '+' : '-'}${item.amount.toLocaleString()}
+                      {item.type === 'Added' ? '+' : '-'}{formatCurrency(item.amount)}
                     </td>
 
                     <td>
@@ -667,7 +669,7 @@ const CreditBalance = () => {
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span className="text-muted small">{item.date}</span>
                       <span className={`fw-bold ${item.type === 'Added' ? 'text-success' : 'text-danger'}`}>
-                        {item.type === 'Added' ? '+' : '-'}${item.amount.toLocaleString()}
+                        {item.type === 'Added' ? '+' : '-'}{formatCurrency(item.amount)}
                       </span>
                     </div>
                     <div className="mb-2">

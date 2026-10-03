@@ -21,7 +21,7 @@ export const openRazorpayCheckout = async ({
   order_id,
   amount,
   currency = 'INR',
-  name = 'Kiaan Technology | Payroll & HRMS',
+  name = 'Payroll',
   description = 'Subscription Plan Purchase',
   image = '/logo.png',
   prefill = {},

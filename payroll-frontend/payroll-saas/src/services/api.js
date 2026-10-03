@@ -235,6 +235,9 @@ export const adminAPI = {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
     getDownloadBackupUrl: (filename) => `${API_BASE_URL}admin/backups/download/${encodeURIComponent(filename)}`,
+    getSystemSetting: (key) => axiosInstance.get(`/admin/settings/${key}`),
+    saveSystemSetting: (key, value) => axiosInstance.post('/admin/settings', { key, value }),
+    testSmtpConnection: (data) => axiosInstance.post('/admin/settings/smtp/test', data),
 };
 
 // ==================== SUPERADMIN API ====================

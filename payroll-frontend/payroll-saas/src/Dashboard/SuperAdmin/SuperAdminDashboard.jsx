@@ -8,8 +8,10 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import toast from 'react-hot-toast';
 import SuperAdminLayout from './SuperAdminLayout';
 import { superadminAPI } from '../../services/api';
+import { useRegional } from '../../context/RegionalContext';
 
 const SuperAdminDashboard = () => {
+  const { formatCurrency } = useRegional();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState(new Date().toLocaleTimeString());
@@ -149,14 +151,14 @@ const SuperAdminDashboard = () => {
             <span className="small text-slate-300 text-uppercase fw-semibold" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
               Lifetime SaaS Gross Revenue
             </span>
-            <h4 className="fw-bold mb-0 text-white">₹{summary.totalRevenue.toLocaleString()}</h4>
+            <h4 className="fw-bold mb-0 text-white">{formatCurrency(summary.totalRevenue)}</h4>
           </div>
         </div>
 
         <div className="d-flex align-items-center gap-4 mt-2 mt-md-0">
           <div className="border-start border-slate-700 ps-3">
             <span className="small text-slate-400" style={{ fontSize: '11px' }}>Monthly Running Revenue</span>
-            <div className="fw-bold text-success" style={{ fontSize: '15px' }}>₹{summary.monthlyRevenue.toLocaleString()}</div>
+            <div className="fw-bold text-success" style={{ fontSize: '15px' }}>{formatCurrency(summary.monthlyRevenue)}</div>
           </div>
           <div className="border-start border-slate-700 ps-3">
             <span className="small text-slate-400" style={{ fontSize: '11px' }}>Active Paid Outlets</span>
@@ -179,7 +181,7 @@ const SuperAdminDashboard = () => {
                 </div>
               </div>
               <h4 className="fw-extrabold mb-1" style={{ color: '#0F172A', fontSize: '1.25rem' }}>
-                ₹{summary.totalRevenue.toLocaleString()}
+                {formatCurrency(summary.totalRevenue)}
               </h4>
               <span className="text-success small" style={{ fontSize: '11px' }}>
                 Lifetime Paid Net
@@ -199,7 +201,7 @@ const SuperAdminDashboard = () => {
                 </div>
               </div>
               <h4 className="fw-extrabold mb-1" style={{ color: '#16A34A', fontSize: '1.25rem' }}>
-                ₹{summary.monthlyRevenue.toLocaleString()}
+                {formatCurrency(summary.monthlyRevenue)}
               </h4>
               <span className="text-muted small" style={{ fontSize: '11px' }}>Current Month</span>
             </Card.Body>
@@ -316,7 +318,7 @@ const SuperAdminDashboard = () => {
                   <XAxis dataKey="month" stroke="#64748B" fontSize={12} />
                   <YAxis stroke="#64748B" fontSize={12} />
                   <Tooltip
-                    formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Revenue']}
+                    formatter={(value) => [formatCurrency(value), 'Revenue']}
                     contentStyle={{ backgroundColor: '#0F172A', color: '#FFF', borderRadius: '8px', border: 'none' }}
                   />
                   <Bar dataKey="revenue" fill="#C62828" radius={[4, 4, 0, 0]} name="Subscription Sales" />

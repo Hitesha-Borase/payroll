@@ -30,6 +30,7 @@ import {
   FaCreditCard,
   FaRobot
 } from 'react-icons/fa';
+import { useRegional } from '../../context/RegionalContext';
 
 // Color Palette
 const colors = {
@@ -47,6 +48,7 @@ const colors = {
 
 const BillPayment = () => {
   const navigate = useNavigate();
+  const { formatCurrency } = useRegional();
   const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
   const [showEditCompanyModal, setShowEditCompanyModal] = useState(false);
   const [showAddBillModal, setShowAddBillModal] = useState(false);
@@ -274,14 +276,6 @@ const BillPayment = () => {
     ...tabStyle,
     color: colors.primaryRed,
     borderBottom: `3px solid ${colors.primaryRed}`,
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   const formatDate = (dateString) => {
