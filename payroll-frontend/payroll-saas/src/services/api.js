@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API Base Configuration
-let API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/';
+let API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.payroll.kiaantechnology.com/api/';
 
 // Ensure it ends with / so relative paths append correctly
 if (!API_BASE_URL.endsWith('/')) {

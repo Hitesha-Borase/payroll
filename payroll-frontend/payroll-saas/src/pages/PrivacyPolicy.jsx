@@ -27,7 +27,7 @@ const PrivacyPolicy = () => {
   useEffect(() => {
     const fetchPolicyData = async () => {
       try {
-        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const apiBase = import.meta.env.VITE_API_URL || 'https://api.payroll.kiaantechnology.com/api';
         const url = `${apiBase.replace(/\/+$/, '')}/public/privacy-policy`;
         const res = await axios.get(url, { timeout: 4000 });
         if (res.data?.success && res.data?.data) {
