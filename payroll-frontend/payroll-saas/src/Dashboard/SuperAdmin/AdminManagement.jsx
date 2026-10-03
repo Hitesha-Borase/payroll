@@ -480,30 +480,30 @@ const AdminManagement = () => {
                       </div>
 
                       {/* Actions Bar */}
-                      <div className="d-flex align-items-center justify-content-end gap-2 pt-2 border-top">
+                      <div className="d-flex flex-wrap align-items-center justify-content-end gap-1.5 pt-2 border-top">
                         <Button 
                           variant="outline-primary" 
                           size="sm"
-                          className="d-flex align-items-center gap-1 px-2 py-1"
+                          className="d-flex align-items-center gap-1 px-2 py-1 text-nowrap"
                           onClick={() => handleOpenEditModal(admin)}
-                          style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                          style={{ fontSize: '0.74rem', borderRadius: '6px' }}
                         >
-                          <Edit size={13} /> Edit
+                          <Edit size={12} /> Edit
                         </Button>
 
                         <Button 
                           variant="outline-warning" 
                           size="sm"
-                          className="d-flex align-items-center gap-1 px-2 py-1 text-dark"
+                          className="d-flex align-items-center gap-1 px-2 py-1 text-dark text-nowrap"
                           onClick={() => handleOpenPasswordModal(admin)}
-                          style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                          style={{ fontSize: '0.74rem', borderRadius: '6px' }}
                         >
-                          <Key size={13} /> Password
+                          <Key size={12} /> Password
                         </Button>
 
                         <Dropdown align="end" className="d-inline">
-                          <Dropdown.Toggle variant="outline-secondary" size="sm" className="px-2 py-1" style={{ fontSize: '0.78rem', borderRadius: '6px' }}>
-                            <RefreshCw size={12} className="me-1 inline" /> Status
+                          <Dropdown.Toggle variant="outline-secondary" size="sm" className="px-2 py-1 text-nowrap" style={{ fontSize: '0.74rem', borderRadius: '6px' }}>
+                            <RefreshCw size={11} className="me-1 inline" /> Status
                           </Dropdown.Toggle>
                           <Dropdown.Menu className="shadow-sm border-0" style={{ fontSize: '0.85rem' }}>
                             <Dropdown.Header>Change Status</Dropdown.Header>
@@ -524,9 +524,9 @@ const AdminManagement = () => {
                           size="sm"
                           className="px-2 py-1"
                           onClick={() => handleOpenDeleteModal(admin)}
-                          style={{ fontSize: '0.78rem', borderRadius: '6px' }}
+                          style={{ fontSize: '0.74rem', borderRadius: '6px' }}
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={12} />
                         </Button>
                       </div>
                     </Card.Body>

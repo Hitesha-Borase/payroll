@@ -90,50 +90,51 @@ const Login = () => {
 
   return (
     <div
-      className="container-fluid min-vh-100 d-flex align-items-center justify-content-center px-3 py-4 position-relative"
+      className="container-fluid min-vh-100 d-flex flex-column align-items-center justify-content-center px-3 py-4 auth-container"
       style={{
         backgroundColor: colors.lightBeige,
-        paddingTop: '2rem',
-        paddingBottom: '2rem'
+        minHeight: '100vh'
       }}
     >
       {/* Back to Website Button */}
-      <Link
-        to="/"
-        className="position-absolute top-0 start-0 m-3 m-md-4 d-inline-flex align-items-center gap-2 text-decoration-none px-3 py-2 rounded-pill shadow-sm"
-        style={{
-          backgroundColor: colors.white,
-          color: colors.primaryRed,
-          border: '1px solid rgba(198, 40, 40, 0.2)',
-          fontWeight: '600',
-          fontSize: '14px',
-          transition: 'all 0.25s ease-in-out',
-          zIndex: 100,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = colors.primaryRed;
-          e.currentTarget.style.color = colors.white;
-          e.currentTarget.style.transform = 'translateY(-2px)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(198, 40, 40, 0.25)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = colors.white;
-          e.currentTarget.style.color = colors.primaryRed;
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
-        }}
-      >
-        <ArrowLeft size={18} />
-        <span>Back to Website</span>
-      </Link>
-      <div className="card shadow w-100" style={{
+      <div className="w-100 d-flex justify-content-start mb-2 mb-md-3" style={{ maxWidth: "950px" }}>
+        <Link
+          to="/"
+          className="d-inline-flex align-items-center gap-2 text-decoration-none px-3 py-2 rounded-pill shadow-sm"
+          style={{
+            backgroundColor: colors.white,
+            color: colors.primaryRed,
+            border: '1px solid rgba(198, 40, 40, 0.2)',
+            fontWeight: '600',
+            fontSize: '13px',
+            transition: 'all 0.25s ease-in-out',
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colors.primaryRed;
+            e.currentTarget.style.color = colors.white;
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(198, 40, 40, 0.25)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = colors.white;
+            e.currentTarget.style.color = colors.primaryRed;
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 .125rem .25rem rgba(0,0,0,.075)';
+          }}
+        >
+          <ArrowLeft size={16} />
+          <span>Back to Website</span>
+        </Link>
+      </div>
+      <div className="card shadow w-100 auth-card" style={{
         maxWidth: "950px",
         borderRadius: "1.5rem",
         backgroundColor: colors.white,
         border: isAdminMode ? `2px solid ${colors.adminGold}` : 'none' // Subtle indicator for admin
       }}>
-        <div className="row g-0">
-          <div className="col-md-6 d-none d-md-block position-relative overflow-hidden" style={{ borderRadius: '1.5rem 0 0 1.5rem' }}>
+        <div className="row g-0 align-items-stretch">
+          <div className="col-md-6 d-none d-md-block auth-image-col" style={{ borderRadius: '1.5rem 0 0 1.5rem' }}>
             <div
               style={{
                 position: 'absolute',
@@ -154,6 +155,7 @@ const Login = () => {
               style={{
                 height: "100%",
                 width: "100%",
+                minHeight: "100%",
                 objectFit: "cover",
                 objectPosition: 'center',
                 transition: 'transform 0.6s ease',
@@ -168,7 +170,7 @@ const Login = () => {
           </div>
 
           <div
-            className="col-md-6 d-flex align-items-center p-5"
+            className="col-12 col-md-6 auth-form-col"
             style={{ animation: 'fadeInRight 0.6s ease-out' }}
           >
             <div className="w-100">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaPlus, FaUpload, FaChartBar, FaBook, FaUsers, FaCheckCircle, FaTimesCircle, FaClock, FaGraduationCap, FaPlay, FaFileAlt, FaUserGraduate, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaPlus, FaUpload, FaChartBar, FaBook, FaUsers, FaCheckCircle, FaTimesCircle, FaClock, FaGraduationCap, FaPlay, FaFileAlt, FaUserGraduate, FaTrash, FaEdit, FaDownload } from 'react-icons/fa';
 import { adminAPI } from '../../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
 import toast from 'react-hot-toast';
@@ -273,6 +273,25 @@ const AdminTraining = () => {
     return 'bg-danger';
   };
 
+  const getFullFileUrl = (filePath) => {
+    if (!filePath) return '#';
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) return filePath;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+    const cleanPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+    return `${baseUrl}${cleanPath}`;
+  };
+
+  const handleDownloadMaterial = (material) => {
+    const rawPath = material?.file_url || material?.url || (material?.fileName ? `uploads/${material.fileName}` : null);
+    if (!rawPath) {
+      toast.error('File link is not available');
+      return;
+    }
+    const fullUrl = getFullFileUrl(rawPath);
+    window.open(fullUrl, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="container-fluid py-4" style={{ minHeight: '100vh', backgroundColor: colors.light }}>
       {/* Header */}
@@ -329,7 +348,7 @@ const AdminTraining = () => {
                 <div className="flex-grow-1">
                   <p className="mb-1 text-muted">Total Enrolled</p>
                   <h3 className="fw-bold mb-0" style={{ color: colors.warning }}>
-                    {trainingCourses.reduce((sum, course) => sum + course.enrolled, 0)}
+                    {trainingCourses.reduce((sum, course) => sum + (course.enrolled || 0), 0)}
                   </h3>
                 </div>
                 <div className="ms-3">
@@ -349,7 +368,7 @@ const AdminTraining = () => {
                 <div className="flex-grow-1">
                   <p className="mb-1 text-muted">Completed</p>
                   <h3 className="fw-bold mb-0" style={{ color: colors.info }}>
-                    {trainingCourses.reduce((sum, course) => sum + course.completed, 0)}
+                    {trainingCourses.reduce((sum, course) => sum + (course.completed || 0), 0)}
                   </h3>
                 </div>
                 <div className="ms-3">
@@ -367,29 +386,33 @@ const AdminTraining = () => {
       {/* Action Buttons */}
       <div className="row mb-4">
         <div className="col-12">
-          <div className="card shadow-sm">
-            <div className="card-body">
+          <div className="card shadow-sm border-0" style={{ borderRadius: '12px' }}>
+            <div className="card-body p-3">
               <div className="d-flex flex-wrap gap-2">
                 <button
-                  className="btn btn-primary"
+                  className="btn btn-sm text-white d-flex align-items-center"
+                  style={{ backgroundColor: colors.primary, borderRadius: '8px', padding: '8px 14px', fontWeight: '500' }}
                   onClick={() => setShowAddCourseModal(true)}
                 >
                   <FaPlus className="me-2" />Add Training Course
                 </button>
                 <button
-                  className="btn btn-outline-primary"
+                  className="btn btn-sm btn-outline-danger d-flex align-items-center"
+                  style={{ borderRadius: '8px', padding: '8px 14px', fontWeight: '500' }}
                   onClick={() => setShowAssignModal(true)}
                 >
                   <FaUsers className="me-2" />Assign Training
                 </button>
                 <button
-                  className="btn btn-outline-primary"
+                  className="btn btn-sm btn-outline-danger d-flex align-items-center"
+                  style={{ borderRadius: '8px', padding: '8px 14px', fontWeight: '500' }}
                   onClick={() => setShowUploadModal(true)}
                 >
                   <FaUpload className="me-2" />Upload Material
                 </button>
                 <button
-                  className="btn btn-outline-primary"
+                  className="btn btn-sm btn-outline-danger d-flex align-items-center"
+                  style={{ borderRadius: '8px', padding: '8px 14px', fontWeight: '500' }}
                   onClick={() => setShowCompletionModal(true)}
                 >
                   <FaCheckCircle className="me-2" />Mark Completion
@@ -403,34 +426,31 @@ const AdminTraining = () => {
       {/* Navigation Tabs */}
       <div className="row mb-4">
         <div className="col-12">
-          <div className="card shadow-sm">
-            <div className="card-body">
-              <ul className="nav nav-tabs">
-                <li className="nav-item">
-                  <button
-                    className={`nav-link ${activeView === 'courses' ? 'active' : ''}`}
-                    onClick={() => setActiveView('courses')}
-                  >
-                    <FaBook className="me-2" />Courses
-                  </button>
-                </li>
-                <li className="nav-item">
-                  <button
-                    className={`nav-link ${activeView === 'materials' ? 'active' : ''}`}
-                    onClick={() => setActiveView('materials')}
-                  >
-                    <FaFileAlt className="me-2" />Materials
-                  </button>
-                </li>
-                <li className="nav-item">
-                  <button
-                    className={`nav-link ${activeView === 'results' ? 'active' : ''}`}
-                    onClick={() => setActiveView('results')}
-                  >
-                    <FaChartBar className="me-2" />Results Dashboard
-                  </button>
-                </li>
-              </ul>
+          <div className="card shadow-sm border-0" style={{ borderRadius: '12px' }}>
+            <div className="card-body p-3 overflow-auto">
+              <div className="d-flex gap-2 flex-nowrap" style={{ paddingBottom: '2px' }}>
+                <button
+                  className={`btn btn-sm ${activeView === 'courses' ? 'btn-danger text-white' : 'btn-outline-danger'}`}
+                  style={{ borderRadius: '8px', fontWeight: '600', whiteSpace: 'nowrap', padding: '8px 16px' }}
+                  onClick={() => setActiveView('courses')}
+                >
+                  <FaBook className="me-2" />Courses
+                </button>
+                <button
+                  className={`btn btn-sm ${activeView === 'materials' ? 'btn-danger text-white' : 'btn-outline-danger'}`}
+                  style={{ borderRadius: '8px', fontWeight: '600', whiteSpace: 'nowrap', padding: '8px 16px' }}
+                  onClick={() => setActiveView('materials')}
+                >
+                  <FaFileAlt className="me-2" />Materials
+                </button>
+                <button
+                  className={`btn btn-sm ${activeView === 'results' ? 'btn-danger text-white' : 'btn-outline-danger'}`}
+                  style={{ borderRadius: '8px', fontWeight: '600', whiteSpace: 'nowrap', padding: '8px 16px' }}
+                  onClick={() => setActiveView('results')}
+                >
+                  <FaChartBar className="me-2" />Results Dashboard
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -440,15 +460,15 @@ const AdminTraining = () => {
       {activeView === 'courses' && (
         <div className="row">
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-header bg-white">
-                <h5 className="mb-0">Training Courses</h5>
+            <div className="card shadow-sm border-0" style={{ borderRadius: '12px' }}>
+              <div className="card-header bg-white border-0 py-3">
+                <h5 className="mb-0 fw-bold">Training Courses</h5>
               </div>
-              <div className="card-body">
+              <div className="card-body p-3">
                 {/* Desktop Table View */}
                 <div className="table-responsive d-none d-lg-block">
-                  <table className="table table-hover">
-                    <thead>
+                  <table className="table table-hover align-middle mb-0" style={{ minWidth: '700px' }}>
+                    <thead className="table-light">
                       <tr>
                         <th>Course Title</th>
                         <th>Instructor</th>
@@ -462,21 +482,108 @@ const AdminTraining = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {trainingCourses.map((course) => (
-                        <tr key={course.id}>
-                          <td>{course.title}</td>
-                          <td>{course.instructor}</td>
-                          <td>{course.duration}</td>
-                          <td>{course.category}</td>
-                          <td>
+                      {trainingCourses.length === 0 ? (
+                        <tr>
+                          <td colSpan="9" className="text-center py-4 text-muted">No training courses found.</td>
+                        </tr>
+                      ) : (
+                        trainingCourses.map((course) => (
+                          <tr key={course.id}>
+                            <td className="fw-semibold">{course.title}</td>
+                            <td>{course.instructor}</td>
+                            <td>{course.duration}</td>
+                            <td>{course.category}</td>
+                            <td>
+                              <span className={`badge ${getStatusBadgeClass(course.status)}`}>
+                                {course.status}
+                              </span>
+                            </td>
+                            <td>{course.enrolled}</td>
+                            <td>{course.completed}</td>
+                            <td>
+                              <div className="progress" style={{ height: '18px', borderRadius: '6px' }}>
+                                <div
+                                  className="progress-bar"
+                                  role="progressbar"
+                                  style={{
+                                    width: `${course.enrolled > 0 ? (course.completed / course.enrolled) * 100 : 0}%`,
+                                    backgroundColor: colors.primary
+                                  }}
+                                >
+                                  {course.enrolled > 0 ? Math.round((course.completed / course.enrolled) * 100) : 0}%
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="d-flex gap-2 align-items-center">
+                                <button 
+                                  className="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center" 
+                                  style={{ borderRadius: '6px', padding: '6px 10px' }}
+                                  onClick={() => handleEditCourse(course)}
+                                >
+                                  <FaEdit />
+                                </button>
+                                <button 
+                                  className="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center" 
+                                  style={{ borderRadius: '6px', padding: '6px 10px' }}
+                                  onClick={() => handleDeleteCourse(course.id)}
+                                >
+                                  <FaTrash />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="d-lg-none">
+                  {trainingCourses.length === 0 ? (
+                    <div className="text-center py-4 text-muted">No training courses found.</div>
+                  ) : (
+                    trainingCourses.map((course) => (
+                      <div key={course.id} className="card mb-3 border" style={{ borderRadius: "12px" }}>
+                        <div className="card-body p-3">
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <h6 className="mb-0 fw-bold">{course.title}</h6>
                             <span className={`badge ${getStatusBadgeClass(course.status)}`}>
                               {course.status}
                             </span>
-                          </td>
-                          <td>{course.enrolled}</td>
-                          <td>{course.completed}</td>
-                          <td>
-                            <div className="progress" style={{ height: '20px' }}>
+                          </div>
+
+                          <div className="mb-2">
+                            <small className="text-muted">Instructor: </small>
+                            <span className="fw-semibold">{course.instructor}</span>
+                          </div>
+
+                          <div className="row mb-2">
+                            <div className="col-6">
+                              <small className="text-muted">Duration:</small>
+                              <div className="small fw-semibold">{course.duration}</div>
+                            </div>
+                            <div className="col-6">
+                              <small className="text-muted">Category:</small>
+                              <div className="small fw-semibold">{course.category}</div>
+                            </div>
+                          </div>
+
+                          <div className="row mb-2">
+                            <div className="col-6">
+                              <small className="text-muted">Enrolled:</small>
+                              <div className="small fw-semibold">{course.enrolled}</div>
+                            </div>
+                            <div className="col-6">
+                              <small className="text-muted">Completed:</small>
+                              <div className="small fw-semibold">{course.completed}</div>
+                            </div>
+                          </div>
+
+                          <div className="mb-3">
+                            <small className="text-muted">Progress:</small>
+                            <div className="progress mt-1" style={{ height: '16px', borderRadius: '6px' }}>
                               <div
                                 className="progress-bar"
                                 role="progressbar"
@@ -488,95 +595,28 @@ const AdminTraining = () => {
                                 {course.enrolled > 0 ? Math.round((course.completed / course.enrolled) * 100) : 0}%
                               </div>
                             </div>
-                          </td>
-                          <td>
-                            <div className="d-flex gap-2">
-                              <button className="btn btn-sm btn-danger" onClick={() => handleEditCourse(course)}>
-                                <FaEdit />
-                              </button>
-                              <button className="btn btn-sm btn-danger" onClick={() => handleDeleteCourse(course.id)}>
-                                <FaTrash />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Mobile Card View */}
-                <div className="d-lg-none">
-                  {trainingCourses.map((course) => (
-                    <div key={course.id} className="card mb-3 shadow-sm">
-                      <div className="card-body">
-                        <div className="d-flex justify-content-between align-items-start mb-3">
-                          <h6 className="mb-0 fw-bold">{course.title}</h6>
-                          <span className={`badge ${getStatusBadgeClass(course.status)}`}>
-                            {course.status}
-                          </span>
-                        </div>
-
-                        <div className="mb-2">
-                          <small className="text-muted">Instructor:</small>
-                          <div>{course.instructor}</div>
-                        </div>
-
-                        <div className="row mb-2">
-                          <div className="col-6">
-                            <small className="text-muted">Duration:</small>
-                            <div>{course.duration}</div>
                           </div>
-                          <div className="col-6">
-                            <small className="text-muted">Category:</small>
-                            <div>{course.category}</div>
-                          </div>
-                        </div>
 
-                        <div className="row mb-2">
-                          <div className="col-6">
-                            <small className="text-muted">Enrolled:</small>
-                            <div>{course.enrolled}</div>
-                          </div>
-                          <div className="col-6">
-                            <small className="text-muted">Completed:</small>
-                            <div>{course.completed}</div>
-                          </div>
-                        </div>
-
-                        <div className="mb-3">
-                          <small className="text-muted">Progress:</small>
-                          <div className="progress mt-1" style={{ height: '20px' }}>
-                            <div
-                              className="progress-bar"
-                              role="progressbar"
-                              style={{
-                                width: `${course.enrolled > 0 ? (course.completed / course.enrolled) * 100 : 0}%`,
-                                backgroundColor: colors.primary
-                              }}
+                          <div className="d-flex gap-2">
+                            <button
+                              className="btn btn-sm btn-outline-primary flex-fill"
+                              style={{ borderRadius: '8px' }}
+                              onClick={() => handleEditCourse(course)}
                             >
-                              {course.enrolled > 0 ? Math.round((course.completed / course.enrolled) * 100) : 0}%
-                            </div>
+                              <FaEdit className="me-1" /> Edit
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-danger flex-fill"
+                              style={{ borderRadius: '8px' }}
+                              onClick={() => handleDeleteCourse(course.id)}
+                            >
+                              <FaTrash className="me-1" /> Delete
+                            </button>
                           </div>
-                        </div>
-
-                        <div className="d-flex gap-2">
-                          <button
-                            className="btn btn-sm btn-primary flex-fill"
-                            onClick={() => handleEditCourse(course)}
-                          >
-                            <FaEdit className="me-1" /> Edit
-                          </button>
-                          <button
-                            className="btn btn-sm btn-danger flex-fill"
-                            onClick={() => handleDeleteCourse(course.id)}
-                          >
-                            <FaTrash className="me-1" /> Delete
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -588,14 +628,15 @@ const AdminTraining = () => {
       {activeView === 'materials' && (
         <div className="row">
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-header bg-white">
-                <h5 className="mb-0">Training Materials</h5>
+            <div className="card shadow-sm border-0" style={{ borderRadius: '12px' }}>
+              <div className="card-header bg-white border-0 py-3">
+                <h5 className="mb-0 fw-bold">Training Materials</h5>
               </div>
-              <div className="card-body">
-                <div className="table-responsive">
-                  <table className="table table-hover">
-                    <thead>
+              <div className="card-body p-3">
+                {/* Desktop Table View */}
+                <div className="table-responsive d-none d-lg-block">
+                  <table className="table table-hover align-middle mb-0" style={{ minWidth: '650px' }}>
+                    <thead className="table-light">
                       <tr>
                         <th>File Name</th>
                         <th>Course</th>
@@ -606,28 +647,76 @@ const AdminTraining = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {trainingMaterials.map((material) => (
-                        <tr key={material.id}>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <FaFileAlt className="me-2 text-primary" />
-                              {material.fileName}
-                            </div>
-                          </td>
-                          <td>{trainingCourses.find(c => c.id === material.courseId)?.title || 'Unknown'}</td>
-                          <td>
-                            <span className="badge bg-secondary">{material.type}</span>
-                          </td>
-                          <td>{material.fileSize}</td>
-                          <td>{material.uploadDate}</td>
-                          <td>
-                            <button className="btn btn-sm btn-outline-primary me-1">Download</button>
-                            <button className="btn btn-sm btn-outline-danger">Delete</button>
-                          </td>
+                      {trainingMaterials.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="text-center py-4 text-muted">No training materials uploaded yet.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        trainingMaterials.map((material) => (
+                          <tr key={material.id}>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <FaFileAlt className="me-2 text-danger" />
+                                <span className="fw-semibold">{material.fileName}</span>
+                              </div>
+                            </td>
+                            <td>{trainingCourses.find(c => c.id === material.courseId)?.title || 'Unknown'}</td>
+                            <td>
+                              <span className="badge bg-secondary">{material.type || 'Document'}</span>
+                            </td>
+                            <td>{material.fileSize || 'N/A'}</td>
+                            <td>{material.uploadDate ? new Date(material.uploadDate).toLocaleDateString() : 'N/A'}</td>
+                            <td>
+                              <div className="d-flex gap-2">
+                                <button
+                                  className="btn btn-sm btn-outline-danger d-flex align-items-center"
+                                  style={{ borderRadius: '6px', fontSize: '0.8rem' }}
+                                  onClick={() => handleDownloadMaterial(material)}
+                                >
+                                  <FaDownload className="me-1" /> Download
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="d-lg-none">
+                  {trainingMaterials.length === 0 ? (
+                    <div className="text-center py-4 text-muted">No training materials uploaded yet.</div>
+                  ) : (
+                    trainingMaterials.map((material) => (
+                      <div key={material.id} className="card mb-3 border" style={{ borderRadius: "12px" }}>
+                        <div className="card-body p-3">
+                          <div className="d-flex align-items-center mb-2">
+                            <FaFileAlt className="me-2 text-danger" size={18} />
+                            <div className="fw-bold text-truncate flex-grow-1">{material.fileName}</div>
+                            <span className="badge bg-secondary ms-2">{material.type || 'Doc'}</span>
+                          </div>
+                          <div className="small text-muted mb-2">
+                            Course: <span className="fw-semibold text-dark">{trainingCourses.find(c => c.id === material.courseId)?.title || 'General'}</span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-center small text-muted mb-3">
+                            <span>Size: {material.fileSize || 'N/A'}</span>
+                            <span>Date: {material.uploadDate ? new Date(material.uploadDate).toLocaleDateString() : 'N/A'}</span>
+                          </div>
+                          <div className="d-flex gap-2">
+                            <button
+                              className="btn btn-sm btn-outline-danger flex-fill d-flex align-items-center justify-content-center"
+                              style={{ borderRadius: '8px', padding: '6px 12px' }}
+                              onClick={() => handleDownloadMaterial(material)}
+                            >
+                              <FaDownload className="me-1" /> Download
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -639,14 +728,15 @@ const AdminTraining = () => {
       {activeView === 'results' && (
         <div className="row">
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-header bg-white">
-                <h5 className="mb-0">Training Results Dashboard</h5>
+            <div className="card shadow-sm border-0" style={{ borderRadius: '12px' }}>
+              <div className="card-header bg-white border-0 py-3">
+                <h5 className="mb-0 fw-bold">Training Results Dashboard</h5>
               </div>
-              <div className="card-body">
-                <div className="table-responsive">
-                  <table className="table table-hover">
-                    <thead>
+              <div className="card-body p-3">
+                {/* Desktop Table View */}
+                <div className="table-responsive d-none d-lg-block">
+                  <table className="table table-hover align-middle mb-0" style={{ minWidth: '650px' }}>
+                    <thead className="table-light">
                       <tr>
                         <th>Employee</th>
                         <th>Course</th>
@@ -657,30 +747,69 @@ const AdminTraining = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {trainingResults.map((result) => (
-                        <tr key={result.id}>
-                          <td>{result.employeeName}</td>
-                          <td>{result.courseTitle}</td>
-                          <td>
-                            <span className={`badge ${getScoreBadgeClass(result.score)}`}>
-                              {result.score}%
-                            </span>
-                          </td>
-                          <td>
+                      {trainingResults.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="text-center py-4 text-muted">No training results available yet.</td>
+                        </tr>
+                      ) : (
+                        trainingResults.map((result) => (
+                          <tr key={result.id}>
+                            <td className="fw-semibold">{result.employeeName}</td>
+                            <td>{result.courseTitle}</td>
+                            <td>
+                              <span className={`badge ${getScoreBadgeClass(result.score)}`}>
+                                {result.score}%
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`badge ${getStatusBadgeClass(result.status)}`}>
+                                {result.status}
+                              </span>
+                            </td>
+                            <td>{result.completionDate}</td>
+                            <td>
+                              <span className={`badge ${result.certificate === 'Generated' ? 'bg-success' : 'bg-warning'}`}>
+                                {result.certificate}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="d-lg-none">
+                  {trainingResults.length === 0 ? (
+                    <div className="text-center py-4 text-muted">No training results available yet.</div>
+                  ) : (
+                    trainingResults.map((result) => (
+                      <div key={result.id} className="card mb-3 border" style={{ borderRadius: "12px" }}>
+                        <div className="card-body p-3">
+                          <div className="d-flex justify-content-between align-items-start mb-2">
+                            <div className="fw-bold">{result.employeeName}</div>
                             <span className={`badge ${getStatusBadgeClass(result.status)}`}>
                               {result.status}
                             </span>
-                          </td>
-                          <td>{result.completionDate}</td>
-                          <td>
-                            <span className={`badge ${result.certificate === 'Generated' ? 'bg-success' : 'bg-warning'}`}>
-                              {result.certificate}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                          </div>
+                          <div className="small text-muted mb-2">Course: <span className="fw-semibold text-dark">{result.courseTitle}</span></div>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="small text-muted">Score:</span>
+                            <span className={`badge ${getScoreBadgeClass(result.score)}`}>{result.score}%</span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <span className="small text-muted">Completed:</span>
+                            <span className="small fw-semibold">{result.completionDate}</span>
+                          </div>
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span className="small text-muted">Certificate:</span>
+                            <span className={`badge ${result.certificate === 'Generated' ? 'bg-success' : 'bg-warning'}`}>{result.certificate}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -690,7 +819,7 @@ const AdminTraining = () => {
       {/* Edit Course Modal */}
       {showEditCourseModal && (
         <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog">
+          <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Edit Training Course</h5>
@@ -795,11 +924,11 @@ const AdminTraining = () => {
       )
       }
 
-      {/* Add Course Modal (Continued...) */}
+      {/* Add Course Modal */}
       {
         showAddCourseModal && (
           <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Add Training Course</h5>
@@ -875,7 +1004,7 @@ const AdminTraining = () => {
       {
         showAssignModal && (
           <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Assign Training to Employees</h5>
@@ -948,7 +1077,7 @@ const AdminTraining = () => {
       {
         showUploadModal && (
           <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Upload Training Material</h5>
@@ -1005,7 +1134,7 @@ const AdminTraining = () => {
       {
         showCompletionModal && (
           <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-            <div className="modal-dialog">
+            <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Mark Training Completion</h5>

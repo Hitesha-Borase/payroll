@@ -16,6 +16,7 @@ import {
   FaExchangeAlt
 } from "react-icons/fa";
 import { employerAPI } from '../../services/api';
+import { useRegional } from '../../context/RegionalContext';
 
 // Color scheme
 const colors = {
@@ -34,6 +35,7 @@ const colors = {
 
 const Transactions = () => {
   const navigate = useNavigate();
+  const { formatCurrency } = useRegional();
   const [transactions, setTransactions] = useState([]);
   const [filteredTransactions, setFilteredTransactions] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -220,7 +222,7 @@ const Transactions = () => {
                     Total Volume
                   </p>
                   <h4 className="fw-bold mb-0 mt-1 text-truncate" style={{ color: colors.primaryRed, fontSize: isMobile ? '1.15rem' : '1.45rem' }}>
-                    ${totalVolume.toLocaleString()}
+                    {formatCurrency ? formatCurrency(totalVolume) : `₹${totalVolume.toLocaleString()}`}
                   </h4>
                 </div>
                 <div
@@ -453,7 +455,7 @@ const Transactions = () => {
                         {/* Amount & Status Badge */}
                         <div className="text-end flex-shrink-0">
                           <div className="fw-bold" style={{ color: colors.blackText, fontSize: '1rem' }}>
-                            ${transaction.amount.toLocaleString()}
+                            {formatCurrency ? formatCurrency(transaction.amount) : `₹${transaction.amount.toLocaleString()}`}
                           </div>
                           <span
                             className="badge px-2 py-0.5 mt-0.5 d-inline-flex align-items-center text-capitalize"
@@ -546,7 +548,7 @@ const Transactions = () => {
                             {transaction.employer}
                           </td>
                           <td className="py-3 fw-bold text-dark">
-                            ${transaction.amount.toLocaleString()}
+                            {formatCurrency ? formatCurrency(transaction.amount) : `₹${transaction.amount.toLocaleString()}`}
                           </td>
                           <td className="py-3">
                             <span className="fw-semibold text-danger">
@@ -658,7 +660,7 @@ const Transactions = () => {
                 <div className="p-3 rounded-3 mb-3 text-center" style={{ backgroundColor: '#FEF2F2', border: `1px solid #FECACA` }}>
                   <div className="text-muted mb-1" style={{ fontSize: '0.78rem' }}>Transaction Amount</div>
                   <div className="fw-bold" style={{ fontSize: '1.65rem', color: colors.primaryRed }}>
-                    ${selectedTransaction.amount.toLocaleString()}
+                    {formatCurrency ? formatCurrency(selectedTransaction.amount) : `₹${selectedTransaction.amount.toLocaleString()}`}
                   </div>
                   <span className="badge px-3 py-1 mt-1" style={{ ...getStatusStyle(selectedTransaction.status), borderRadius: '20px', fontSize: '0.78rem' }}>
                     {selectedTransaction.status.toUpperCase()}

@@ -20,12 +20,15 @@
 /* Sidebar */
 .sidebar {
   height: 100%;
-  overflow-y: auto;
-  padding: 10px 0 20px 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0 10px 0;
+  box-sizing: border-box;
 }
 
 .sidebar-brand {
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 /* Menu */
@@ -33,6 +36,9 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .menu-item {
@@ -121,6 +127,67 @@
 }
 
 .sidebar-container.collapsed .menu-icon {
+  margin: 0;
+}
+
+/* Sidebar Footer & Logout Button */
+.sidebar-footer {
+  padding: 12px 14px;
+  border-top: 1px solid #f1f5f9;
+  background-color: #ffffff;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(198, 40, 40, 0.2);
+  background: rgba(198, 40, 40, 0.04);
+  color: #C62828;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sidebar-logout-btn:hover {
+  background: #C62828;
+  color: #ffffff;
+  border-color: #C62828;
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+}
+
+.sidebar-logout-btn .logout-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sidebar-logout-btn .logout-text {
+  margin-left: 10px;
+  white-space: nowrap;
+}
+
+.sidebar-container.collapsed .sidebar-footer {
+  padding: 10px 8px;
+}
+
+.sidebar-container.collapsed .sidebar-logout-btn {
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.sidebar-container.collapsed .sidebar-logout-btn .logout-text {
+  display: none;
+}
+
+.sidebar-container.collapsed .sidebar-logout-btn .logout-icon {
   margin: 0;
 }
 

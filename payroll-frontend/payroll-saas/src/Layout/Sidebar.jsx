@@ -23,16 +23,30 @@ import {
     faTags,
     faGear,
     faHeadset,
-    faDatabase
+    faDatabase,
+    faEnvelope,
+    faSignOutAlt
 } from "@fortawesome/free-solid-svg-icons";
+import { useAuth } from "../hooks/useAuth";
 
 import "./Sidebar.css";
 
 const Sidebar = ({ collapsed, setCollapsed }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { logout } = useAuth();
     const [activeMenu, setActiveMenu] = useState(null);
     const [userRole, setUserRole] = useState(null);
+
+    const handleLogout = async () => {
+        try {
+            if (logout) await logout();
+            navigate('/');
+        } catch (error) {
+            localStorage.clear();
+            navigate('/');
+        }
+    };
 
     useEffect(() => {
         const role = localStorage.getItem("userRole");
@@ -98,14 +112,9 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 path: "/superadmin/payments-subscriptions",
             },
             {
-                name: "Support Tickets",
-                icon: faHeadset,
-                path: "/superadmin/support-tickets",
-            },
-            {
-                name: "Settings",
-                icon: faGear,
-                path: "/superadmin/settings",
+                name: "SMTP Config",
+                icon: faEnvelope,
+                path: "/superadmin/smtp-config",
             }
         ],
 
@@ -166,9 +175,9 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                 path: "/admin/backups",
             },
             {
-                name: "Support Tickets",
-                icon: faHeadset,
-                path: "/admin/support-tickets",
+                name: "Settings",
+                icon: faGear,
+                path: "/admin/settings",
             },
         ],
 
@@ -354,6 +363,17 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                         </li>
                     ))}
                 </ul>
+                <div className="sidebar-footer">
+                    <button
+                        type="button"
+                        className="sidebar-logout-btn"
+                        onClick={handleLogout}
+                        title="Logout"
+                    >
+                        <FontAwesomeIcon icon={faSignOutAlt} className="logout-icon" />
+                        {!collapsed && <span className="logout-text">Logout</span>}
+                    </button>
+                </div>
             </div>
         </div>
     );

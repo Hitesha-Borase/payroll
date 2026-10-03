@@ -1,0 +1,589 @@
+/* System Backup & Restore SaaS Theme Styles (Kiaan Red & White Theme) */
+
+.backup-page-wrapper {
+  padding: 1.5rem 1rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: inherit;
+}
+
+@media (min-width: 768px) {
+  .backup-page-wrapper {
+    padding: 2rem 2.5rem;
+  }
+}
+
+/* Page Header */
+.backup-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .backup-page-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.backup-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backup-main-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.5px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backup-main-subtitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.backup-refresh-btn {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.backup-refresh-btn:hover {
+  background: #fee2e2;
+  border-color: #C62828;
+  color: #C62828;
+}
+
+/* Base Card Style */
+.backup-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  margin-bottom: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.backup-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Admin Profile & Delivery Bar */
+.backup-admin-top {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .backup-admin-top {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.backup-admin-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backup-user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fee2e2;
+  color: #C62828;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.backup-user-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.backup-access-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-top: 2px;
+}
+
+.backup-last-date-block {
+  text-align: left;
+}
+
+@media (min-width: 768px) {
+  .backup-last-date-block {
+    text-align: right;
+  }
+}
+
+.backup-last-date-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (min-width: 768px) {
+  .backup-last-date-label {
+    justify-content: flex-end;
+  }
+}
+
+.backup-last-date-val {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* Email Input Row */
+.backup-email-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.backup-email-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .backup-email-bar {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.backup-input-wrap {
+  position: relative;
+  flex-grow: 1;
+}
+
+.backup-input-wrap .mail-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.backup-email-input {
+  width: 100%;
+  height: 46px;
+  padding: 8px 14px 8px 42px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.backup-email-input:focus {
+  background: #ffffff;
+  border-color: #C62828;
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12);
+}
+
+.backup-send-email-btn {
+  height: 46px;
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 0 22px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+}
+
+.backup-send-email-btn:hover {
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.35);
+}
+
+.backup-send-email-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.backup-email-hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Option Cards Header */
+.backup-option-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.backup-option-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backup-option-icon-box.blue,
+.backup-option-icon-box.red {
+  background: #fee2e2;
+  color: #C62828;
+}
+
+.backup-option-icon-box.green {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.backup-option-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.backup-option-badge.blue,
+.backup-option-badge.red {
+  background: #fee2e2;
+  color: #991B1B;
+  border: 1px solid #fca5a5;
+}
+
+.backup-option-badge.green {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.backup-option-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.backup-option-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.45;
+  margin-bottom: 1rem;
+}
+
+/* Segmented Scope Control */
+.backup-scope-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.backup-scope-pills {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 1rem;
+}
+
+.backup-scope-pill {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.backup-scope-pill.active {
+  background: #C62828;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(198, 40, 40, 0.25);
+}
+
+/* Dropzone */
+.backup-dropzone {
+  border: 2px dashed #cbd5e1;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 1.75rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 1.25rem;
+}
+
+.backup-dropzone:hover, .backup-dropzone.has-file {
+  border-color: #C62828;
+  background: #fff5f5;
+}
+
+.backup-dropzone-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+
+.backup-dropzone-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Action Buttons */
+.backup-action-btn {
+  width: 100%;
+  height: 48px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.backup-action-btn.primary {
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+}
+
+.backup-action-btn.primary:hover {
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.35);
+}
+
+.backup-action-btn.restore {
+  background: #fee2e2;
+  color: #991B1B;
+  border: 1px solid #fca5a5;
+}
+
+.backup-action-btn.restore.ready {
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+  border: none;
+}
+
+.backup-action-btn.restore.ready:hover {
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
+  transform: translateY(-1px);
+}
+
+.backup-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Recurring Backup Card */
+.backup-recurring-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.backup-recurring-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.backup-clock-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #fee2e2;
+  color: #C62828;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backup-recurring-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.backup-active-badge {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+}
+
+.backup-recurring-sub {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* Form Controls */
+.backup-select-field {
+  width: 100%;
+  height: 46px;
+  padding: 8px 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.backup-select-field:focus {
+  border-color: #C62828;
+  box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12);
+}
+
+.backup-save-schedule-btn {
+  background: linear-gradient(135deg, #C62828 0%, #B71C1C 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  height: 44px;
+  padding: 0 22px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(198, 40, 40, 0.25);
+}
+
+.backup-save-schedule-btn:hover {
+  background: linear-gradient(135deg, #B71C1C 0%, #881337 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(198, 40, 40, 0.35);
+}
+
+/* Custom Checkbox & Switch Red Accent */
+.form-check-input:checked {
+  background-color: #C62828 !important;
+  border-color: #C62828 !important;
+}
+
+.form-check-input:focus {
+  border-color: #C62828 !important;
+  box-shadow: 0 0 0 0.25rem rgba(198, 40, 40, 0.2) !important;
+}
+
+/* Bottom Warning Banner */
+.backup-warning-banner {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  color: #92400e;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

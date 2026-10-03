@@ -3,8 +3,10 @@ import { FaUserTie, FaBuilding, FaUniversity, FaTimes, FaEye, FaCalendarAlt, FaM
 import { employerAPI } from '../../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
 import toast from 'react-hot-toast';
+import { useRegional } from '../../context/RegionalContext';
 
 const PaymentEmployer = () => {
+  const { formatCurrency } = useRegional();
   // --- STATE MANAGEMENT ---
   const [employees, setEmployees] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -144,7 +146,7 @@ const PaymentEmployer = () => {
       });
 
       if (response?.data?.success) {
-        setSuccessMessage(`Bank transfer of $${parseFloat(employeePayment.amount).toLocaleString()} to ${employee.name} initiated successfully.`);
+        setSuccessMessage(`Bank transfer of ${formatCurrency(employeePayment.amount)} to ${employee.name} initiated successfully.`);
         setShowPayEmployeeModal(false);
         setEmployeePayment({ employeeId: '', amount: '', accountNumber: '', ifsc: '', notes: '' });
         fetchData(); // Refresh data
@@ -181,7 +183,7 @@ const PaymentEmployer = () => {
       });
 
       if (response?.data?.success) {
-        setSuccessMessage(`Bank transfer of $${parseFloat(vendorPayment.amount).toLocaleString()} to ${vendor.name} initiated successfully.`);
+        setSuccessMessage(`Bank transfer of ${formatCurrency(vendorPayment.amount)} to ${vendor.name} initiated successfully.`);
         setShowPayVendorModal(false);
         setVendorPayment({ vendorId: '', amount: '', accountNumber: '', ifsc: '', notes: '' });
         fetchData(); // Refresh data
@@ -223,9 +225,9 @@ const PaymentEmployer = () => {
       setRecentPayments([newPayment, ...recentPayments]);
       setIsLoading(false);
       if (newPayment.status === 'Success') {
-        toast.success(`Bank transfer of $${newPayment.amount.toLocaleString()} to ${bankTransfer.recipientName} is successful.`);
+        toast.success(`Bank transfer of ${formatCurrency(newPayment.amount)} to ${bankTransfer.recipientName} is successful.`);
       } else {
-        toast.error(`Bank transfer of $${newPayment.amount.toLocaleString()} to ${bankTransfer.recipientName} failed.`);
+        toast.error(`Bank transfer of ${formatCurrency(newPayment.amount)} to ${bankTransfer.recipientName} failed.`);
       }
       setShowBankTransferModal(false);
       setBankTransfer({ fromAccount: '', toAccount: '', toIFSC: '', amount: '', notes: '', recipientName: '' }); // Reset form
@@ -328,7 +330,7 @@ const PaymentEmployer = () => {
         <div className="d-flex align-items-center">
           <div className="bg-white rounded-pill p-2 px-3 shadow-sm">
             <span className="text-muted small me-2">Available Credits:</span>
-            <span className="fw-bold" style={{ color: "#C62828" }}>${creditBalance.toLocaleString()}</span>
+            <span className="fw-bold" style={{ color: "#C62828" }}>{formatCurrency(creditBalance)}</span>
           </div>
         </div>
       </div>
@@ -442,57 +444,48 @@ const PaymentEmployer = () => {
           </div>
 
           {/* Payment History Tabs */}
-          <div className="mt-3">
-            <ul className="nav nav-tabs" style={{ borderBottom: "1px solid #E2E2E2" }}>
-              <li className="nav-item">
-                <button
-                  className={`nav-link ${activeHistoryTab === 'all' ? 'active' : ''}`}
-                  onClick={() => setActiveHistoryTab('all')}
-                  style={{
-                    color: activeHistoryTab === 'all' ? '#FFFFFF' : '#C62828',
-                    backgroundColor: activeHistoryTab === 'all' ? '#C62828' : 'transparent',
-                    border: 'none',
-                    borderBottom: activeHistoryTab === 'all' ? '3px solid #B71C1C' : 'none',
-                    fontWeight: 'bold',
-                    borderRadius: '0'
-                  }}
-                >
-                  All Payments
-                </button>
-              </li>
-              <li className="nav-item">
-                <button
-                  className={`nav-link ${activeHistoryTab === 'employee' ? 'active' : ''}`}
-                  onClick={() => setActiveHistoryTab('employee')}
-                  style={{
-                    color: activeHistoryTab === 'employee' ? '#FFFFFF' : '#C62828',
-                    backgroundColor: activeHistoryTab === 'employee' ? '#C62828' : 'transparent',
-                    border: 'none',
-                    borderBottom: activeHistoryTab === 'employee' ? '3px solid #B71C1C' : 'none',
-                    fontWeight: 'bold',
-                    borderRadius: '0'
-                  }}
-                >
-                  Employee Payments
-                </button>
-              </li>
-              <li className="nav-item">
-                <button
-                  className={`nav-link ${activeHistoryTab === 'vendor' ? 'active' : ''}`}
-                  onClick={() => setActiveHistoryTab('vendor')}
-                  style={{
-                    color: activeHistoryTab === 'vendor' ? '#FFFFFF' : '#C62828',
-                    backgroundColor: activeHistoryTab === 'vendor' ? '#C62828' : 'transparent',
-                    border: 'none',
-                    borderBottom: activeHistoryTab === 'vendor' ? '3px solid #B71C1C' : 'none',
-                    fontWeight: 'bold',
-                    borderRadius: '0'
-                  }}
-                >
-                  Vendor Payments
-                </button>
-              </li>
-            </ul>
+          <div className="mt-3 overflow-auto">
+            <div className="d-flex gap-2 flex-nowrap" style={{ borderBottom: "1px solid #E2E2E2", paddingBottom: '4px' }}>
+              <button
+                className={`btn btn-sm ${activeHistoryTab === 'all' ? 'btn-danger text-white' : 'btn-outline-danger'}`}
+                onClick={() => setActiveHistoryTab('all')}
+                style={{
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap',
+                  fontSize: '0.85rem',
+                  padding: '6px 14px'
+                }}
+              >
+                All Payments
+              </button>
+              <button
+                className={`btn btn-sm ${activeHistoryTab === 'employee' ? 'btn-danger text-white' : 'btn-outline-danger'}`}
+                onClick={() => setActiveHistoryTab('employee')}
+                style={{
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap',
+                  fontSize: '0.85rem',
+                  padding: '6px 14px'
+                }}
+              >
+                Employee Payments
+              </button>
+              <button
+                className={`btn btn-sm ${activeHistoryTab === 'vendor' ? 'btn-danger text-white' : 'btn-outline-danger'}`}
+                onClick={() => setActiveHistoryTab('vendor')}
+                style={{
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  whiteSpace: 'nowrap',
+                  fontSize: '0.85rem',
+                  padding: '6px 14px'
+                }}
+              >
+                Vendor Payments
+              </button>
+            </div>
           </div>
         </div>
         <div className="card-body p-0">
@@ -537,7 +530,7 @@ const PaymentEmployer = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="fw-semibold">${payment.amount.toLocaleString()}</td>
+                      <td className="fw-semibold">{formatCurrency ? formatCurrency(payment.amount) : `₹${payment.amount.toLocaleString()}`}</td>
                       <td>{payment.method}</td>
                       <td>
                         <span className={`badge rounded-pill d-flex align-items-center ${payment.status === 'Success' ? 'bg-success' :
@@ -591,7 +584,7 @@ const PaymentEmployer = () => {
                     </div>
                     <div className="d-flex justify-content-between align-items-center mb-2">
                       <span className="text-muted small">{payment.date}</span>
-                      <span className="fw-bold" style={{ color: "#C62828" }}>${payment.amount.toLocaleString()}</span>
+                      <span className="fw-bold" style={{ color: "#C62828" }}>{formatCurrency ? formatCurrency(payment.amount) : `₹${payment.amount.toLocaleString()}`}</span>
                     </div>
                     <div className="mb-2">
                       <p className="text-muted small mb-0">{payment.method}</p>
@@ -1064,7 +1057,7 @@ const PaymentEmployer = () => {
                   <div className="card-body">
                     <div className="d-flex justify-content-between align-items-center">
                       <span className="fw-bold">Amount</span>
-                      <span className="fw-bold" style={{ color: "#C62828", fontSize: '1.5rem' }}>${selectedPayment.amount.toLocaleString()}</span>
+                      <span className="fw-bold" style={{ color: "#C62828", fontSize: '1.5rem' }}>{formatCurrency(selectedPayment.amount)}</span>
                     </div>
                   </div>
                 </div>

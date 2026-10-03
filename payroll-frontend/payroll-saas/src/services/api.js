@@ -20,7 +20,7 @@ const axiosInstance = axios.create({
 // Add request interceptor to attach token
 axiosInstance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -235,6 +235,9 @@ export const adminAPI = {
       headers: { 'Content-Type': 'multipart/form-data' }
     }),
     getDownloadBackupUrl: (filename) => `${API_BASE_URL}admin/backups/download/${encodeURIComponent(filename)}`,
+    getSystemSetting: (key) => axiosInstance.get(`/admin/settings/${key}`),
+    saveSystemSetting: (key, value) => axiosInstance.post('/admin/settings', { key, value }),
+    testSmtpConnection: (data) => axiosInstance.post('/admin/settings/smtp/test', data),
 };
 
 // ==================== SUPERADMIN API ====================
@@ -291,6 +294,10 @@ export const superadminAPI = {
     getAuditLogs: (params) => axiosInstance.get('/superadmin/audit-logs', { params }),
     getAuditStats: () => axiosInstance.get('/superadmin/audit-logs/stats'),
     getAuditActions: () => axiosInstance.get('/superadmin/audit-logs/actions'),
+    // SMTP Configuration
+    getSMTPConfig: () => axiosInstance.get('/superadmin/smtp-config'),
+    updateSMTPConfig: (data) => axiosInstance.put('/superadmin/smtp-config', data),
+    testSMTPConfig: (data) => axiosInstance.post('/superadmin/smtp-config/test', data),
     // Backup & Recovery System
     getBackups: () => axiosInstance.get('/superadmin/backups'),
     createBackup: (data) => axiosInstance.post('/superadmin/backups/create', data),
@@ -372,6 +379,17 @@ export const publicAPI = {
     // Razorpay Online Checkout (Public / Registration)
     createRazorpayOrder: (data) => axiosInstance.post('payment/razorpay/create-order', data),
     verifyAndRegister: (data) => axiosInstance.post('payment/razorpay/verify-and-register', data),
+};
+
+// ==================== WHATSAPP CONNECTIVITY API ====================
+export const whatsappAPI = {
+    getStatus: () => axiosInstance.get('/admin/whatsapp/status'),
+    connect: (phoneNumber) => axiosInstance.post('/admin/whatsapp/connect', { phoneNumber }),
+    getPairingCode: (phoneNumber) => axiosInstance.post('/admin/whatsapp/pairing-code', { phoneNumber }),
+    disconnect: () => axiosInstance.post('/admin/whatsapp/disconnect'),
+    updatePreferences: (data) => axiosInstance.put('/admin/whatsapp/preferences', data),
+    sendTestMessage: (data) => axiosInstance.post('/admin/whatsapp/test', data),
+    getLogs: (limit = 50) => axiosInstance.get(`/admin/whatsapp/logs?limit=${limit}`),
 };
 
 export default axiosInstance;

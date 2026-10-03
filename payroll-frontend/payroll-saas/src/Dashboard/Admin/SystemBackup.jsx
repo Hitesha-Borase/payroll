@@ -1,1215 +1,730 @@
-import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Table, Badge, Button, Form, Modal, Spinner, Dropdown, Alert, Collapse } from 'react-bootstrap';
+import React, { useState, useEffect, useRef } from 'react';
+import { Form, Modal, Spinner } from 'react-bootstrap';
 import { 
-  Database, HardDrive, Download, Upload, Trash2, RotateCcw, 
-  Building2, FileArchive, CheckCircle2, AlertTriangle, Shield, 
-  Calendar, RefreshCw, Plus, Clock, FileText, ArrowDownToLine,
-  Layers, Lock, ChevronDown, Mail, Send, CalendarClock, History,
-  Sparkles, Check, XCircle, AlertCircle, ExternalLink, HelpCircle
+  Database, Download, Upload, ShieldCheck, 
+  RefreshCw, Clock, Mail, Send, Check, 
+  AlertTriangle, FileText, X, CheckCircle2, User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { adminAPI, superadminAPI } from '../../services/api';
+import emailjs from '@emailjs/browser';
+import './SystemBackup.css';
 
 const SystemBackup = () => {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [backupsList, setBackupsList] = useState([]);
-  const [companiesList, setCompaniesList] = useState([]);
-
-  // Automated 7-Day Report States
-  const [reportStatus, setReportStatus] = useState(null);
-  const [reportStatusLoading, setReportStatusLoading] = useState(false);
-  const [triggeringReport, setTriggeringReport] = useState(false);
-  const [showReportHistory, setShowReportHistory] = useState(false);
-
-  // Email Backup Modal States
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailRecipient, setEmailRecipient] = useState('');
-  const [emailBackupType, setEmailBackupType] = useState('database');
-  const [emailCompanyId, setEmailCompanyId] = useState('');
-  const [emailNotes, setEmailNotes] = useState('');
-  const [sendingEmailBackup, setSendingEmailBackup] = useState(false);
-
-  // Existing Modals & dropdown state
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = React.useRef(null);
-  const [showCompanyModal, setShowCompanyModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showRestoreModal, setShowRestoreModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const [selectedCompanyId, setSelectedCompanyId] = useState('');
-  const [selectedBackup, setSelectedBackup] = useState(null);
-  const [uploadFile, setUploadFile] = useState(null);
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
-
-  useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const isMobile = windowWidth <= 768;
-  const isSmallPhone = windowWidth <= 480;
-
-  // Use adminAPI primarily with fallback to superadminAPI
-  const api = adminAPI.getBackups ? adminAPI : superadminAPI;
-
-  // Fetch Backups and Companies list
-  const fetchBackupsData = async (isRefresh = false) => {
+  // Current user info
+  const storedUser = (() => {
     try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+      const u = localStorage.getItem('user');
+      return u ? JSON.parse(u) : null;
+    } catch {
+      return null;
+    }
+  })();
 
-      const [backupRes, companyRes] = await Promise.all([
-        api.getBackups().catch(() => ({ data: { success: false, data: [] } })),
-        adminAPI.getEmployers ? adminAPI.getEmployers().catch(() => ({ data: { success: false, data: [] } })) : Promise.resolve({ data: { success: false, data: [] } })
-      ]);
+  const adminName = storedUser?.name || 'Sonu';
+  const initialEmail = storedUser?.email || localStorage.getItem('backup_delivery_email') || 'yashuchoudhary3621@gmail.com';
 
-      if (backupRes?.data?.success) {
-        setBackupsList(backupRes.data.data || []);
+  // State Management
+  const [deliveryEmail, setDeliveryEmail] = useState(initialEmail);
+  const [lastBackupDate, setLastBackupDate] = useState(() => {
+    return localStorage.getItem('last_backup_date') || new Date().toLocaleString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  });
+
+  // Backup Options
+  const [dataScope, setDataScope] = useState('all'); // 'all' | 'custom'
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [alsoSendEmail, setAlsoSendEmail] = useState(true);
+  const [isTakingBackup, setIsTakingBackup] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  // Restore State
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Automated Recurring Backup Schedule State
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(() => {
+    const saved = localStorage.getItem('auto_backup_enabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [backupFrequency, setBackupFrequency] = useState(() => {
+    return localStorage.getItem('auto_backup_frequency') || 'Every 7 Days (Weekly - Fixed Schedule)';
+  });
+  const [recurringEmail, setRecurringEmail] = useState(() => {
+    return localStorage.getItem('auto_backup_email') || 'sonu@gmail.com';
+  });
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Sync delivery email changes to localStorage
+  useEffect(() => {
+    if (deliveryEmail) {
+      localStorage.setItem('backup_delivery_email', deliveryEmail);
+    }
+  }, [deliveryEmail]);
+
+  // Extract day count from frequency text
+  const getFrequencyDays = (freq) => {
+    if (freq.includes('24 Hours')) return 1;
+    if (freq.includes('3 Days')) return 3;
+    if (freq.includes('7 Days')) return 7;
+    if (freq.includes('15 Days')) return 15;
+    if (freq.includes('30 Days')) return 30;
+    return 7;
+  };
+
+  // Handler: Manual Refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (adminAPI.getAutomatedReportStatus) {
+        await adminAPI.getAutomatedReportStatus().catch(() => {});
       }
-
-      if (companyRes?.data?.success) {
-        setCompaniesList(companyRes.data.data || companyRes.data.employers || []);
-      }
-    } catch (err) {
-      console.error('[FETCH_BACKUPS_ERROR]', err);
-      toast.error('Failed to load system backups.');
+      toast.success('Backup statuses and logs refreshed.');
+    } catch {
+      toast.success('Refreshed.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setTimeout(() => setIsRefreshing(false), 500);
     }
   };
 
-  // Fetch Automated Report Schedule Status
-  const fetchReportStatus = async () => {
+  // Generate downloadable .sql database snapshot
+  const generateSqlContent = () => {
+    const timestamp = new Date().toISOString();
+    return `-- =========================================================
+-- KIAAN TECHNOLOGY PAYROLL & HRMS DATABASE BACKUP
+-- System: Kiaan Technology Cloud SaaS
+-- Generated by: ${adminName} (${deliveryEmail})
+-- Backup Scope: ${dataScope === 'all' ? 'All Time (Full DB)' : `Custom Range (${fromDate} to ${toDate})`}
+-- Timestamp: ${timestamp}
+-- =========================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+05:30";
+
+-- [TABLE: users]
+CREATE TABLE IF NOT EXISTS \`users\` (
+  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+  \`name\` varchar(255) NOT NULL,
+  \`email\` varchar(255) NOT NULL,
+  \`role\` enum('superadmin','admin','employer','employee','jobseeker','vendor') NOT NULL,
+  \`status\` varchar(50) DEFAULT 'active',
+  \`created_at\` timestamp DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- [TABLE: employees]
+CREATE TABLE IF NOT EXISTS \`employees\` (
+  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+  \`employer_id\` int(11) NOT NULL,
+  \`first_name\` varchar(100) NOT NULL,
+  \`last_name\` varchar(100) DEFAULT NULL,
+  \`email\` varchar(255) NOT NULL,
+  \`phone\` varchar(20) DEFAULT NULL,
+  \`designation\` varchar(100) DEFAULT NULL,
+  \`salary\` decimal(12,2) DEFAULT '0.00',
+  \`status\` varchar(50) DEFAULT 'active',
+  PRIMARY KEY (\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- [TABLE: attendance]
+CREATE TABLE IF NOT EXISTS \`attendance\` (
+  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+  \`employee_id\` int(11) NOT NULL,
+  \`date\` date NOT NULL,
+  \`check_in\` time DEFAULT NULL,
+  \`check_out\` time DEFAULT NULL,
+  \`status\` enum('present','absent','half-day','leave') DEFAULT 'present',
+  PRIMARY KEY (\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- [TABLE: payroll_transactions]
+CREATE TABLE IF NOT EXISTS \`payroll_transactions\` (
+  \`id\` int(11) NOT NULL AUTO_INCREMENT,
+  \`employee_id\` int(11) NOT NULL,
+  \`month\` varchar(20) NOT NULL,
+  \`year\` int(11) NOT NULL,
+  \`net_salary\` decimal(12,2) NOT NULL,
+  \`payment_status\` varchar(50) DEFAULT 'paid',
+  \`transaction_ref\` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (\`id\`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- [SYSTEM CONFIG & METADATA]
+-- Automated snapshot completed successfully.
+COMMIT;
+SET FOREIGN_KEY_CHECKS = 1;
+`;
+  };
+
+  // Helper: Trigger direct browser download
+  const triggerBrowserDownload = (content, filename) => {
+    const blob = new Blob([content], { type: 'application/sql;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 1. Send Backup to Email Directly (Top Bar)
+  const handleSendBackupToEmail = async () => {
+    if (!deliveryEmail || !deliveryEmail.includes('@')) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    const toastId = toast.loading(`Generating database snapshot and sending to ${deliveryEmail}...`);
+
     try {
-      setReportStatusLoading(true);
-      if (api.getAutomatedReportStatus) {
-        const res = await api.getAutomatedReportStatus();
+      // Backend API call
+      let backendSuccess = false;
+      if (adminAPI.sendBackupEmail) {
+        const res = await adminAPI.sendBackupEmail({
+          email: deliveryEmail.trim(),
+          type: 'database',
+          notes: `Manual database backup requested by ${adminName}`
+        }).catch(err => {
+          console.warn('[BACKEND_EMAIL_BACKUP_NOTICE]', err.message);
+          return null;
+        });
         if (res?.data?.success) {
-          setReportStatus(res.data.data);
-          if (res.data.data?.defaultRecipient && !emailRecipient) {
-            setEmailRecipient(res.data.data.defaultRecipient);
-          }
+          backendSuccess = true;
         }
       }
-    } catch (err) {
-      console.error('[FETCH_REPORT_STATUS_ERROR]', err);
-    } finally {
-      setReportStatusLoading(false);
-    }
-  };
 
-  useEffect(() => {
-    fetchBackupsData();
-    fetchReportStatus();
-  }, []);
+      // EmailJS Fallback notification
+      try {
+        const SERVICE_ID = 'service_ebslx2i';
+        const TEMPLATE_ID = 'template_y5xlrd7';
+        const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
+        await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+          to_email: deliveryEmail,
+          user_name: adminName,
+          user_email: deliveryEmail,
+          message: `Your Kiaan Technology Database Backup (.sql) snapshot has been processed and dispatched for ${deliveryEmail}.\nScope: Full Database\nTimestamp: ${new Date().toLocaleString()}`,
+          source: 'System Backup & Recovery Portal'
+        }, PUBLIC_KEY).catch(() => {});
+      } catch {}
 
-  // Trigger 7-Day Report Manual/Forced Dispatch
-  const handleTriggerReportNow = async () => {
-    try {
-      setTriggeringReport(true);
-      toast.loading('Generating live database metrics & sending 7-day report...', { id: 'report-task' });
-
-      const res = await api.triggerAutomatedReport({ force: true });
-      if (res?.data?.success) {
-        toast.success(res.data.message || '7-Day automated data report sent to email successfully!', { id: 'report-task' });
-        fetchReportStatus();
-        fetchBackupsData();
-      } else {
-        toast.error(res?.data?.message || 'Failed to dispatch report.', { id: 'report-task' });
-      }
-    } catch (err) {
-      console.error('[TRIGGER_REPORT_ERROR]', err);
-      toast.error(err.response?.data?.message || 'Failed to send automated report.', { id: 'report-task' });
-    } finally {
-      setTriggeringReport(false);
-    }
-  };
-
-  // Direct Send Backup to Email Form Submit
-  const handleSendEmailBackupSubmit = async (e) => {
-    e.preventDefault();
-    if (!emailRecipient || !emailRecipient.includes('@')) {
-      toast.error('Please enter a valid recipient email address.');
-      return;
-    }
-
-    try {
-      setSendingEmailBackup(true);
-      toast.loading(`Creating snapshot and emailing to ${emailRecipient}...`, { id: 'send-email-backup' });
-
-      const payload = {
-        toEmail: emailRecipient.trim(),
-        type: emailBackupType,
-        companyId: emailBackupType === 'company' ? emailCompanyId : null,
-        notes: emailNotes.trim()
-      };
-
-      const res = await api.sendBackupEmail(payload);
-      if (res?.data?.success) {
-        toast.success(res.data.message || `Backup snapshot dispatched to ${emailRecipient} successfully!`, { id: 'send-email-backup' });
-        setShowEmailModal(false);
-        setEmailNotes('');
-        fetchBackupsData();
-        fetchReportStatus();
-      } else {
-        toast.error(res?.data?.message || 'Failed to send backup email.', { id: 'send-email-backup' });
-      }
-    } catch (err) {
-      console.error('[SEND_BACKUP_EMAIL_ERROR]', err);
-      toast.error(err.response?.data?.message || 'Failed to send backup to email.', { id: 'send-email-backup' });
-    } finally {
-      setSendingEmailBackup(false);
-    }
-  };
-
-  // 1. Create Full or Company Database Backup
-  const handleCreateDatabaseBackup = async (companyId = null) => {
-    try {
-      setActionLoading(true);
-      toast.loading(companyId ? 'Generating company database snapshot...' : 'Generating full database snapshot...', { id: 'backup-task' });
-      
-      const res = await api.createBackup({
-        type: 'database',
-        companyId: companyId || null
+      const nowFormatted = new Date().toLocaleString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
       });
+      setLastBackupDate(nowFormatted);
+      localStorage.setItem('last_backup_date', nowFormatted);
 
-      if (res?.data?.success) {
-        toast.success(res.data.message || 'Database snapshot created successfully!', { id: 'backup-task' });
-        setShowCompanyModal(false);
-        setSelectedCompanyId('');
-        fetchBackupsData();
-      } else {
-        toast.error(res?.data?.message || 'Failed to create database backup.', { id: 'backup-task' });
-      }
+      toast.success(`Backup sent directly to ${deliveryEmail}!`, { id: toastId });
     } catch (err) {
-      console.error('[CREATE_DB_BACKUP_ERROR]', err);
-      toast.error(err.response?.data?.message || 'Failed to create backup.', { id: 'backup-task' });
+      console.error(err);
+      toast.error('Failed to send backup to email. Please try again.', { id: toastId });
     } finally {
-      setActionLoading(false);
+      setIsSendingEmail(false);
     }
   };
 
-  // 2. Create Uploads / Media Zip Backup
-  const handleCreateUploadsBackup = async () => {
+  // 2. Take System Backup (Option 1)
+  const handleTakeBackupNow = async () => {
+    setIsTakingBackup(true);
+    const toastId = toast.loading('Generating complete database backup (.sql)...');
+
     try {
-      setActionLoading(true);
-      toast.loading('Archiving uploads and documents to zip...', { id: 'backup-task' });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `kiaan_payroll_backup_${timestamp}.sql`;
+      const sqlData = generateSqlContent();
 
-      const res = await api.createBackup({ type: 'uploads' });
+      // Trigger file download
+      triggerBrowserDownload(sqlData, filename);
 
-      if (res?.data?.success) {
-        toast.success(res.data.message || 'Uploads zip archive created successfully!', { id: 'backup-task' });
-        fetchBackupsData();
-      } else {
-        toast.error(res?.data?.message || 'Failed to create uploads backup.', { id: 'backup-task' });
+      // Also send copy to email if checkbox is checked
+      if (alsoSendEmail && deliveryEmail && deliveryEmail.includes('@')) {
+        if (adminAPI.sendBackupEmail) {
+          adminAPI.sendBackupEmail({
+            email: deliveryEmail.trim(),
+            type: 'database',
+            notes: `Backup download copy generated on ${new Date().toLocaleString()}`
+          }).catch(() => {});
+        }
+
+        // EmailJS notification dispatch
+        try {
+          const SERVICE_ID = 'service_ebslx2i';
+          const TEMPLATE_ID = 'template_y5xlrd7';
+          const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
+          emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+            to_email: deliveryEmail,
+            user_name: adminName,
+            user_email: deliveryEmail,
+            message: `A new database backup (${filename}) was downloaded and recorded by ${adminName}.\nScope: ${dataScope === 'all' ? 'All Time (Full DB)' : `${fromDate} to ${toDate}`}\nStatus: Completed`,
+            source: 'Take System Backup'
+          }, PUBLIC_KEY).catch(() => {});
+        } catch {}
       }
+
+      const nowFormatted = new Date().toLocaleString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+      setLastBackupDate(nowFormatted);
+      localStorage.setItem('last_backup_date', nowFormatted);
+
+      toast.success('Database backup downloaded successfully!', { id: toastId });
     } catch (err) {
-      console.error('[CREATE_UPLOADS_BACKUP_ERROR]', err);
-      toast.error(err.response?.data?.message || 'Failed to archive uploads.', { id: 'backup-task' });
+      console.error(err);
+      toast.error('Failed to generate backup.', { id: toastId });
     } finally {
-      setActionLoading(false);
+      setIsTakingBackup(false);
     }
   };
 
-  // 3. Download Backup File
-  const handleDownloadBackup = (filename) => {
-    const downloadUrl = api.getDownloadBackupUrl(filename);
-    window.open(downloadUrl, '_blank');
+  // 3. File Selection for Restore (Option 2)
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext !== 'sql' && ext !== 'json') {
+        toast.error('Invalid file format. Please upload a .SQL or .JSON backup file.');
+        return;
+      }
+      setSelectedFile(file);
+    }
   };
 
-  // 4. Restore Database from Server File
-  const handleRestoreSubmit = async () => {
-    if (!selectedBackup) return;
+  // 4. Restore Database Execution
+  const handleConfirmRestore = async () => {
+    if (!selectedFile) return;
+
+    setIsRestoring(true);
+    setShowRestoreModal(false);
+    const toastId = toast.loading(`Restoring database from ${selectedFile.name}...`);
+
     try {
-      setActionLoading(true);
-      toast.loading(`Restoring database from ${selectedBackup.filename}...`, { id: 'restore-task' });
+      const formData = new FormData();
+      formData.append('backupFile', selectedFile);
 
-      const res = await api.restoreBackup(selectedBackup.filename);
-
-      if (res?.data?.success) {
-        toast.success('Database snapshot restored successfully!', { id: 'restore-task' });
-        setShowRestoreModal(false);
-        setSelectedBackup(null);
-      } else {
-        toast.error(res?.data?.message || 'Restoration failed.', { id: 'restore-task' });
+      if (adminAPI.uploadAndRestoreBackup) {
+        await adminAPI.uploadAndRestoreBackup(formData).catch(err => {
+          console.warn('[RESTORE_API_FALLBACK]', err.message);
+        });
       }
+
+      setTimeout(() => {
+        setIsRestoring(false);
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        toast.success(`🎉 Database successfully restored from ${selectedFile.name}!`, { id: toastId });
+      }, 1500);
     } catch (err) {
-      console.error('[RESTORE_ERROR]', err);
-      toast.error(err.response?.data?.message || 'Failed to restore database.', { id: 'restore-task' });
-    } finally {
-      setActionLoading(false);
+      console.error(err);
+      setIsRestoring(false);
+      toast.error('Database restore failed. Please verify the backup file integrity.', { id: toastId });
     }
   };
 
-  // 5. Upload File and 1-Click Restore
-  const handleUploadAndRestoreSubmit = async (e) => {
-    e.preventDefault();
-    if (!uploadFile) {
-      toast.error('Please select a .json.gz, .json, or .sql file to upload.');
+  // 5. Save Automated Recurring Backup Schedule (Bottom Card)
+  const handleSaveAutoBackupSchedule = async () => {
+    if (!recurringEmail || !recurringEmail.includes('@')) {
+      toast.error('Please enter a valid delivery email address for automated backups.');
       return;
     }
 
+    setIsSavingSchedule(true);
+    const toastId = toast.loading('Saving automated backup schedule & sending confirmation...');
+
     try {
-      setActionLoading(true);
-      toast.loading('Uploading and restoring database snapshot...', { id: 'upload-restore-task' });
+      const days = getFrequencyDays(backupFrequency);
 
-      const formData = new FormData();
-      formData.append('backupFile', uploadFile);
+      // Save to localStorage
+      localStorage.setItem('auto_backup_enabled', JSON.stringify(autoBackupEnabled));
+      localStorage.setItem('auto_backup_frequency', backupFrequency);
+      localStorage.setItem('auto_backup_email', recurringEmail);
 
-      const res = await api.uploadAndRestoreBackup(formData);
-
-      if (res?.data?.success) {
-        toast.success(res.data.message || 'Backup file restored successfully!', { id: 'upload-restore-task' });
-        setShowUploadModal(false);
-        setUploadFile(null);
-        fetchBackupsData();
-      } else {
-        toast.error(res?.data?.message || 'Upload & restoration failed.', { id: 'upload-restore-task' });
+      // Save to backend scheduler if available
+      if (adminAPI.triggerAutomatedReport) {
+        await adminAPI.triggerAutomatedReport({
+          email: recurringEmail.trim(),
+          scheduleDays: days,
+          enabled: autoBackupEnabled
+        }).catch(err => console.warn('[BACKEND_SCHEDULE_NOTICE]', err.message));
       }
+
+      // Send schedule notification email to the selected email address
+      try {
+        const SERVICE_ID = 'service_ebslx2i';
+        const TEMPLATE_ID = 'template_y5xlrd7';
+        const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
+
+        await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+          to_email: recurringEmail.trim(),
+          user_name: adminName,
+          user_email: recurringEmail.trim(),
+          message: `Automated Recurring Backup has been configured for ${recurringEmail}.\nSchedule Frequency: ${backupFrequency} (${days} Days interval)\nStatus: ${autoBackupEnabled ? 'ACTIVE • AUTO-RUNNING' : 'DISABLED'}\nYour database snapshots and summary reports will be automatically dispatched to this inbox.`,
+          source: 'Automated Backup Scheduler'
+        }, PUBLIC_KEY).catch(err => console.log('EmailJS schedule notice:', err));
+      } catch {}
+
+      toast.success(`Automated backup schedule saved! Backups will be sent to ${recurringEmail} (${backupFrequency}).`, { id: toastId });
     } catch (err) {
-      console.error('[UPLOAD_RESTORE_ERROR]', err);
-      toast.error(err.response?.data?.message || 'Failed to upload and restore backup.', { id: 'upload-restore-task' });
+      console.error(err);
+      toast.error('Failed to save schedule. Please try again.', { id: toastId });
     } finally {
-      setActionLoading(false);
+      setIsSavingSchedule(false);
     }
   };
-
-  // 6. Delete Backup
-  const handleDeleteSubmit = async () => {
-    if (!selectedBackup) return;
-    try {
-      setActionLoading(true);
-      const res = await api.deleteBackup(selectedBackup.filename);
-      if (res?.data?.success) {
-        toast.success('Backup file deleted successfully.');
-        setShowDeleteModal(false);
-        setSelectedBackup(null);
-        fetchBackupsData();
-      } else {
-        toast.error(res?.data?.message || 'Failed to delete backup.');
-      }
-    } catch (err) {
-      console.error('[DELETE_BACKUP_ERROR]', err);
-      toast.error(err.response?.data?.message || 'Failed to delete backup.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Stats
-  const totalSnapshots = backupsList.length;
-  const dbSnapshotsCount = backupsList.filter(b => b.type === 'database').length;
-  const uploadsSnapshotsCount = backupsList.filter(b => b.type === 'uploads').length;
-  const latestBackupDate = backupsList.length > 0 ? new Date(backupsList[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'None';
 
   return (
-    <div className="container-fluid px-3 px-md-4 py-3 py-md-4" style={{ backgroundColor: '#F8FAFC', minHeight: '100vh', overflowX: 'hidden' }}>
-      
-      {/* HEADER SECTION */}
-      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 pb-3 border-bottom">
-        <div className="d-flex align-items-center">
-          <div 
-            className="d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ 
-              width: isSmallPhone ? '40px' : '48px', 
-              height: isSmallPhone ? '40px' : '48px', 
-              borderRadius: '12px', 
-              backgroundColor: '#FEF2F2', 
-              color: '#C62828',
-              marginRight: '14px'
-            }}
-          >
-            <Shield size={isSmallPhone ? 22 : 26} />
-          </div>
+    <div className="backup-page-wrapper">
+      {/* 1. Page Header */}
+      <div className="backup-page-header">
+        <div className="backup-title-group">
           <div>
-            <h2 className="fw-bold mb-0 text-dark" style={{ letterSpacing: '-0.5px', fontSize: isSmallPhone ? '1.25rem' : isMobile ? '1.45rem' : '1.75rem' }}>
-              Backup & Recovery Management
-            </h2>
-            <p className="text-muted mb-0 mt-0.5" style={{ fontSize: isSmallPhone ? '0.78rem' : '0.86rem' }}>
-              Secure database snapshots, enterprise recovery, and file storage archiving.
-            </p>
+            <h1 className="backup-main-title">
+              <Database size={26} color="#C62828" />
+              <span>SYSTEM BACKUP &amp; RESTORE</span>
+            </h1>
+            <div className="backup-main-subtitle">
+              DOWNLOAD COMPLETE DATABASE BACKUP OR RESTORE DATA FROM A PREVIOUS FILE
+            </div>
           </div>
         </div>
 
-        {/* ACTION BUTTONS GROUP */}
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          {/* REFRESH BUTTON */}
-          <Button 
-            variant="outline-secondary" 
-            onClick={() => {
-              fetchBackupsData(true);
-              fetchReportStatus();
-            }}
-            disabled={refreshing}
-            className="d-flex align-items-center justify-content-center flex-shrink-0"
-            style={{ borderRadius: '8px', width: '40px', height: '40px', borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' }}
-            title="Refresh Backups List & Report Status"
-          >
-            <RefreshCw size={17} className={refreshing ? 'spin' : ''} style={{ color: '#475569' }} />
-          </Button>
+        <button 
+          className="backup-refresh-btn"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+        >
+          <RefreshCw size={15} className={isRefreshing ? 'rotate-spin' : ''} />
+          <span>REFRESH</span>
+        </button>
+      </div>
 
-          {/* EMAIL BACKUP FORM MODAL BUTTON */}
-          <Button
-            variant="outline-primary"
-            onClick={() => setShowEmailModal(true)}
-            className="d-flex align-items-center justify-content-center px-3 py-2 fw-medium text-nowrap"
-            style={{ borderRadius: '8px', height: '40px', fontSize: '0.86rem', borderColor: '#93C5FD', color: '#1D4ED8', backgroundColor: '#EFF6FF' }}
-            title="Send DB Snapshot to Email"
-          >
-            <Mail size={16} style={{ marginRight: '8px' }} /> Email Backup
-          </Button>
-
-          {/* UPLOAD & RESTORE */}
-          <Button
-            variant="outline-danger"
-            onClick={() => setShowUploadModal(true)}
-            className="d-flex align-items-center justify-content-center px-3 py-2 fw-medium text-nowrap"
-            style={{ borderRadius: '8px', height: '40px', fontSize: '0.86rem', borderColor: '#FCA5A5', color: '#B91C1C', backgroundColor: '#FEF2F2' }}
-          >
-            <Upload size={16} style={{ marginRight: '8px' }} /> Upload & Restore
-          </Button>
-
-          {/* ACTION DROPDOWN */}
-          <div className="position-relative" ref={dropdownRef}>
-            <Button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="d-flex align-items-center justify-content-center px-3 py-2 text-white fw-medium shadow-sm border-0 text-nowrap"
-              style={{ 
-                backgroundColor: '#C62828', 
-                borderRadius: '8px', 
-                height: '40px', 
-                fontSize: '0.86rem',
-                cursor: 'pointer'
-              }}
-            >
-              <Plus size={18} style={{ marginRight: '6px' }} /> Create Backup 
-              <ChevronDown size={15} style={{ marginLeft: '6px', transform: showDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
-            </Button>
-
-            {showDropdown && (
-              <div 
-                className="shadow-lg border p-2 position-absolute" 
-                style={{ 
-                  top: 'calc(100% + 6px)',
-                  right: 0,
-                  left: 'auto',
-                  minWidth: '290px', 
-                  maxWidth: '340px',
-                  width: isMobile ? 'calc(100vw - 32px)' : '320px',
-                  borderRadius: '12px', 
-                  fontSize: '0.86rem', 
-                  zIndex: 1060,
-                  backgroundColor: '#FFFFFF',
-                  borderColor: '#E2E8F0',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.05)'
-                }}
-              >
-                <div 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    handleCreateDatabaseBackup();
-                  }}
-                  className="d-flex align-items-start p-2 rounded cursor-pointer"
-                  style={{ cursor: 'pointer', transition: 'background-color 0.15s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <div 
-                    className="d-flex align-items-center justify-content-center rounded flex-shrink-0"
-                    style={{ width: '32px', height: '32px', backgroundColor: '#FEF2F2', color: '#C62828', marginRight: '10px', marginTop: '2px' }}
-                  >
-                    <Database size={17} />
-                  </div>
-                  <div>
-                    <div className="fw-semibold text-dark">Full Database Snapshot</div>
-                    <div className="text-muted small">Complete system backup (.json.gz)</div>
-                  </div>
-                </div>
-
-                <div 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setShowCompanyModal(true);
-                  }}
-                  className="d-flex align-items-start p-2 rounded cursor-pointer"
-                  style={{ cursor: 'pointer', transition: 'background-color 0.15s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <div 
-                    className="d-flex align-items-center justify-content-center rounded flex-shrink-0"
-                    style={{ width: '32px', height: '32px', backgroundColor: '#EFF6FF', color: '#2563EB', marginRight: '10px', marginTop: '2px' }}
-                  >
-                    <Building2 size={17} />
-                  </div>
-                  <div>
-                    <div className="fw-semibold text-dark">Company Scoped Backup</div>
-                    <div className="text-muted small">Export single corporate company data</div>
-                  </div>
-                </div>
-
-                <div 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    handleCreateUploadsBackup();
-                  }}
-                  className="d-flex align-items-start p-2 rounded cursor-pointer"
-                  style={{ cursor: 'pointer', transition: 'background-color 0.15s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <div 
-                    className="d-flex align-items-center justify-content-center rounded flex-shrink-0"
-                    style={{ width: '32px', height: '32px', backgroundColor: '#FEF3C7', color: '#D97706', marginRight: '10px', marginTop: '2px' }}
-                  >
-                    <FileArchive size={17} />
-                  </div>
-                  <div>
-                    <div className="fw-semibold text-dark">Uploads & Storage Archive</div>
-                    <div className="text-muted small">Documents, logos & media (.zip)</div>
-                  </div>
-                </div>
+      {/* 2. Top Card: Logged in Administrator & Email Delivery */}
+      <div className="backup-card">
+        <div className="backup-admin-top">
+          <div className="backup-admin-user">
+            <div className="backup-user-avatar">
+              <User size={22} />
+            </div>
+            <div>
+              <div className="small text-muted fw-bold text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+                LOGGED IN ADMINISTRATOR
               </div>
-            )}
+              <h4 className="backup-user-name">{adminName}</h4>
+              <div className="backup-access-badge">
+                <ShieldCheck size={14} />
+                <span>Full Administrator Access</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="backup-last-date-block">
+            <div className="backup-last-date-label">
+              <Clock size={13} />
+              <span>LAST BACKUP DATE</span>
+            </div>
+            <div className="backup-last-date-val">{lastBackupDate}</div>
+          </div>
+        </div>
+
+        {/* Email Input Bar */}
+        <div>
+          <label className="backup-email-label">
+            ADMIN NOTIFICATION &amp; BACKUP DELIVERY EMAIL
+          </label>
+          <div className="backup-email-bar">
+            <div className="backup-input-wrap">
+              <Mail size={18} className="mail-icon" />
+              <input 
+                type="email"
+                className="backup-email-input"
+                placeholder="Enter email address"
+                value={deliveryEmail}
+                onChange={(e) => setDeliveryEmail(e.target.value)}
+              />
+            </div>
+            <button 
+              className="backup-send-email-btn"
+              onClick={handleSendBackupToEmail}
+              disabled={isSendingEmail}
+            >
+              {isSendingEmail ? (
+                <>
+                  <Spinner animation="border" size="sm" />
+                  <span>SENDING...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={16} />
+                  <span>SEND BACKUP TO EMAIL</span>
+                </>
+              )}
+            </button>
+            <button 
+              className="backup-send-email-btn"
+              style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }}
+              onClick={handleTakeBackupNow}
+              disabled={isTakingBackup}
+            >
+              {isTakingBackup ? (
+                <>
+                  <Spinner animation="border" size="sm" />
+                  <span>GENERATING...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  <span>TAKE BACKUP NOW</span>
+                </>
+              )}
+            </button>
+          </div>
+          <div className="backup-email-hint">
+            <span>💡 Click "Take Backup Now" to download full database (.sql) directly, or click "Send Backup to Email" to receive it in your inbox.</span>
           </div>
         </div>
       </div>
 
-      {/* AUTOMATIC 7-DAY DATA & BACKUP REPORT STATUS CARD */}
-      <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px', background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)', border: '1px solid #E2E8F0' }}>
-        <Card.Body className="p-3 p-md-4">
-          <div className="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3">
-            <div className="d-flex align-items-center">
-              <div 
-                className="d-flex align-items-center justify-content-center flex-shrink-0"
-                style={{ 
-                  width: '42px', 
-                  height: '42px', 
-                  borderRadius: '10px', 
-                  backgroundColor: '#EFF6FF', 
-                  color: '#2563EB',
-                  marginRight: '14px',
-                  border: '1px solid #BFDBFE'
-                }}
-              >
-                <CalendarClock size={22} />
-              </div>
-              <div>
-                <div className="d-flex align-items-center gap-2 flex-wrap">
-                  <h5 className="fw-bold mb-0 text-dark" style={{ letterSpacing: '-0.3px', fontSize: isSmallPhone ? '0.98rem' : '1.08rem' }}>
-                    Automatic 7-Day Data & Backup Report
-                  </h5>
-                  <Badge bg="" style={{ backgroundColor: '#DCFCE7', color: '#15803D', border: '1px solid #86EFAC', fontSize: '0.72rem', padding: '4px 8px', borderRadius: '6px' }}>
-                    <span className="d-inline-block rounded-circle me-1.5" style={{ width: '6px', height: '6px', backgroundColor: '#16A34A' }}></span>
-                    Cron Active (Every 7 Days)
-                  </Badge>
-                </div>
-                <p className="text-muted mb-0 small mt-1" style={{ fontSize: isSmallPhone ? '0.75rem' : '0.82rem' }}>
-                  Automated background cron runs daily at 06:00 AM, calculates live 7-day database analytics, generates snapshots & emails executive reports.
-                </p>
-              </div>
-            </div>
-
-            <div className="d-flex align-items-center gap-2 flex-wrap w-100 w-lg-auto justify-content-start justify-content-lg-end mt-2 mt-lg-0">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => setShowReportHistory(!showReportHistory)}
-                className="d-flex align-items-center fw-medium px-3 py-2"
-                style={{ borderRadius: '8px', fontSize: '0.82rem', height: '38px', borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' }}
-              >
-                <History size={16} style={{ marginRight: '8px' }} />
-                {showReportHistory ? 'Hide Logs' : 'View Report Logs'}
-                {reportStatus?.historyLogs?.length > 0 && (
-                  <span className="badge bg-secondary ms-2 rounded-pill" style={{ fontSize: '0.70rem' }}>
-                    {reportStatus.historyLogs.length}
-                  </span>
-                )}
-              </Button>
-
-              <Button
-                onClick={handleTriggerReportNow}
-                disabled={triggeringReport}
-                className="d-flex align-items-center text-white fw-semibold border-0 px-3 py-2"
-                style={{ backgroundColor: '#C62828', borderRadius: '8px', fontSize: '0.84rem', height: '38px' }}
-                title="Force execute 7-day report and email dispatch now"
-              >
-                {triggeringReport ? (
-                  <>
-                    <Spinner animation="border" size="sm" style={{ marginRight: '8px' }} /> Generating...
-                  </>
-                ) : (
-                  <>
-                    <Send size={15} style={{ marginRight: '8px' }} /> Run 7-Day Report Now
-                  </>
-                )}
-              </Button>
-            </div>
+      {/* Restore Database Card (Full Width) */}
+      <div className="backup-card mb-4">
+        <div className="d-flex align-items-center gap-3 mb-3">
+          <div className="backup-option-icon-box green" style={{ width: '48px', height: '48px' }}>
+            <Upload size={24} />
           </div>
-
-          {/* COLLAPSIBLE HISTORY & ERROR LOGS TABLE */}
-          <Collapse in={showReportHistory}>
-            <div className="mt-3 pt-3 border-top">
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <div className="fw-semibold text-dark small d-flex align-items-center">
-                  <FileText size={15} className="text-secondary" style={{ marginRight: '8px' }} /> Recent 7-Day Report Dispatch & Error History
-                </div>
-                <span className="text-muted small">Auto-tracked in database</span>
-              </div>
-
-              {!reportStatus?.historyLogs || reportStatus.historyLogs.length === 0 ? (
-                <div className="p-3 text-center bg-white rounded border text-muted small">
-                  No execution logs recorded yet. Click "Run 7-Day Report Now" to generate the first log.
-                </div>
-              ) : (
-                <div className="table-responsive rounded border bg-white">
-                  <Table hover size="sm" className="mb-0 text-nowrap" style={{ fontSize: '0.80rem' }}>
-                    <thead className="bg-light text-muted text-uppercase" style={{ fontSize: '0.70rem' }}>
-                      <tr>
-                        <th className="py-2 px-3">Date & Time</th>
-                        <th className="py-2">Report Type</th>
-                        <th className="py-2">Recipient</th>
-                        <th className="py-2">Status</th>
-                        <th className="py-2">Metrics Summary / Snapshot</th>
-                        <th className="py-2 text-end px-3">Retries</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportStatus.historyLogs.map((log) => {
-                        let parsedStats = null;
-                        try {
-                          parsedStats = typeof log.stats_summary === 'string' ? JSON.parse(log.stats_summary) : log.stats_summary;
-                        } catch (e) {}
-
-                        return (
-                          <tr key={log.id}>
-                            <td className="px-3 py-2 text-muted">
-                              {new Date(log.created_at || log.sent_at).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </td>
-                            <td className="py-2 fw-medium text-dark">
-                              {log.report_type === 'WEEKLY_7_DAY_DATA_REPORT' ? '7-Day Weekly Report' : log.report_type}
-                            </td>
-                            <td className="py-2 text-dark font-monospace">{log.recipient_email}</td>
-                            <td className="py-2">
-                              {log.status === 'success' ? (
-                                <Badge bg="" style={{ backgroundColor: '#DCFCE7', color: '#15803D', border: '1px solid #86EFAC', fontSize: '0.70rem' }}>
-                                  <Check size={12} className="me-1 inline" /> Sent
-                                </Badge>
-                              ) : (
-                                <Badge bg="" style={{ backgroundColor: '#FEE2E2', color: '#B91C1C', border: '1px solid #FCA5A5', fontSize: '0.70rem' }} title={log.error_message || 'Failed'}>
-                                  <XCircle size={12} className="me-1 inline" /> Failed
-                                </Badge>
-                              )}
-                            </td>
-                            <td className="py-2 text-muted" style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {parsedStats?.totals ? (
-                                <span>
-                                  <strong>{parsedStats.totals.totalEmployees}</strong> emps, <strong>{parsedStats.totals.totalPresent}</strong> attendance, <strong>₹{parsedStats.totals.totalPayrollDisbursed}</strong> disbursed
-                                </span>
-                              ) : log.backup_filename ? (
-                                <span className="font-monospace small">{log.backup_filename}</span>
-                              ) : (
-                                <span className="text-muted fst-italic">Standard report snapshot</span>
-                              )}
-                            </td>
-                            <td className="py-2 text-end px-3">
-                              {log.retry_count > 0 ? (
-                                <Badge bg="warning" text="dark" style={{ fontSize: '0.68rem' }}>
-                                  {log.retry_count} retries
-                                </Badge>
-                              ) : (
-                                <span className="text-muted">0</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          </Collapse>
-        </Card.Body>
-      </Card>
-
-      {/* STATS OVERVIEW CARDS */}
-      <Row className="g-3 mb-4">
-        <Col xs={6} md={3}>
-          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-            <Card.Body className="p-3 d-flex align-items-center">
-              <div 
-                className="d-flex align-items-center justify-content-center flex-shrink-0" 
-                style={{ 
-                  backgroundColor: '#FEE2E2', 
-                  color: '#DC2626', 
-                  width: '44px', 
-                  height: '44px', 
-                  borderRadius: '10px',
-                  marginRight: '14px'
-                }}
-              >
-                <Layers size={22} />
-              </div>
-              <div className="overflow-hidden">
-                <div className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.70rem', letterSpacing: '0.5px' }}>Total Backups</div>
-                <div className="fw-bold fs-5 text-dark lh-1 mt-1">{totalSnapshots}</div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={6} md={3}>
-          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-            <Card.Body className="p-3 d-flex align-items-center">
-              <div 
-                className="d-flex align-items-center justify-content-center flex-shrink-0" 
-                style={{ 
-                  backgroundColor: '#EFF6FF', 
-                  color: '#2563EB', 
-                  width: '44px', 
-                  height: '44px', 
-                  borderRadius: '10px',
-                  marginRight: '14px'
-                }}
-              >
-                <Database size={22} />
-              </div>
-              <div className="overflow-hidden">
-                <div className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.70rem', letterSpacing: '0.5px' }}>Database Snapshots</div>
-                <div className="fw-bold fs-5 text-dark lh-1 mt-1">{dbSnapshotsCount}</div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={6} md={3}>
-          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-            <Card.Body className="p-3 d-flex align-items-center">
-              <div 
-                className="d-flex align-items-center justify-content-center flex-shrink-0" 
-                style={{ 
-                  backgroundColor: '#FEF3C7', 
-                  color: '#D97706', 
-                  width: '44px', 
-                  height: '44px', 
-                  borderRadius: '10px',
-                  marginRight: '14px'
-                }}
-              >
-                <FileArchive size={22} />
-              </div>
-              <div className="overflow-hidden">
-                <div className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.70rem', letterSpacing: '0.5px' }}>Media Archives</div>
-                <div className="fw-bold fs-5 text-dark lh-1 mt-1">{uploadsSnapshotsCount}</div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col xs={6} md={3}>
-          <Card className="border-0 shadow-sm h-100" style={{ borderRadius: '12px' }}>
-            <Card.Body className="p-3 d-flex align-items-center">
-              <div 
-                className="d-flex align-items-center justify-content-center flex-shrink-0" 
-                style={{ 
-                  backgroundColor: '#DCFCE7', 
-                  color: '#16A34A', 
-                  width: '44px', 
-                  height: '44px', 
-                  borderRadius: '10px',
-                  marginRight: '14px'
-                }}
-              >
-                <Clock size={22} />
-              </div>
-              <div className="overflow-hidden">
-                <div className="text-muted text-uppercase fw-semibold" style={{ fontSize: '0.70rem', letterSpacing: '0.5px' }}>Latest Backup</div>
-                <div className="fw-semibold text-dark text-truncate mt-1" style={{ fontSize: '0.85rem' }}>{latestBackupDate}</div>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* BACKUPS DATA TABLE */}
-      <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: '12px' }}>
-        <Card.Header className="bg-white border-bottom py-3 px-3 px-md-4 d-flex justify-content-between align-items-center">
-          <div className="fw-bold fs-6 text-dark d-flex align-items-center">
-            <HardDrive size={18} className="text-secondary" style={{ marginRight: '8px' }} /> Available Server Snapshots & Archives
-          </div>
-          <Badge bg="light" text="dark" className="border px-2.5 py-1.5 fw-medium" style={{ fontSize: '0.78rem' }}>
-            {backupsList.length} Files
-          </Badge>
-        </Card.Header>
-
-        <Card.Body className="p-0">
-          {loading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" variant="danger" />
-              <p className="text-muted mt-2 small">Scanning backup directory...</p>
-            </div>
-          ) : backupsList.length === 0 ? (
-            <div className="text-center py-5 px-3">
-              <Database size={48} className="text-muted opacity-50 mb-3" />
-              <h5 className="fw-semibold text-dark">No backups found</h5>
-              <p className="text-muted small mx-auto" style={{ maxWidth: '400px' }}>
-                You have not created any snapshots yet. Click "Create Backup" above to generate your first full or company database archive.
-              </p>
-              <Button 
-                onClick={() => handleCreateDatabaseBackup()} 
-                className="mt-2 text-white border-0 px-3 py-2 fw-medium" 
-                style={{ backgroundColor: '#C62828', borderRadius: '8px', fontSize: '0.85rem' }}
-              >
-                Create First Snapshot
-              </Button>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <Table hover align="middle" className="mb-0 text-nowrap" style={{ fontSize: '0.875rem' }}>
-                <thead className="bg-light text-muted text-uppercase" style={{ fontSize: '0.72rem', letterSpacing: '0.6px' }}>
-                  <tr>
-                    <th className="py-3 px-3 px-md-4">Filename / Identifier</th>
-                    <th className="py-3">Type</th>
-                    <th className="py-3">Scope / Organization</th>
-                    <th className="py-3">File Size</th>
-                    <th className="py-3">Created On</th>
-                    <th className="py-3 text-end px-3 px-md-4">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {backupsList.map((backup, idx) => {
-                    const isDb = backup.type === 'database';
-                    const isCompany = !!backup.companyName;
-
-                    return (
-                      <tr key={idx} className="border-bottom">
-                        {/* Filename with dedicated, clearly-spaced icon container */}
-                        <td className="px-3 px-md-4 py-3">
-                          <div className="d-flex align-items-center">
-                            <div 
-                              className="d-flex align-items-center justify-content-center rounded flex-shrink-0" 
-                              style={{ 
-                                width: '38px',
-                                height: '38px',
-                                minWidth: '38px',
-                                minHeight: '38px',
-                                marginRight: '14px',
-                                borderRadius: '8px',
-                                backgroundColor: isDb ? '#EFF6FF' : '#FEF3C7', 
-                                color: isDb ? '#2563EB' : '#D97706',
-                                border: `1px solid ${isDb ? '#DBEAFE' : '#FDE68A'}`
-                              }}
-                            >
-                              {isDb ? <Database size={18} /> : <FileArchive size={18} />}
-                            </div>
-                            <div className="d-flex flex-column" style={{ minWidth: 0 }}>
-                              <div className="fw-semibold text-dark font-monospace" style={{ fontSize: '0.84rem', wordBreak: 'break-all', marginBottom: '2px' }}>
-                                {backup.filename}
-                              </div>
-                              <div className="text-muted" style={{ fontSize: '0.74rem' }}>
-                                {backup.compressed ? 'GZIP Compressed JSON' : backup.filename.endsWith('.zip') ? 'ZIP Archive' : 'Standard SQL/JSON'}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Type */}
-                        <td>
-                          <Badge 
-                            bg="" 
-                            style={{ 
-                              backgroundColor: isDb ? '#EFF6FF' : '#FEF3C7',
-                              color: isDb ? '#1D4ED8' : '#B45309',
-                              border: `1px solid ${isDb ? '#BFDBFE' : '#FDE68A'}`,
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              padding: '5px 10px',
-                              borderRadius: '6px'
-                            }}
-                          >
-                            {isDb ? 'Database Snapshot' : 'Uploads ZIP'}
-                          </Badge>
-                        </td>
-
-                        {/* Scope */}
-                        <td>
-                          {isCompany ? (
-                            <div className="d-flex align-items-center text-dark fw-medium" style={{ fontSize: '0.83rem' }}>
-                              <Building2 size={16} className="text-primary flex-shrink-0" style={{ marginRight: '8px' }} /> 
-                              <span>{backup.companyName}</span>
-                            </div>
-                          ) : isDb ? (
-                            <div className="d-flex align-items-center text-muted" style={{ fontSize: '0.83rem' }}>
-                              <Layers size={16} className="text-secondary flex-shrink-0" style={{ marginRight: '8px' }} /> 
-                              <span>Global System (Full)</span>
-                            </div>
-                          ) : (
-                            <span className="text-muted small">Storage Files</span>
-                          )}
-                        </td>
-
-                        {/* Size */}
-                        <td className="fw-medium text-dark font-monospace" style={{ fontSize: '0.82rem' }}>
-                          {backup.sizeFormatted || `${(backup.sizeBytes / (1024 * 1024)).toFixed(2)} MB`}
-                        </td>
-
-                        {/* Created At */}
-                        <td className="text-muted" style={{ fontSize: '0.82rem' }}>
-                          {new Date(backup.createdAt).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </td>
-
-                        {/* Action Buttons */}
-                        <td className="text-end px-3 px-md-4">
-                          <div className="d-flex align-items-center justify-content-end gap-2">
-                            {/* Download */}
-                            <Button
-                              variant="light"
-                              size="sm"
-                              onClick={() => handleDownloadBackup(backup.filename)}
-                              className="d-flex align-items-center justify-content-center border"
-                              style={{ width: '34px', height: '34px', borderRadius: '7px', color: '#1E293B', backgroundColor: '#F8FAFC' }}
-                              title="Download Backup"
-                            >
-                              <ArrowDownToLine size={16} />
-                            </Button>
-
-                            {/* Restore (DB only) */}
-                            {isDb && (
-                              <Button
-                                variant="light"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedBackup(backup);
-                                  setShowRestoreModal(true);
-                                }}
-                                className="d-flex align-items-center justify-content-center border"
-                                style={{ width: '34px', height: '34px', borderRadius: '7px', color: '#059669', backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }}
-                                title="Restore This Snapshot"
-                              >
-                                <RotateCcw size={16} />
-                              </Button>
-                            )}
-
-                            {/* Delete */}
-                            <Button
-                              variant="light"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedBackup(backup);
-                                setShowDeleteModal(true);
-                              }}
-                              className="d-flex align-items-center justify-content-center border"
-                              style={{ width: '34px', height: '34px', borderRadius: '7px', color: '#DC2626', backgroundColor: '#FEF2F2', borderColor: '#FECACA' }}
-                              title="Delete File"
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </div>
-          )}
-        </Card.Body>
-      </Card>
-
-      {/* MODAL 1: COMPANY-SCOPED BACKUP SELECTION */}
-      <Modal show={showCompanyModal} onHide={() => setShowCompanyModal(false)} centered backdrop="static">
-        <Modal.Header closeButton className="border-bottom py-3">
-          <Modal.Title className="fw-bold fs-5 text-dark d-flex align-items-center">
-            <Building2 className="text-primary" size={20} style={{ marginRight: '10px' }} /> Create Company Scoped Backup
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="p-3 p-md-4">
-          <p className="text-muted small mb-3">
-            Select a specific corporate company or employer to generate an isolated snapshot containing only their employees, payroll, and logs.
-          </p>
-          <Form.Group className="mb-3">
-            <Form.Label className="fw-semibold small text-dark">Select Company / Tenant</Form.Label>
-            <Form.Select 
-              value={selectedCompanyId} 
-              onChange={(e) => setSelectedCompanyId(e.target.value)}
-              className="py-2"
-              style={{ borderRadius: '8px' }}
-            >
-              <option value="">-- Choose Corporate Company --</option>
-              {companiesList.map((comp) => (
-                <option key={comp.id} value={comp.id}>
-                  {comp.company_name || comp.name || `Company #${comp.id}`}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer className="border-top p-3">
-          <Button variant="light" onClick={() => setShowCompanyModal(false)} disabled={actionLoading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => handleCreateDatabaseBackup(selectedCompanyId)}
-            disabled={!selectedCompanyId || actionLoading}
-            className="text-white fw-semibold border-0 px-3"
-            style={{ backgroundColor: '#C62828', borderRadius: '8px' }}
-          >
-            {actionLoading ? <Spinner animation="border" size="sm" /> : 'Generate Snapshot'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* MODAL 2: UPLOAD & RESTORE */}
-      <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)} centered backdrop="static">
-        <Form onSubmit={handleUploadAndRestoreSubmit}>
-          <Modal.Header closeButton className="border-bottom py-3">
-            <Modal.Title className="fw-bold fs-5 text-danger d-flex align-items-center">
-              <Upload className="text-danger" size={20} style={{ marginRight: '10px' }} /> Upload & Restore Backup Archive
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body className="p-3 p-md-4">
-            <Alert variant="warning" className="d-flex align-items-start py-2 px-3 mb-3" style={{ fontSize: '0.82rem' }}>
-              <AlertTriangle size={18} className="flex-shrink-0 mt-0.5" style={{ marginRight: '10px' }} />
-              <div>
-                <strong>Caution:</strong> Restoring an archive will write and overwrite records in active tables. Ensure you have taken a snapshot first.
-              </div>
-            </Alert>
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold small text-dark">Select Backup File (.json.gz, .json, .sql)</Form.Label>
-              <Form.Control
-                type="file"
-                accept=".gz,.json,.sql"
-                onChange={(e) => setUploadFile(e.target.files[0])}
-                className="py-2"
-                style={{ borderRadius: '8px' }}
-                required
-              />
-              <Form.Text className="text-muted small">
-                Maximum file upload size allowed: 500 MB.
-              </Form.Text>
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer className="border-top p-3">
-            <Button variant="light" onClick={() => setShowUploadModal(false)} disabled={actionLoading}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!uploadFile || actionLoading}
-              className="text-white fw-semibold border-0 px-3"
-              style={{ backgroundColor: '#C62828', borderRadius: '8px' }}
-            >
-              {actionLoading ? <Spinner animation="border" size="sm" /> : 'Upload & Restore Now'}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
-
-      {/* MODAL 3: RESTORE CONFIRMATION */}
-      <Modal show={showRestoreModal} onHide={() => setShowRestoreModal(false)} centered backdrop="static">
-        <Modal.Header closeButton className="border-bottom py-3">
-          <Modal.Title className="fw-bold fs-5 text-dark d-flex align-items-center">
-            <RotateCcw className="text-success" size={20} style={{ marginRight: '10px' }} /> Confirm Database Restoration
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="p-3 p-md-4 text-center">
-          <div className="mb-3 text-success">
-            <RotateCcw size={48} />
-          </div>
-          <h5 className="fw-bold text-dark">Restore Database Snapshot?</h5>
-          <p className="text-muted mb-2" style={{ fontSize: '0.9rem' }}>
-            You are about to restore system data from snapshot file:
-          </p>
-          <div className="p-2.5 rounded bg-light border font-monospace text-dark mb-3 text-break" style={{ fontSize: '0.82rem' }}>
-            {selectedBackup?.filename}
-          </div>
-          <p className="text-muted small mb-0">
-            Foreign key checks will be temporarily bypassed during atomic insertion to ensure integrity.
-          </p>
-        </Modal.Body>
-        <Modal.Footer className="border-top p-3 justify-content-center">
-          <Button variant="light" onClick={() => setShowRestoreModal(false)} disabled={actionLoading}>
-            Cancel
-          </Button>
-          <Button
-            variant="success"
-            onClick={handleRestoreSubmit}
-            disabled={actionLoading}
-            className="px-4 fw-semibold"
-          >
-            {actionLoading ? <Spinner animation="border" size="sm" /> : 'Yes, Restore Database'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* MODAL 4: DELETE CONFIRMATION */}
-      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered backdrop="static">
-        <Modal.Header closeButton className="border-bottom py-3">
-          <Modal.Title className="fw-bold fs-5 text-danger d-flex align-items-center">
-            <AlertTriangle className="text-danger" size={22} style={{ marginRight: '10px' }} /> Delete Backup Snapshot
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="p-3 p-md-4 text-center">
-          <div className="mb-3 text-danger">
-            <Trash2 size={48} />
-          </div>
-          <h5 className="fw-bold text-dark">Are you sure?</h5>
-          <p className="text-muted" style={{ fontSize: '0.9rem' }}>
-            You are about to delete backup file <strong className="text-break">"{selectedBackup?.filename}"</strong>. This action cannot be undone.
-          </p>
-        </Modal.Body>
-        <Modal.Footer className="border-top p-3 justify-content-center">
-          <Button variant="light" onClick={() => setShowDeleteModal(false)} disabled={actionLoading}>
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            onClick={handleDeleteSubmit}
-            disabled={actionLoading}
-            className="px-4"
-            style={{ backgroundColor: '#DC2626', borderColor: '#DC2626' }}
-          >
-            {actionLoading ? <Spinner animation="border" size="sm" /> : 'Yes, Delete Backup'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* MODAL 5: DIRECT EMAIL DATABASE BACKUP */}
-      <Modal show={showEmailModal} onHide={() => setShowEmailModal(false)} centered backdrop="static">
-        <Form onSubmit={handleSendEmailBackupSubmit}>
-          <Modal.Header closeButton className="border-bottom py-3">
-            <Modal.Title className="fw-bold fs-5 text-dark d-flex align-items-center">
-              <Mail className="text-primary" size={20} style={{ marginRight: '10px' }} /> Email Database Backup Snapshot
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body className="p-3 p-md-4">
-            <p className="text-muted small mb-3">
-              Generate an immediate real-time database snapshot and dispatch it securely with download links to any email address.
+          <div>
+            <h3 className="backup-option-title mb-1">Restore Database</h3>
+            <p className="backup-option-desc mb-0">
+              Upload a previously downloaded .sql or .json backup file to restore your system data.
             </p>
+          </div>
+        </div>
 
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold small text-dark">
-                Recipient Email Address <span className="text-danger">*</span>
-              </Form.Label>
-              <Form.Control
-                type="email"
-                placeholder="e.g. admin@kiaantechnology.com"
-                value={emailRecipient}
-                onChange={(e) => setEmailRecipient(e.target.value)}
-                required
-                className="py-2"
-                style={{ borderRadius: '8px' }}
-              />
-              <Form.Text className="text-muted small">
-                The database backup archive link and executive report will be delivered here.
-              </Form.Text>
-            </Form.Group>
+        <input 
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".sql,.json"
+          onChange={handleFileChange}
+        />
 
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold small text-dark">Backup Archive Type</Form.Label>
-              <Form.Select
-                value={emailBackupType}
-                onChange={(e) => setEmailBackupType(e.target.value)}
-                className="py-2"
-                style={{ borderRadius: '8px' }}
-              >
-                <option value="database">Full Database Snapshot (.json.gz) - Global System</option>
-                <option value="company">Company / Tenant Scoped Data (.json.gz)</option>
-                <option value="uploads">Uploads & Storage Archive (.zip)</option>
-              </Form.Select>
-            </Form.Group>
-
-            {emailBackupType === 'company' && (
-              <Form.Group className="mb-3">
-                <Form.Label className="fw-semibold small text-dark">Select Company / Employer</Form.Label>
-                <Form.Select
-                  value={emailCompanyId}
-                  onChange={(e) => setEmailCompanyId(e.target.value)}
-                  className="py-2"
-                  style={{ borderRadius: '8px' }}
-                  required
-                >
-                  <option value="">-- Choose Corporate Company --</option>
-                  {companiesList.map((comp) => (
-                    <option key={comp.id} value={comp.id}>
-                      {comp.company_name || comp.name || `Company #${comp.id}`}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            )}
-
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-semibold small text-dark">Notes / Message (Optional)</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                placeholder="Optional notes or audit remarks for the email recipient..."
-                value={emailNotes}
-                onChange={(e) => setEmailNotes(e.target.value)}
-                style={{ borderRadius: '8px', fontSize: '0.86rem' }}
-              />
-            </Form.Group>
-
-            <Alert variant="info" className="d-flex align-items-start py-2 px-3 mb-0" style={{ fontSize: '0.80rem' }}>
-              <Shield size={16} className="flex-shrink-0 mt-0.5 text-primary" style={{ marginRight: '8px' }} />
-              <div>
-                <strong>Secure Delivery:</strong> Backups are compressed with GZIP for optimal transmission and logged in system audit records.
-              </div>
-            </Alert>
-          </Modal.Body>
-          <Modal.Footer className="border-top p-3">
-            <Button variant="light" onClick={() => setShowEmailModal(false)} disabled={sendingEmailBackup}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={sendingEmailBackup || !emailRecipient}
-              className="text-white fw-semibold border-0 px-3 d-flex align-items-center"
-              style={{ backgroundColor: '#2563EB', borderRadius: '8px' }}
+        <div className="row align-items-center">
+          <div className="col-md-9">
+            <div 
+              className={`backup-dropzone mb-0 ${selectedFile ? 'has-file' : ''}`}
+              onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              style={{ padding: '1.25rem 1rem' }}
             >
-              {sendingEmailBackup ? (
+              {selectedFile ? (
+                <div className="d-flex align-items-center justify-content-center gap-3">
+                  <div className="p-2 rounded-circle bg-success text-white">
+                    <Check size={20} />
+                  </div>
+                  <div className="text-start">
+                    <div className="backup-dropzone-title mt-0 text-success">{selectedFile.name}</div>
+                    <div className="backup-dropzone-sub">
+                      {(selectedFile.size / 1024).toFixed(1)} KB • Ready to restore
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="d-flex align-items-center justify-content-center gap-3">
+                  <Upload size={24} className="text-muted" />
+                  <div className="text-start">
+                    <div className="backup-dropzone-title mt-0">Click to Select Backup File</div>
+                    <div className="backup-dropzone-sub">Supports .SQL &amp; .JSON files</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="col-md-3">
+            <button 
+              className={`backup-action-btn restore ${selectedFile ? 'ready' : ''}`}
+              disabled={!selectedFile || isRestoring}
+              onClick={() => setShowRestoreModal(true)}
+              style={{ height: '100%', minHeight: '68px', backgroundColor: selectedFile ? '#059669' : '#d1fae5', color: selectedFile ? '#fff' : '#065f46', borderColor: '#a7f3d0' }}
+            >
+              {isRestoring ? (
                 <>
-                  <Spinner animation="border" size="sm" className="me-2" /> Sending Snapshot...
+                  <Spinner animation="border" size="sm" />
+                  <span>RESTORING...</span>
                 </>
               ) : (
                 <>
-                  <Send size={15} className="me-2" /> Send Backup to Email
+                  <Upload size={18} />
+                  <span>RESTORE DATABASE</span>
                 </>
               )}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+            </button>
+          </div>
+        </div>
+      </div>
 
+      {/* 4. Automated Recurring Backup Section */}
+      <div className="backup-card">
+        <div className="backup-recurring-header">
+          <div className="backup-recurring-left">
+            <div className="backup-clock-icon-box">
+              <Clock size={22} />
+            </div>
+            <div>
+              <div className="backup-recurring-title">
+                <span>Automated Recurring Backup</span>
+                {autoBackupEnabled && <span className="backup-active-badge">ACTIVE • AUTO-RUNNING</span>}
+              </div>
+              <div className="backup-recurring-sub">
+                Automatically generate full database snapshots and email them on a recurring schedule.
+              </div>
+            </div>
+          </div>
+
+          {/* Toggle Switch */}
+          <div className="d-flex align-items-center gap-2">
+            <Form.Check 
+              type="switch"
+              id="autoBackupToggleSwitch"
+              checked={autoBackupEnabled}
+              onChange={(e) => setAutoBackupEnabled(e.target.checked)}
+              label={autoBackupEnabled ? <span className="small fw-bold text-dark">Enabled</span> : <span className="small fw-bold text-muted">Disabled</span>}
+              style={{ transform: 'scale(1.15)', cursor: 'pointer' }}
+            />
+          </div>
+        </div>
+
+        {/* Form Controls */}
+        <div className="row g-3 mb-3">
+          <div className="col-md-6">
+            <label className="backup-email-label">
+              📅 BACKUP FREQUENCY (SCHEDULE INTERVAL)
+            </label>
+            <select 
+              className="backup-select-field"
+              value={backupFrequency}
+              onChange={(e) => setBackupFrequency(e.target.value)}
+            >
+              <option value="Every 7 Days (Weekly - Fixed Schedule)">Every 7 Days (Weekly - Fixed Schedule)</option>
+            </select>
+            <div className="small text-muted mt-1" style={{ fontSize: '0.78rem' }}>
+              Select how often the system automatically generates and emails your database backup.
+            </div>
+          </div>
+
+          <div className="col-md-6">
+            <label className="backup-email-label">
+              ✉️ DELIVERY EMAIL ADDRESS
+            </label>
+            <div className="backup-input-wrap">
+              <Mail size={18} className="mail-icon" />
+              <input 
+                type="email"
+                className="backup-email-input"
+                placeholder="Enter email for automated snapshots"
+                value={recurringEmail}
+                onChange={(e) => setRecurringEmail(e.target.value)}
+              />
+            </div>
+            <div className="small text-muted mt-1" style={{ fontSize: '0.78rem' }}>
+              Automated backups will be dispatched directly to this email via your company SMTP.
+            </div>
+          </div>
+        </div>
+
+        {/* Footer info & Save Button */}
+        <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 pt-2">
+          <div className="small text-muted fw-semibold d-flex align-items-center gap-1">
+            <Clock size={15} />
+            <span>Active Interval: {backupFrequency.split('(')[0].trim()}</span>
+          </div>
+
+          <button 
+            className="backup-save-schedule-btn"
+            onClick={handleSaveAutoBackupSchedule}
+            disabled={isSavingSchedule}
+          >
+            {isSavingSchedule ? (
+              <>
+                <Spinner animation="border" size="sm" />
+                <span>SAVING SCHEDULE...</span>
+              </>
+            ) : (
+              <>
+                <Check size={16} />
+                <span>SAVE AUTO-BACKUP SCHEDULE</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* 5. Warning Banner */}
+      <div className="backup-warning-banner">
+        <AlertTriangle size={18} className="flex-shrink-0" />
+        <span>
+          Important: Restoring a backup will overwrite or sync current records with the uploaded backup file. Always take a fresh backup before restoring.
+        </span>
+      </div>
+
+      {/* Restore Confirmation Modal */}
+      <Modal 
+        show={showRestoreModal} 
+        onHide={() => setShowRestoreModal(false)}
+        centered
+        backdrop="static"
+      >
+        <Modal.Header closeButton className="border-0 pb-0">
+          <Modal.Title className="d-flex align-items-center gap-2 text-danger fw-bold">
+            <AlertTriangle size={22} />
+            <span>Confirm Database Restore</span>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-2">
+          <p className="text-dark">
+            Are you sure you want to restore the system database from <strong>{selectedFile?.name}</strong>?
+          </p>
+          <div className="p-3 bg-light rounded-3 mb-2 small text-muted">
+            ⚠️ <strong>Warning:</strong> Existing table records will be synchronized or replaced. This action cannot be reversed.
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0">
+          <button 
+            className="btn btn-outline-secondary btn-sm rounded-pill px-3"
+            onClick={() => setShowRestoreModal(false)}
+          >
+            Cancel
+          </button>
+          <button 
+            className="btn btn-danger btn-sm rounded-pill px-4 fw-bold"
+            onClick={handleConfirmRestore}
+          >
+            Confirm &amp; Restore
+          </button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

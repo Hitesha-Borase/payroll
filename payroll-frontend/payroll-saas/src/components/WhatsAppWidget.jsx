@@ -8,11 +8,12 @@ const WhatsAppWidget = () => {
 
   return (
     <div
+      className="kiaan-whatsapp-widget"
       style={{
         position: 'fixed',
         bottom: '24px',
         right: '24px',
-        zIndex: 9999,
+        zIndex: 1040,
         display: 'flex',
         alignItems: 'center',
         gap: '10px',

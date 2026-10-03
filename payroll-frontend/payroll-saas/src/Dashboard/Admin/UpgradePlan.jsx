@@ -9,9 +9,11 @@ import TrialExpiryModal from '../../components/TrialExpiryModal';
 import { ShieldCheck, CheckCircle2, Zap, ArrowRight, Lock, Clock, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { useRegional } from '../../context/RegionalContext';
 
 const UpgradePlan = () => {
   const navigate = useNavigate();
+  const { formatCurrency, convertAmount, currencyCode } = useRegional();
   const [plans, setPlans] = useState([]);
   const [currentSub, setCurrentSub] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -85,8 +87,13 @@ const UpgradePlan = () => {
     setProcessing(true);
 
     try {
-      // Step 2.A: Create Order on Backend (Backend calculates price from DB, never trusting client)
-      const orderRes = await adminAPI.createRazorpayOrder({ plan_id: selectedPlan.id });
+      // Step 2.A: Create Order on Backend with Converted Amount
+      const convertedAmount = convertAmount(selectedPlan.price, 'INR', currencyCode);
+      const orderRes = await adminAPI.createRazorpayOrder({ 
+        plan_id: selectedPlan.id,
+        amount: convertedAmount,
+        currency: currencyCode
+      });
       
       if (!orderRes?.data?.success) {
         throw new Error(orderRes?.data?.message || 'Failed to generate Razorpay payment order.');
@@ -103,7 +110,7 @@ const UpgradePlan = () => {
         key: key_id,
         amount: amount,
         currency: currency,
-        name: 'Kiaan Technology Pvt Ltd',
+        name: 'Payroll',
         description: `${plan_name} SaaS Subscription`,
         image: '/kiaan_logo.png',
         order_id: order_id,
@@ -315,10 +322,18 @@ const UpgradePlan = () => {
                       </p>
 
                       <div className="mb-3">
-                        <span style={{ fontSize: '32px', fontWeight: '900', color: '#FFFFFF' }}>
-                          ₹{priceVal.toLocaleString('en-IN')}
-                        </span>
-                        <span style={{ color: '#A7F3D0', fontSize: '12px' }}> /{plan.duration_months || 1} Month</span>
+                        {plan.name.toLowerCase().includes('custom') ? (
+                          <span style={{ fontSize: '28px', fontWeight: '900', color: '#FFFFFF' }}>
+                            Let's Talk
+                          </span>
+                        ) : (
+                          <>
+                            <span style={{ fontSize: '32px', fontWeight: '900', color: '#FFFFFF' }}>
+                              {formatCurrency(priceVal)}
+                            </span>
+                            <span style={{ color: '#A7F3D0', fontSize: '12px' }}> /{plan.duration_months || 1} Month</span>
+                          </>
+                        )}
                       </div>
 
                       <div style={{ backgroundColor: 'rgba(2, 44, 34, 0.6)', padding: '8px 12px', borderRadius: '8px', marginBottom: '16px', fontSize: '12px', color: '#34D399', fontWeight: '700' }}>
@@ -335,8 +350,14 @@ const UpgradePlan = () => {
                       </ul>
 
                       <Button
-                        disabled={isCurrent || priceVal === 0}
-                        onClick={() => handleSelectPlan(plan)}
+                        disabled={isCurrent || (priceVal === 0 && !plan.name.toLowerCase().includes('custom'))}
+                        onClick={() => {
+                          if (plan.name.toLowerCase().includes('custom')) {
+                            window.open('https://wa.me/919770273892?text=Hi%20Kiaan%20Technology,%20I%20want%20to%20upgrade%20my%20Payroll%20subscription%20to%20a%20Custom%20Plan.', '_blank');
+                          } else {
+                            handleSelectPlan(plan);
+                          }
+                        }}
                         style={{
                           backgroundColor: isCurrent ? '#047857' : (isPopular ? '#10B981' : '#059669'),
                           borderColor: isCurrent ? '#047857' : (isPopular ? '#10B981' : '#059669'),
@@ -349,7 +370,7 @@ const UpgradePlan = () => {
                           marginTop: 'auto'
                         }}
                       >
-                        {isCurrent ? 'Current Active Plan' : (priceVal === 0 ? 'Free Trial Active' : `Select ${plan.name}`)}
+                        {plan.name.toLowerCase().includes('custom') ? 'Contact Sales' : (isCurrent ? 'Current Active Plan' : (priceVal === 0 ? 'Free Trial Active' : `Select ${plan.name}`))}
                       </Button>
                     </Card.Body>
                   </Card>
@@ -395,7 +416,7 @@ const UpgradePlan = () => {
                 
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <span>Subscription Price:</span>
-                  <strong style={{ fontSize: '20px', color: '#10B981' }}>₹{parseFloat(selectedPlan.price).toLocaleString('en-IN')}</strong>
+                  <strong style={{ fontSize: '20px', color: '#10B981' }}>{formatCurrency(selectedPlan.price)}</strong>
                 </div>
                 <div className="d-flex justify-content-between align-items-center mb-2" style={{ fontSize: '13px' }}>
                   <span>Billing Period:</span>

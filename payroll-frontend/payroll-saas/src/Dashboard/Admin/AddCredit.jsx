@@ -3,6 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { adminAPI } from '../../services/api';
 import { Spinner } from 'react-bootstrap';
 import toast from 'react-hot-toast';
+import { useRegional } from '../../context/RegionalContext';
 
 // Color scheme as specified
 const colors = {
@@ -23,6 +24,7 @@ const AddCredit = () => {
   const [showTrashModal, setShowTrashModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const { formatCurrency } = useRegional();
   const [selectedCredit, setSelectedCredit] = useState(null);
   const [totalCredits, setTotalCredits] = useState(0);
   const [totalEmployers, setTotalEmployers] = useState(0);
@@ -388,7 +390,7 @@ const AddCredit = () => {
                     TOTAL CREDITS
                   </p>
                   <h4 className="fw-bold mb-0 mt-0.5" style={{ color: colors.primaryRed, fontSize: isMobile ? '0.95rem' : '1.45rem' }}>
-                    ${totalCredits.toLocaleString()}
+                    {formatCurrency(totalCredits)}
                   </h4>
                 </div>
                 <div
@@ -482,7 +484,7 @@ const AddCredit = () => {
                           </div>
                         </div>
                         <div className="fw-bold" style={{ color: colors.primaryRed, fontSize: '1.05rem' }}>
-                          ${parseFloat(req.amount || 0).toLocaleString()}
+                          {formatCurrency(parseFloat(req.amount || 0))}
                         </div>
                       </div>
 
@@ -540,7 +542,7 @@ const AddCredit = () => {
                         <td className="py-3 ps-4">{new Date(req.created_at).toLocaleDateString()}</td>
                         <td className="py-3 fw-semibold">{req.employer_name}</td>
                         <td className="py-3">{req.requested_by_name}</td>
-                        <td className="py-3 fw-bold text-danger">${parseFloat(req.amount || 0).toLocaleString()}</td>
+                        <td className="py-3 fw-bold text-danger">{formatCurrency(parseFloat(req.amount || 0))}</td>
                         <td className="py-3 text-muted">{req.description || "-"}</td>
                         <td className="py-3 pe-4 text-center">
                           <div className="d-flex justify-content-center gap-2">
@@ -603,7 +605,7 @@ const AddCredit = () => {
                         </div>
                         <div className="text-end">
                           <div className="fw-bold" style={{ color: colors.primaryRed, fontSize: '1.05rem' }}>
-                            ${parseFloat(row.amount || 0).toLocaleString()}
+                            {formatCurrency(parseFloat(row.amount || 0))}
                           </div>
                           <span className="badge bg-light text-muted border px-1.5 py-0.5" style={{ fontSize: '0.7rem' }}>
                             {row.date ? String(row.date).split('T')[0] : "-"}
@@ -678,7 +680,7 @@ const AddCredit = () => {
                       <tr key={i}>
                         <td className="py-3 ps-4" style={{ color: colors.blackText }}>{row.date ? String(row.date).split('T')[0] : "-"}</td>
                         <td className="py-3 fw-semibold" style={{ color: colors.blackText }}>{row.employer}</td>
-                        <td className="py-3 fw-bold" style={{ color: colors.primaryRed }}>${parseFloat(row.amount || 0).toLocaleString()}</td>
+                        <td className="py-3 fw-bold" style={{ color: colors.primaryRed }}>{formatCurrency(parseFloat(row.amount || 0))}</td>
                         <td className="py-3 text-muted">{row.ref || "-"}</td>
                         <td className="py-3">{row.mode}</td>
                         <td className="py-3 text-muted">{row.txnId || "-"}</td>

@@ -30,7 +30,7 @@ const plansData = [
     badge: 'SMALL TEAMS',
     name: 'STARTER PLAN',
     subtitle: 'Ideal for startups, boutique agencies, and growing small offices.',
-    price: '₹ 999',
+    price: '₹ 700',
     period: '/ month',
     popular: false,
     ctaText: 'CHOOSE STARTER',
@@ -47,7 +47,7 @@ const plansData = [
     badge: 'MOST POPULAR',
     name: 'PROFESSIONAL',
     subtitle: 'Complete payroll, attendance, and compliance hub for expanding firms.',
-    price: '₹ 1,299',
+    price: '₹ 900',
     period: '/ month',
     popular: true,
     ctaText: 'UPGRADE TO PRO',
@@ -64,7 +64,7 @@ const plansData = [
     badge: 'HIGH CAPACITY',
     name: 'PREMIUM PLAN',
     subtitle: 'Designed for enterprise workforces requiring statutory automation & portal access.',
-    price: '₹ 1,499',
+    price: '₹ 1,200',
     period: '/ month',
     popular: false,
     ctaText: 'GO PREMIUM',
@@ -288,7 +288,7 @@ const PayrollPricingSection = ({ onSelectPlan }) => {
                   {/* Price */}
                   <div className="d-flex align-items-baseline gap-1 mb-4 pb-3 border-bottom" style={{ borderColor: '#F1F5F9' }}>
                     <span className="display-6 fw-bold" style={{ fontSize: '2.1rem', color: '#0F172A', fontWeight: '900' }}>
-                      {plan.price}
+                      {edition?.prices?.[plan.id] || plan.price}
                     </span>
                     <span className="small font-medium" style={{ color: '#64748B', fontSize: '0.85rem' }}>{plan.period}</span>
                   </div>

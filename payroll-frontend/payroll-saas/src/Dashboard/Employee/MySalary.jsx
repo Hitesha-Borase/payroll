@@ -22,6 +22,7 @@ import {
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import toast from 'react-hot-toast';
+import { useRegional } from '../../context/RegionalContext';
 
 // Color Palette
 const colors = {
@@ -42,6 +43,7 @@ const MySalary = () => {
   const [showPayslipModal, setShowPayslipModal] = useState(false);
   const [selectedSalary, setSelectedSalary] = useState(null);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const { formatCurrency } = useRegional();
 
   const [employeeData, setEmployeeData] = useState({
     name: '',
@@ -194,14 +196,6 @@ const MySalary = () => {
     alignItems: 'center',
     gap: '6px',
     fontSize: windowWidth < 768 ? '10px' : '12px',
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   const formatDate = (dateString) => {

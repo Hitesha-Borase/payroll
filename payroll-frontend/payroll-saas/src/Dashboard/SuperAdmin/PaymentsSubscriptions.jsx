@@ -4,8 +4,10 @@ import toast from 'react-hot-toast';
 import { superadminAPI } from '../../services/api';
 import SuperAdminLayout from './SuperAdminLayout';
 import { Download, CreditCard, RefreshCw, CheckCircle, Clock, AlertTriangle, Search, Filter } from 'lucide-react';
+import { useRegional } from '../../context/RegionalContext';
 
 const PaymentsSubscriptions = () => {
+  const { formatCurrency } = useRegional();
   const [payments, setPayments] = useState([]);
   const [activeSubs, setActiveSubs] = useState([]);
   const [pendingSubs, setPendingSubs] = useState([]);
@@ -328,7 +330,7 @@ const PaymentsSubscriptions = () => {
                             <span style={{ fontSize: '11px', color: '#64748B', marginLeft: '6px' }}>{pay.payment_method || 'Online'}</span>
                           </div>
                           <div style={{ fontWeight: '800', color: '#C62828', fontSize: '15px' }}>
-                            ₹{parseFloat(pay.amount || 0).toLocaleString('en-IN')}
+                            {formatCurrency(parseFloat(pay.amount || 0))}
                           </div>
                         </div>
                         <div style={{ fontSize: '10px', color: '#94A3B8', textAlign: 'right' }}>
@@ -365,7 +367,7 @@ const PaymentsSubscriptions = () => {
                                 {pay.invoice?.plan?.name || 'Standard Plan'}
                               </Badge>
                             </td>
-                            <td style={{ fontWeight: '800', color: '#C62828' }}>₹{parseFloat(pay.amount || 0).toLocaleString('en-IN')}</td>
+                            <td style={{ fontWeight: '800', color: '#C62828' }}>{formatCurrency(parseFloat(pay.amount || 0))}</td>
                             <td style={{ color: '#475569', fontWeight: '500' }}>{pay.payment_method || 'Online'}</td>
                             <td>
                               <Badge bg={pay.status === 'success' ? 'success' : 'warning'} style={{ borderRadius: '12px', padding: '4px 10px' }}>
@@ -402,7 +404,7 @@ const PaymentsSubscriptions = () => {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '14px' }}>{sub.employer?.company_name || 'N/A'}</span>
-                          <span style={{ fontWeight: '800', color: '#C62828', fontSize: '14px' }}>₹{parseFloat(sub.plan?.price || 0).toLocaleString('en-IN')}</span>
+                          <span style={{ fontWeight: '800', color: '#C62828', fontSize: '14px' }}>{formatCurrency(parseFloat(sub.plan?.price || 0))}</span>
                         </div>
                         <div style={{ fontSize: '12px', color: '#166534', fontWeight: '700' }}>
                           Plan: {sub.plan?.name || 'SaaS Plan'}

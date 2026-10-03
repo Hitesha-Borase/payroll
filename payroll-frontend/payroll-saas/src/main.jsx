@@ -20,7 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter>
       <RegionalProvider>
         <AuthProvider>
-          <PayPalScriptProvider options={{ "client-id": "AZv9QxgSKA7EX8CwdLaIE8R_k6xA3kAl2HusjEsewykrACj2UEK6Z5v51GX6IIx6zhPaj1RCM2xKb6gC", currency: "USD" }}>
+          <PayPalScriptProvider options={{ "client-id": "AZv9QxgSKA7EX8CwdLaIE8R_k6xA3kAl2HusjEsewykrACj2UEK6Z5v51GX6IIx6zhPaj1RCM2xKb6gC", currency: "USD", deferLoading: true }}>
             <App />
           </PayPalScriptProvider>
         </AuthProvider>
