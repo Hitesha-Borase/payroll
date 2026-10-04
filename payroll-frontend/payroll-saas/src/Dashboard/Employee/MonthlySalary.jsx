@@ -24,6 +24,7 @@ import {
   FaEye,
   FaEyeSlash
 } from 'react-icons/fa';
+import { useRegional } from '../../context/RegionalContext';
 
 // Color Palette
 const colors = {
@@ -49,6 +50,7 @@ const MonthlySalary = () => {
   const [activeTab, setActiveTab] = useState('accounts');
   const [searchTerm, setSearchTerm] = useState('');
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const { formatCurrency } = useRegional();
   const [showAccountNumber, setShowAccountNumber] = useState({});
   const [verificationStep, setVerificationStep] = useState(1);
   const [verificationCode, setVerificationCode] = useState('');
@@ -150,14 +152,6 @@ const MonthlySalary = () => {
     ...tabStyle,
     color: colors.primaryRed,
     borderBottom: `3px solid ${colors.primaryRed}`,
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount);
   };
 
   const formatDate = (dateString) => {

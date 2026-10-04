@@ -6,9 +6,9 @@ export const EXCHANGE_RATE_API = 'https://open.er-api.com/v6/latest/USD';
 // Base prices in INR (Platform standard)
 export const BASE_INR_PRICES = {
   trial: 0,
-  starter: 999,
-  pro: 1299,
-  premium: 1499,
+  starter: 700,
+  pro: 900,
+  premium: 1200,
   custom: 'Custom'
 };
 
@@ -226,16 +226,14 @@ export const RegionalProvider = ({ children }) => {
     setGoogleTranslateCookie(langCode);
     triggerGoogleTranslateWidget(langCode);
 
-    if (langCode === 'en') {
-      const isTranslated = document.querySelector('html.translated-ltr') || document.querySelector('html.translated-rtl');
-      if (isTranslated) {
-        window.location.reload();
-      }
-    }
-
     // Dispatch custom events
     window.dispatchEvent(new CustomEvent('kiaanRegionalChanged', { detail: newEdition }));
     window.dispatchEvent(new CustomEvent('kiaanCurrencyChanged', { detail: { currency: newEdition.currency, currencyCode: newEdition.currencyCode } }));
+
+    // Reliable full application sync (Google Translate sometimes ignores JS events)
+    setTimeout(() => {
+      window.location.reload();
+    }, 150);
   };
 
   // Automatically switch currency when language changes

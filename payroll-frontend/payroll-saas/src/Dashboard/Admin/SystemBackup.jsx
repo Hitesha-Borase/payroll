@@ -58,7 +58,7 @@ const SystemBackup = () => {
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [backupFrequency, setBackupFrequency] = useState(() => {
-    return localStorage.getItem('auto_backup_frequency') || 'Every 7 Days (Weekly - Recommended)';
+    return localStorage.getItem('auto_backup_frequency') || 'Every 7 Days (Weekly - Fixed Schedule)';
   });
   const [recurringEmail, setRecurringEmail] = useState(() => {
     return localStorage.getItem('auto_backup_email') || 'sonu@gmail.com';
@@ -485,170 +485,94 @@ SET FOREIGN_KEY_CHECKS = 1;
                 </>
               )}
             </button>
-          </div>
-          <div className="backup-email-hint">
-            <span>💡 Enter your email address above and click "Send Backup to Email" to receive the full database backup (.sql) directly in your inbox.</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Main 2 Options Grid */}
-      <div className="row g-4 mb-4">
-        {/* Option 1: Take System Backup */}
-        <div className="col-lg-6">
-          <div className="backup-card h-100 d-flex flex-column justify-content-between mb-0">
-            <div>
-              <div className="backup-option-header">
-                <div className="backup-option-icon-box red">
-                  <Download size={22} />
-                </div>
-                <span className="backup-option-badge red">OPTION 1</span>
-              </div>
-
-              <h3 className="backup-option-title">Take System Backup</h3>
-              <p className="backup-option-desc">
-                Generate a complete database backup file containing all employees, attendance logs, payroll records, and system settings.
-              </p>
-
-              {/* Data Scope */}
-              <div className="backup-scope-label">BACKUP DATA SCOPE</div>
-              <div className="backup-scope-pills">
-                <button 
-                  type="button"
-                  className={`backup-scope-pill ${dataScope === 'all' ? 'active' : ''}`}
-                  onClick={() => setDataScope('all')}
-                >
-                  All Time (Full DB)
-                </button>
-                <button 
-                  type="button"
-                  className={`backup-scope-pill ${dataScope === 'custom' ? 'active' : ''}`}
-                  onClick={() => setDataScope('custom')}
-                >
-                  Custom Date Range
-                </button>
-              </div>
-
-              {/* Custom Date Inputs if active */}
-              {dataScope === 'custom' && (
-                <div className="row g-2 mb-3">
-                  <div className="col-6">
-                    <label className="small text-muted fw-semibold mb-1">From Date</label>
-                    <input 
-                      type="date" 
-                      className="form-control form-control-sm"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="col-6">
-                    <label className="small text-muted fw-semibold mb-1">To Date</label>
-                    <input 
-                      type="date" 
-                      className="form-control form-control-sm"
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Also send email checkbox */}
-              <div className="form-check mb-4">
-                <input 
-                  type="checkbox"
-                  className="form-check-input"
-                  id="alsoSendEmailCheck"
-                  checked={alsoSendEmail}
-                  onChange={(e) => setAlsoSendEmail(e.target.checked)}
-                />
-                <label className="form-check-label small fw-semibold text-dark" htmlFor="alsoSendEmailCheck">
-                  Also send a copy to <span className="text-primary">{deliveryEmail}</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Take Backup Button */}
             <button 
-              className="backup-action-btn primary"
+              className="backup-send-email-btn"
+              style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)' }}
               onClick={handleTakeBackupNow}
               disabled={isTakingBackup}
             >
               {isTakingBackup ? (
                 <>
                   <Spinner animation="border" size="sm" />
-                  <span>GENERATING BACKUP...</span>
+                  <span>GENERATING...</span>
                 </>
               ) : (
                 <>
-                  <Download size={18} />
+                  <Download size={16} />
                   <span>TAKE BACKUP NOW</span>
                 </>
               )}
             </button>
           </div>
+          <div className="backup-email-hint">
+            <span>💡 Click "Take Backup Now" to download full database (.sql) directly, or click "Send Backup to Email" to receive it in your inbox.</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Restore Database Card (Full Width) */}
+      <div className="backup-card mb-4">
+        <div className="d-flex align-items-center gap-3 mb-3">
+          <div className="backup-option-icon-box green" style={{ width: '48px', height: '48px' }}>
+            <Upload size={24} />
+          </div>
+          <div>
+            <h3 className="backup-option-title mb-1">Restore Database</h3>
+            <p className="backup-option-desc mb-0">
+              Upload a previously downloaded .sql or .json backup file to restore your system data.
+            </p>
+          </div>
         </div>
 
-        {/* Option 2: Restore Database */}
-        <div className="col-lg-6">
-          <div className="backup-card h-100 d-flex flex-column justify-content-between mb-0">
-            <div>
-              <div className="backup-option-header">
-                <div className="backup-option-icon-box green">
-                  <Upload size={22} />
-                </div>
-                <span className="backup-option-badge green">OPTION 2</span>
-              </div>
+        <input 
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".sql,.json"
+          onChange={handleFileChange}
+        />
 
-              <h3 className="backup-option-title">Restore Database</h3>
-              <p className="backup-option-desc">
-                Upload a previously downloaded .sql or .json backup file to restore your system data.
-              </p>
-
-              {/* Hidden File Input */}
-              <input 
-                type="file"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                accept=".sql,.json"
-                onChange={handleFileChange}
-              />
-
-              {/* Dropzone Box */}
-              <div 
-                className={`backup-dropzone ${selectedFile ? 'has-file' : ''}`}
-                onClick={() => fileInputRef.current && fileInputRef.current.click()}
-              >
-                {selectedFile ? (
-                  <div>
-                    <div className="d-inline-flex align-items-center justify-content-center p-2 rounded-circle bg-success text-white mb-2">
-                      <Check size={20} />
-                    </div>
-                    <div className="backup-dropzone-title text-success">{selectedFile.name}</div>
+        <div className="row align-items-center">
+          <div className="col-md-9">
+            <div 
+              className={`backup-dropzone mb-0 ${selectedFile ? 'has-file' : ''}`}
+              onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              style={{ padding: '1.25rem 1rem' }}
+            >
+              {selectedFile ? (
+                <div className="d-flex align-items-center justify-content-center gap-3">
+                  <div className="p-2 rounded-circle bg-success text-white">
+                    <Check size={20} />
+                  </div>
+                  <div className="text-start">
+                    <div className="backup-dropzone-title mt-0 text-success">{selectedFile.name}</div>
                     <div className="backup-dropzone-sub">
                       {(selectedFile.size / 1024).toFixed(1)} KB • Ready to restore
                     </div>
                   </div>
-                ) : (
-                  <div>
-                    <Upload size={28} className="text-muted mb-1" />
-                    <div className="backup-dropzone-title">Click to Select Backup File</div>
+                </div>
+              ) : (
+                <div className="d-flex align-items-center justify-content-center gap-3">
+                  <Upload size={24} className="text-muted" />
+                  <div className="text-start">
+                    <div className="backup-dropzone-title mt-0">Click to Select Backup File</div>
                     <div className="backup-dropzone-sub">Supports .SQL &amp; .JSON files</div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-
-            {/* Restore Database Button */}
+          </div>
+          <div className="col-md-3">
             <button 
               className={`backup-action-btn restore ${selectedFile ? 'ready' : ''}`}
               disabled={!selectedFile || isRestoring}
               onClick={() => setShowRestoreModal(true)}
+              style={{ height: '100%', minHeight: '68px', backgroundColor: selectedFile ? '#059669' : '#d1fae5', color: selectedFile ? '#fff' : '#065f46', borderColor: '#a7f3d0' }}
             >
               {isRestoring ? (
                 <>
                   <Spinner animation="border" size="sm" />
-                  <span>RESTORING DATABASE...</span>
+                  <span>RESTORING...</span>
                 </>
               ) : (
                 <>
@@ -703,11 +627,7 @@ SET FOREIGN_KEY_CHECKS = 1;
               value={backupFrequency}
               onChange={(e) => setBackupFrequency(e.target.value)}
             >
-              <option value="Every 24 Hours (Daily)">Every 24 Hours (Daily)</option>
-              <option value="Every 3 Days">Every 3 Days</option>
-              <option value="Every 7 Days (Weekly - Recommended)">Every 7 Days (Weekly - Recommended)</option>
-              <option value="Every 15 Days (Bi-weekly)">Every 15 Days (Bi-weekly)</option>
-              <option value="Every 30 Days (Monthly)">Every 30 Days (Monthly)</option>
+              <option value="Every 7 Days (Weekly - Fixed Schedule)">Every 7 Days (Weekly - Fixed Schedule)</option>
             </select>
             <div className="small text-muted mt-1" style={{ fontSize: '0.78rem' }}>
               Select how often the system automatically generates and emails your database backup.

@@ -2714,6 +2714,76 @@ const getAuditActions = async (req, res, next) => {
   }
 };
 
+/**
+ * Get System Setting
+ */
+const getSystemSetting = async (req, res, next) => {
+  try {
+    // Ensure table exists
+    await db.query(`CREATE TABLE IF NOT EXISTS system_settings (setting_key VARCHAR(100) PRIMARY KEY, setting_value JSON)`);
+    
+    const { key } = req.params;
+    const [rows] = await db.query('SELECT setting_value FROM system_settings WHERE setting_key = ?', [key]);
+    if (rows.length > 0) {
+      res.json({ success: true, data: rows[0].setting_value });
+    } else {
+      res.json({ success: true, data: null });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Save System Setting
+ */
+const saveSystemSetting = async (req, res, next) => {
+  try {
+    const { key, value } = req.body;
+    if (!key) return res.status(400).json({ success: false, message: 'Key is required' });
+
+    // Ensure table exists
+    await db.query(`CREATE TABLE IF NOT EXISTS system_settings (setting_key VARCHAR(100) PRIMARY KEY, setting_value JSON)`);
+
+    await db.query(
+      'INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?',
+      [key, JSON.stringify(value), JSON.stringify(value)]
+    );
+    res.json({ success: true, message: 'Setting saved successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Test SMTP Connection
+ */
+const testSmtpConnection = async (req, res, next) => {
+  try {
+    const { host, port, username, password } = req.body;
+    if (!host || !port || !username || !password) {
+      return res.status(400).json({ success: false, message: 'All SMTP fields are required for testing' });
+    }
+
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host,
+      port: parseInt(port),
+      secure: parseInt(port) === 465,
+      auth: {
+        user: username,
+        pass: password
+      }
+    });
+
+    await transporter.verify();
+    res.json({ success: true, message: 'SMTP Connection successful!' });
+  } catch (error) {
+    console.error('SMTP Test Error:', error);
+    res.status(500).json({ success: false, message: error.message || 'SMTP Connection failed' });
+  }
+};
+
 module.exports = {
   getDashboard,
   getDashboardSummary,
@@ -2778,7 +2848,10 @@ module.exports = {
   // Audit Logs
   getAuditLogs,
   getAuditStats,
-  getAuditActions
+  getAuditActions,
+  getSystemSetting,
+  saveSystemSetting,
+  testSmtpConnection
 };
 
 

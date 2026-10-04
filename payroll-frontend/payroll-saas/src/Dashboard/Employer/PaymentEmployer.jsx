@@ -146,7 +146,7 @@ const PaymentEmployer = () => {
       });
 
       if (response?.data?.success) {
-        setSuccessMessage(`Bank transfer of $${parseFloat(employeePayment.amount).toLocaleString()} to ${employee.name} initiated successfully.`);
+        setSuccessMessage(`Bank transfer of ${formatCurrency(employeePayment.amount)} to ${employee.name} initiated successfully.`);
         setShowPayEmployeeModal(false);
         setEmployeePayment({ employeeId: '', amount: '', accountNumber: '', ifsc: '', notes: '' });
         fetchData(); // Refresh data
@@ -183,7 +183,7 @@ const PaymentEmployer = () => {
       });
 
       if (response?.data?.success) {
-        setSuccessMessage(`Bank transfer of $${parseFloat(vendorPayment.amount).toLocaleString()} to ${vendor.name} initiated successfully.`);
+        setSuccessMessage(`Bank transfer of ${formatCurrency(vendorPayment.amount)} to ${vendor.name} initiated successfully.`);
         setShowPayVendorModal(false);
         setVendorPayment({ vendorId: '', amount: '', accountNumber: '', ifsc: '', notes: '' });
         fetchData(); // Refresh data
@@ -225,9 +225,9 @@ const PaymentEmployer = () => {
       setRecentPayments([newPayment, ...recentPayments]);
       setIsLoading(false);
       if (newPayment.status === 'Success') {
-        toast.success(`Bank transfer of $${newPayment.amount.toLocaleString()} to ${bankTransfer.recipientName} is successful.`);
+        toast.success(`Bank transfer of ${formatCurrency(newPayment.amount)} to ${bankTransfer.recipientName} is successful.`);
       } else {
-        toast.error(`Bank transfer of $${newPayment.amount.toLocaleString()} to ${bankTransfer.recipientName} failed.`);
+        toast.error(`Bank transfer of ${formatCurrency(newPayment.amount)} to ${bankTransfer.recipientName} failed.`);
       }
       setShowBankTransferModal(false);
       setBankTransfer({ fromAccount: '', toAccount: '', toIFSC: '', amount: '', notes: '', recipientName: '' }); // Reset form
@@ -330,7 +330,7 @@ const PaymentEmployer = () => {
         <div className="d-flex align-items-center">
           <div className="bg-white rounded-pill p-2 px-3 shadow-sm">
             <span className="text-muted small me-2">Available Credits:</span>
-            <span className="fw-bold" style={{ color: "#C62828" }}>${creditBalance.toLocaleString()}</span>
+            <span className="fw-bold" style={{ color: "#C62828" }}>{formatCurrency(creditBalance)}</span>
           </div>
         </div>
       </div>
@@ -1057,7 +1057,7 @@ const PaymentEmployer = () => {
                   <div className="card-body">
                     <div className="d-flex justify-content-between align-items-center">
                       <span className="fw-bold">Amount</span>
-                      <span className="fw-bold" style={{ color: "#C62828", fontSize: '1.5rem' }}>${selectedPayment.amount.toLocaleString()}</span>
+                      <span className="fw-bold" style={{ color: "#C62828", fontSize: '1.5rem' }}>{formatCurrency(selectedPayment.amount)}</span>
                     </div>
                   </div>
                 </div>

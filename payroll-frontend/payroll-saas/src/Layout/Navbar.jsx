@@ -327,22 +327,24 @@ const Navbar = ({ toggleSidebar }) => {
             </button>
 
             {/* Header 'Help Desk' Button next to How to Use */}
-            <button
-              type="button"
-              className="navbar-how-to-use-btn"
-              onClick={() => {
-                const role = (user?.role || localStorage.getItem('userRole') || '').toLowerCase();
-                if (role.includes('super')) {
-                  navigate('/superadmin/support-tickets');
-                } else {
-                  navigate('/admin/support-tickets');
-                }
-              }}
-              title="Open Help Desk / Support Tickets"
-            >
-              <FaHeadset size={14} />
-              <span>Help Desk</span>
-            </button>
+            {['admin', 'superadmin'].some(r => (user?.role || localStorage.getItem('userRole') || '').toLowerCase() === r || (user?.role || localStorage.getItem('userRole') || '').toLowerCase().includes('super')) && (
+              <button
+                type="button"
+                className="navbar-how-to-use-btn"
+                onClick={() => {
+                  const role = (user?.role || localStorage.getItem('userRole') || '').toLowerCase();
+                  if (role.includes('super')) {
+                    navigate('/superadmin/support-tickets');
+                  } else {
+                    navigate('/admin/support-tickets');
+                  }
+                }}
+                title="Open Help Desk / Support Tickets"
+              >
+                <FaHeadset size={14} />
+                <span>Help Desk</span>
+              </button>
+            )}
 
             {/* Profile Icon with Dropdown */}
             <div className="position-relative" ref={dropdownRef}>
