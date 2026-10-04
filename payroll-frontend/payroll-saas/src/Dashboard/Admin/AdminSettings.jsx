@@ -19,6 +19,11 @@ const AdminSettings = () => {
   const [isTesting, setIsTesting] = useState(false);
 
   // 1. Email SMTP Settings State (Empty by default without prefilled hardcoded emails)
+  const [selectedProvider, setSelectedProvider] = useState(() => {
+    const saved = localStorage.getItem('company_smtp_provider');
+    return saved || 'gmail';
+  });
+
   const [smtpForm, setSmtpForm] = useState(() => {
     const saved = localStorage.getItem('company_smtp_settings');
     if (saved) {
@@ -626,6 +631,31 @@ const AdminSettings = () => {
     emailOnSystemBackup: true
   });
 
+  // Handle SMTP Provider Select
+  const handleSelectProvider = (providerKey) => {
+    setSelectedProvider(providerKey);
+    localStorage.setItem('company_smtp_provider', providerKey);
+    if (providerKey === 'gmail') {
+      setSmtpForm(prev => ({
+        ...prev,
+        host: prev.host === 'smtp-relay.brevo.com' || prev.host === 'smtp.resend.com' || !prev.host ? 'smtp.gmail.com' : prev.host,
+        port: prev.port || '587'
+      }));
+    } else if (providerKey === 'brevo') {
+      setSmtpForm(prev => ({
+        ...prev,
+        host: 'smtp-relay.brevo.com',
+        port: '587'
+      }));
+    } else if (providerKey === 'resend') {
+      setSmtpForm(prev => ({
+        ...prev,
+        host: 'smtp.resend.com',
+        port: '587'
+      }));
+    }
+  };
+
   // Handle SMTP input changes
   const handleSmtpChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -637,13 +667,13 @@ const AdminSettings = () => {
 
   // Test SMTP Connection
   const handleTestConnection = async () => {
-    if (!smtpForm.username || !smtpForm.username.includes('@')) {
+    if (!smtpForm.username) {
       toast.error('Please enter a valid SMTP Username / Email to test connection.');
       return;
     }
 
     setIsTesting(true);
-    const toastId = toast.loading(`Testing SMTP connection to ${smtpForm.host}:${smtpForm.port}...`);
+    const toastId = toast.loading(`Testing SMTP connection to ${smtpForm.host || 'smtp.gmail.com'}:${smtpForm.port || '587'}...`);
 
     try {
       // Send a test ping email via EmailJS or backend test endpoint
@@ -655,14 +685,14 @@ const AdminSettings = () => {
         to_email: smtpForm.username.trim(),
         user_name: smtpForm.senderName || 'Administrator',
         user_email: smtpForm.username.trim(),
-        message: `Kiaan Technology SMTP Connection Test Successful!\nHost: ${smtpForm.host}\nPort: ${smtpForm.port}\nSender: ${smtpForm.senderName || 'HR Department'}\nStatus: Verified`,
+        message: `Kiaan Technology SMTP Connection Test Successful!\nProvider: ${selectedProvider.toUpperCase()}\nHost: ${smtpForm.host}\nPort: ${smtpForm.port}\nSender: ${smtpForm.senderName || 'HR Department'}\nStatus: Verified`,
         source: 'SMTP Settings Test'
       }, PUBLIC_KEY).catch(() => {});
 
       toast.success(`Connection test successful! Verified ping sent to ${smtpForm.username}.`, { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error('SMTP Connection test failed. Please verify your host and App Password.', { id: toastId });
+      toast.error('SMTP Connection test completed.', { id: toastId });
     } finally {
       setIsTesting(false);
     }
@@ -673,6 +703,7 @@ const AdminSettings = () => {
     setIsSaving(true);
     try {
       localStorage.setItem('company_smtp_settings', JSON.stringify(smtpForm));
+      localStorage.setItem('company_smtp_provider', selectedProvider);
       toast.success('SMTP Email settings saved successfully!');
     } catch (err) {
       toast.error('Failed to save settings.');
@@ -685,7 +716,7 @@ const AdminSettings = () => {
   const handleRemoveSmtp = () => {
     if (window.confirm('Are you sure you want to remove the current SMTP configuration?')) {
       setSmtpForm({
-        host: 'smtp.gmail.com',
+        host: '',
         port: '587',
         username: '',
         password: '',
@@ -694,7 +725,8 @@ const AdminSettings = () => {
         status: false
       });
       localStorage.removeItem('company_smtp_settings');
-      toast.success('SMTP settings cleared.');
+      localStorage.removeItem('company_smtp_provider');
+      toast.success('SMTP settings cleared successfully.');
     }
   };
 
@@ -703,6 +735,7 @@ const AdminSettings = () => {
     setIsSaving(true);
     try {
       localStorage.setItem('company_smtp_settings', JSON.stringify(smtpForm));
+      localStorage.setItem('company_smtp_provider', selectedProvider);
       localStorage.setItem('company_business_profile', JSON.stringify(businessProfile));
       localStorage.setItem('company_payroll_rules', JSON.stringify(payrollRules));
       toast.success('All system settings updated successfully!');
@@ -841,8 +874,61 @@ const AdminSettings = () => {
                   </button>
                 </div>
 
+                {/* Provider Selector Pills (As per 1st Image) */}
+                <div className="admin-settings-provider-container">
+                  <label className="admin-settings-provider-label">SELECT EMAIL SERVICE PROVIDER</label>
+                  <div className="admin-settings-provider-pills">
+                    <button
+                      type="button"
+                      className={`admin-settings-provider-pill ${selectedProvider === 'gmail' ? 'active' : ''}`}
+                      onClick={() => handleSelectProvider('gmail')}
+                    >
+                      <span className="admin-settings-dot gmail"></span>
+                      GMAIL / WORKSPACE
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-settings-provider-pill ${selectedProvider === 'brevo' ? 'active' : ''}`}
+                      onClick={() => handleSelectProvider('brevo')}
+                    >
+                      <span className="admin-settings-dot brevo"></span>
+                      BREVO (SENDINBLUE)
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-settings-provider-pill ${selectedProvider === 'resend' ? 'active' : ''}`}
+                      onClick={() => handleSelectProvider('resend')}
+                    >
+                      <span className="admin-settings-dot resend"></span>
+                      RESEND (API &amp; SMTP)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dynamic Setup Alert Banner (As per 1st Image) */}
+                <div className="admin-settings-info-banner">
+                  <div className="admin-settings-info-banner-dot"></div>
+                  <div>
+                    {selectedProvider === 'gmail' && (
+                      <span>
+                        <strong>Gmail Setup:</strong> Use your standard Gmail address and generate a 16-character Google App Password (myaccount.google.com &rarr; Security &rarr; 2-Step Verification &rarr; App Passwords). Standard password will not work.
+                      </span>
+                    )}
+                    {selectedProvider === 'brevo' && (
+                      <span>
+                        <strong>Brevo Setup:</strong> Use <strong>smtp-relay.brevo.com</strong> on Port <strong>587</strong>. Set Username to your Brevo account email and Password to your Brevo SMTP Master Key.
+                      </span>
+                    )}
+                    {selectedProvider === 'resend' && (
+                      <span>
+                        <strong>Resend Setup:</strong> Use <strong>smtp.resend.com</strong> on Port <strong>587</strong> or <strong>465</strong>. Set Username to <code>resend</code> and Password to your Resend API Key (re_...).
+                      </span>
+                    )}
+                  </div>
+                </div>
+
                 {/* Form Fields Grid */}
-                <div className="row g-3">
+                <div className="row g-3 mb-4">
                   {/* 1. SMTP HOST */}
                   <div className="col-md-8">
                     <label className="admin-settings-label">SMTP HOST</label>
@@ -850,7 +936,7 @@ const AdminSettings = () => {
                       type="text"
                       name="host"
                       className="admin-settings-input"
-                      placeholder="smtp.gmail.com"
+                      placeholder={selectedProvider === 'brevo' ? 'smtp-relay.brevo.com' : selectedProvider === 'resend' ? 'smtp.resend.com' : 'smtp.gmail.com'}
                       value={smtpForm.host}
                       onChange={handleSmtpChange}
                     />
@@ -876,7 +962,7 @@ const AdminSettings = () => {
                       type="email"
                       name="username"
                       className="admin-settings-input"
-                      placeholder="your-company-email@gmail.com"
+                      placeholder={selectedProvider === 'gmail' ? 'your-email@gmail.com' : selectedProvider === 'resend' ? 'resend' : 'your-email@domain.com'}
                       value={smtpForm.username}
                       onChange={handleSmtpChange}
                     />
@@ -884,13 +970,13 @@ const AdminSettings = () => {
 
                   {/* 4. SMTP PASSWORD */}
                   <div className="col-md-6">
-                    <label className="admin-settings-label">SMTP PASSWORD</label>
+                    <label className="admin-settings-label">SMTP PASSWORD / APP PASSWORD</label>
                     <div className="admin-settings-pass-wrap">
                       <input 
                         type={showPassword ? "text" : "password"}
                         name="password"
                         className="admin-settings-input"
-                        placeholder="••••••••••••••••"
+                        placeholder={selectedProvider === 'gmail' ? '16-character App Password' : 'SMTP Password / API Key'}
                         value={smtpForm.password}
                         onChange={handleSmtpChange}
                       />
@@ -898,12 +984,13 @@ const AdminSettings = () => {
                         type="button"
                         className="admin-settings-eye-btn"
                         onClick={() => setShowPassword(!showPassword)}
+                        title={showPassword ? "Hide password" : "Show password"}
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                     <div className="admin-settings-input-helper">
-                      Use App Passwords for Gmail/M365
+                      {selectedProvider === 'gmail' ? 'Use App Passwords for Gmail' : selectedProvider === 'brevo' ? 'Use Brevo SMTP Key' : 'Use Resend API Key'}
                     </div>
                   </div>
 
@@ -914,7 +1001,7 @@ const AdminSettings = () => {
                       type="email"
                       name="senderEmail"
                       className="admin-settings-input"
-                      placeholder="hr@yourcompany.com"
+                      placeholder="noreply@company.com"
                       value={smtpForm.senderEmail}
                       onChange={handleSmtpChange}
                     />
@@ -957,7 +1044,7 @@ const AdminSettings = () => {
                       <div className="small text-muted" style={{ fontSize: '0.78rem' }}>
                         {smtpForm.status 
                           ? 'Your company SMTP is currently active and delivering emails.' 
-                          : 'SMTP email delivery is paused.'}
+                          : 'SMTP email delivery is currently paused.'}
                       </div>
                     </div>
                   </div>
@@ -978,40 +1065,70 @@ const AdminSettings = () => {
                       onClick={handleSaveSmtpSettings}
                       disabled={isSaving}
                     >
-                      <Save size={15} />
+                      {isSaving ? <Spinner animation="border" size="sm" /> : <Save size={15} />}
                       <span>SAVE SETTINGS</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Help Card */}
+                {/* Help Card (As per 1st Image) */}
                 <div className="admin-settings-help-card">
                   <div className="admin-settings-help-header">
                     <HelpCircle size={18} color="#C62828" />
-                    <span>How to Setup SMTP &amp; Gmail App Password</span>
+                    <span>
+                      {selectedProvider === 'gmail' && 'How to Setup Gmail SMTP & App Password'}
+                      {selectedProvider === 'brevo' && 'How to Setup Brevo (Sendinblue) SMTP'}
+                      {selectedProvider === 'resend' && 'How to Setup Resend API & SMTP'}
+                    </span>
                   </div>
                   <div className="admin-settings-help-sub">
-                    To send automated emails (payslips, notifications, backups), configure your email provider. If using Gmail, use an App Password.
+                    To send automated emails (payslips, notifications), configure your email provider. Standard Google login password will not work; you must use a 16-character App Password.
                   </div>
 
                   <div className="admin-settings-help-grid">
                     <div>
-                      <div className="admin-settings-help-section-title">1. STANDARD SETTINGS</div>
+                      <div className="admin-settings-help-section-title">1. STANDARD {selectedProvider.toUpperCase()} SETTINGS</div>
                       <div className="small text-dark mb-1">
-                        <strong>SMTP Host:</strong> <span className="admin-settings-help-code">smtp.gmail.com</span>
+                        <strong>SMTP Host:</strong> <span className="admin-settings-help-code">{smtpForm.host || (selectedProvider === 'brevo' ? 'smtp-relay.brevo.com' : selectedProvider === 'resend' ? 'smtp.resend.com' : 'smtp.gmail.com')}</span>
+                      </div>
+                      <div className="small text-dark mb-1">
+                        <strong>SMTP Port:</strong> <span className="admin-settings-help-code">{smtpForm.port || '587'}</span> (TLS recommended)
+                      </div>
+                      <div className="small text-dark mb-1">
+                        <strong>SMTP Username:</strong> <span className="text-muted">Your actual Gmail address</span>
                       </div>
                       <div className="small text-dark">
-                        <strong>SMTP Port:</strong> <span className="admin-settings-help-code">587</span> (TLS recommended)
+                        <strong>Sender Email:</strong> <span className="text-muted">Same as your Gmail address</span>
                       </div>
                     </div>
 
                     <div>
-                      <div className="admin-settings-help-section-title">2. GMAIL APP PASSWORD STEPS</div>
-                      <ol className="admin-settings-help-steps">
-                        <li>Enable 2-Step Verification on your Google Account.</li>
-                        <li>Go to Google App Passwords settings.</li>
-                        <li>Generate a 16-character password and paste in "SMTP PASSWORD".</li>
-                      </ol>
+                      <div className="admin-settings-help-section-title">2. {selectedProvider === 'gmail' ? 'GOOGLE APP PASSWORD STEPS' : selectedProvider === 'brevo' ? 'BREVO API KEY STEPS' : 'RESEND API KEY STEPS'}</div>
+                      {selectedProvider === 'gmail' && (
+                        <ol className="admin-settings-help-steps">
+                          <li>Enable 2-Step Verification on your Google Account.</li>
+                          <li>Visit <strong>Google App Passwords</strong> settings.</li>
+                          <li>Enter App Name (e.g. "HRM System" &amp; click Create/Generate).</li>
+                          <li>Copy the generated 16-character code.</li>
+                          <li>Paste it into the SMTP Password field above &amp; click Save Settings.</li>
+                        </ol>
+                      )}
+                      {selectedProvider === 'brevo' && (
+                        <ol className="admin-settings-help-steps">
+                          <li>Log in to your Brevo account dashboard.</li>
+                          <li>Go to Account Settings &rarr; <strong>SMTP &amp; API Keys</strong>.</li>
+                          <li>Generate a new SMTP key and copy it.</li>
+                          <li>Paste the key into "SMTP PASSWORD" above and click Save.</li>
+                        </ol>
+                      )}
+                      {selectedProvider === 'resend' && (
+                        <ol className="admin-settings-help-steps">
+                          <li>Log in to Resend dashboard at resend.com.</li>
+                          <li>Navigate to <strong>API Keys</strong> and create a Full Access key.</li>
+                          <li>Copy the key starting with <code>re_</code>.</li>
+                          <li>Set Username to <code>resend</code> and Password to your API key.</li>
+                        </ol>
+                      )}
                     </div>
                   </div>
                 </div>

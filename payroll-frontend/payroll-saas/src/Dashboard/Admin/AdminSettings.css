@@ -1157,3 +1157,105 @@
   background: #f8fafc;
 }
 
+/* ==========================================
+   SMTP Provider Selection & Setup Banner
+   (Format matching Image 1)
+   ========================================== */
+.admin-settings-provider-container {
+  margin-bottom: 1.25rem;
+}
+
+.admin-settings-provider-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.admin-settings-provider-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  background: #f1f5f9;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.admin-settings-provider-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.admin-settings-provider-pill:hover {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.admin-settings-provider-pill.active {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.admin-settings-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.admin-settings-dot.gmail {
+  background-color: #ef4444;
+}
+
+.admin-settings-dot.brevo {
+  background-color: #0284c7;
+}
+
+.admin-settings-dot.resend {
+  background-color: #8b5cf6;
+}
+
+/* Dynamic Setup Info Alert Banner */
+.admin-settings-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 1.25rem;
+  font-size: 0.83rem;
+  line-height: 1.45;
+  color: #881337;
+}
+
+.admin-settings-info-banner-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #e11d48;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+
