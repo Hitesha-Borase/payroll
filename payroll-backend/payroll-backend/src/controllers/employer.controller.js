@@ -1365,28 +1365,24 @@ const createTraining = async (req, res, next) => {
 
     const { title, description, instructor, trainer_name, start_date, end_date, location, max_participants, category } = req.body;
 
-    if (!title || !start_date || !end_date) {
+    if (!title) {
       return res.status(400).json({
         success: false,
-        message: 'Title, start date, and end date are required.',
+        message: 'Course title is required.',
       });
     }
 
     const tName = trainer_name || instructor || 'N/A';
+    const sDate = start_date ? new Date(start_date) : new Date();
+    const eDate = end_date ? new Date(end_date) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const [result] = await db.query(
       `INSERT INTO training_courses(employer_id, title, description, trainer_name, start_date, end_date, location, max_participants, category, status, created_at, updated_at)
        VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', NOW(), NOW())`,
-      [employer.id, title, description || '', tName, new Date(start_date), new Date(end_date), location || 'Virtual', max_participants || 100, category || 'Technical']
+      [employer.id, title, description || '', tName, sDate, eDate, location || 'Virtual', max_participants || 100, category || 'Technical']
     );
 
     const [training] = await db.query('SELECT * FROM training_courses WHERE id = ?', [result.insertId]);
-
-    res.status(201).json({
-      success: true,
-      message: 'Training created successfully.',
-      data: training[0],
-    });
 
     auditService.log({
       userId: req.user.id,
@@ -1394,14 +1390,21 @@ const createTraining = async (req, res, next) => {
       details: `Employer created training program: "${title}" (Instructor: ${tName})`,
       ipAddress: req.ip || req.socket?.remoteAddress
     });
+
+    res.status(201).json({
+      success: true,
+      message: 'Training created successfully.',
+      data: {
+        ...training[0],
+        instructor: training[0].trainer_name || 'N/A',
+        assignments: []
+      },
+    });
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * Get All Trainings
- */
 /**
  * Get All Trainings
  */
@@ -1417,30 +1420,29 @@ const getAllTrainings = async (req, res, next) => {
     }
 
     const [training_courses] = await db.query(
-      'SELECT * FROM training_courses WHERE employer_id = ? ORDER BY start_date DESC',
+      'SELECT * FROM training_courses WHERE employer_id = ? ORDER BY created_at DESC, id DESC',
       [employer.id]
     );
 
-    // Fetch nested assignments with employees/users?
-    // Map assignments to training?
-    // Let's iterate and fetch assignments for now until we optimize with better SQL if needed.
-    // Or single query with GROUP_CONCAT or JSON_ARRAYAGG if MySQL 5.7+
-
     const formatted = await Promise.all(training_courses.map(async (t) => {
       const [assignments] = await db.query(`
-            SELECT ta.*, e.id as emp_id, u.name as emp_name, u.email as emp_email
-            FROM training_enrollments ta
-            JOIN employees e ON ta.employee_id = e.id
-            JOIN users u ON e.user_id = u.id
-            WHERE ta.training_id = ?
-  `, [t.id]);
+        SELECT ta.*, e.id as emp_id, COALESCE(u.name, 'Employee') as emp_name, COALESCE(u.email, '') as emp_email
+        FROM training_enrollments ta
+        LEFT JOIN employees e ON ta.employee_id = e.id
+        LEFT JOIN users u ON e.user_id = u.id
+        WHERE ta.training_id = ?
+      `, [t.id]);
 
       return {
         ...t,
+        instructor: t.trainer_name || t.instructor || 'N/A',
         assignments: assignments.map(a => ({
           ...a,
+          due_date: a.due_date || t.due_date || t.end_date,
+          assigned_date: a.assigned_date || a.created_at || t.start_date,
           employee: {
             id: a.emp_id,
+            name: a.emp_name,
             user: { name: a.emp_name, email: a.emp_email }
           },
           emp_id: undefined, emp_name: undefined, emp_email: undefined
@@ -1460,15 +1462,19 @@ const getAllTrainings = async (req, res, next) => {
 /**
  * Assign Training to Employees
  */
-/**
- * Assign Training to Employees
- */
 const assignTrainingToEmployees = async (req, res, next) => {
   try {
     const { trainingId } = req.params;
-    const { employee_ids } = req.body;
+    const { employee_ids, due_date } = req.body;
     const [empRows] = await db.query('SELECT * FROM employers WHERE user_id = ?', [req.user.id]);
     const employer = empRows[0];
+
+    if (!employer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employer profile not found.',
+      });
+    }
 
     if (!Array.isArray(employee_ids) || employee_ids.length === 0) {
       return res.status(400).json({
@@ -1495,21 +1501,37 @@ const assignTrainingToEmployees = async (req, res, next) => {
       });
     }
 
-    // Create assignments
-    // Note: This needs to handle duplicates if we don't want to re-assign
-    // Manual loop or ON DUPLICATE KEY UPDATE
-    const vals = [];
-    employee_ids.forEach(eid => {
-      vals.push([trainingId, eid, 'assigned']);
-    });
+    const dueDateVal = due_date ? new Date(due_date) : (trainingRows[0].end_date ? new Date(trainingRows[0].end_date) : null);
 
-    // We can use INSERT IGNORE to skip existing assignments
-    await db.query(
-      'INSERT IGNORE INTO training_enrollments (training_id, employee_id, status, created_at, updated_at) VALUES ?',
-      [vals.map(v => [...v, new Date(), new Date()])]
-    );
+    for (const eid of employee_ids) {
+      const [existing] = await db.query('SELECT id FROM training_enrollments WHERE training_id = ? AND employee_id = ?', [trainingId, eid]);
+      if (existing.length > 0) {
+        await db.query(
+          'UPDATE training_enrollments SET due_date = ?, updated_at = NOW() WHERE id = ?',
+          [dueDateVal, existing[0].id]
+        );
+      } else {
+        await db.query(
+          'INSERT INTO training_enrollments (training_id, employee_id, status, due_date, assigned_date, completion_percentage, created_at, updated_at) VALUES (?, ?, ?, ?, CURDATE(), 0, NOW(), NOW())',
+          [trainingId, eid, 'assigned', dueDateVal]
+        );
+      }
 
-    // Fetch assigned
+      // Also sync course_assignments for compatibility
+      const [caExisting] = await db.query('SELECT id FROM course_assignments WHERE training_id = ? AND employee_id = ?', [trainingId, eid]);
+      if (caExisting.length === 0) {
+        await db.query(
+          'INSERT INTO course_assignments (training_id, employee_id, status, assigned_at) VALUES (?, ?, ?, NOW())',
+          [trainingId, eid, 'Assigned']
+        );
+      }
+    }
+
+    // Update training_courses due_date
+    if (dueDateVal) {
+      await db.query('UPDATE training_courses SET due_date = ? WHERE id = ?', [dueDateVal, trainingId]);
+    }
+
     const [assigned] = await db.query('SELECT * FROM training_enrollments WHERE training_id = ? AND employee_id IN (?)', [trainingId, employee_ids]);
 
     res.json({

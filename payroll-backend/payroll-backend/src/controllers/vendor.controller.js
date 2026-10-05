@@ -235,10 +235,109 @@ const getMyPayments = async (req, res, next) => {
   }
 };
 
+/**
+ * Get Vendor Bank Accounts
+ */
+const getBankAccounts = async (req, res, next) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT id, bank_name as bankName, account_number as accountNumber, account_type as accountType, ifsc_code as ifscCode, branch, is_primary as isPrimary FROM vendor_bank_accounts WHERE user_id = ? ORDER BY is_primary DESC, created_at DESC',
+      [req.user.id]
+    );
+
+    res.json({
+      success: true,
+      data: rows.map(r => ({
+        ...r,
+        isPrimary: Boolean(r.isPrimary)
+      }))
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Create Vendor Bank Account
+ */
+const createBankAccount = async (req, res, next) => {
+  try {
+    const { bankName, accountNumber, accountType, ifscCode, branch, isPrimary } = req.body;
+    if (!bankName || !accountNumber || !ifscCode) {
+      return res.status(400).json({ success: false, message: 'Bank name, account number, and IFSC code are required.' });
+    }
+
+    const [vRows] = await db.query('SELECT id FROM vendors WHERE user_id = ?', [req.user.id]);
+    const vendorId = vRows.length > 0 ? vRows[0].id : null;
+
+    const [existing] = await db.query('SELECT COUNT(*) as count FROM vendor_bank_accounts WHERE user_id = ?', [req.user.id]);
+    const willBePrimary = isPrimary || existing[0].count === 0 ? 1 : 0;
+
+    if (willBePrimary) {
+      await db.query('UPDATE vendor_bank_accounts SET is_primary = 0 WHERE user_id = ?', [req.user.id]);
+    }
+
+    const [result] = await db.query(
+      `INSERT INTO vendor_bank_accounts (vendor_id, user_id, bank_name, account_number, account_type, ifsc_code, branch, is_primary, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [vendorId, req.user.id, bankName, accountNumber, accountType || 'Savings', ifscCode, branch || '', willBePrimary]
+    );
+
+    const newAccount = {
+      id: result.insertId,
+      bankName,
+      accountNumber,
+      accountType: accountType || 'Savings',
+      ifscCode,
+      branch: branch || '',
+      isPrimary: Boolean(willBePrimary)
+    };
+
+    res.status(201).json({
+      success: true,
+      message: 'Bank account added successfully.',
+      data: newAccount
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete Vendor Bank Account
+ */
+const deleteBankAccount = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await db.query('DELETE FROM vendor_bank_accounts WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    res.json({ success: true, message: 'Bank account deleted successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Set Primary Bank Account
+ */
+const setPrimaryBankAccount = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await db.query('UPDATE vendor_bank_accounts SET is_primary = 0 WHERE user_id = ?', [req.user.id]);
+    await db.query('UPDATE vendor_bank_accounts SET is_primary = 1 WHERE id = ? AND user_id = ?', [id, req.user.id]);
+    res.json({ success: true, message: 'Primary bank account updated.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getPaymentStatus,
   updateContractDetails,
   getMyPayments,
+  getBankAccounts,
+  createBankAccount,
+  deleteBankAccount,
+  setPrimaryBankAccount,
 };
 

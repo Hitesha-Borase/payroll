@@ -336,7 +336,7 @@ const getBills = async (req, res, next) => {
 const checkIn = async (req, res, next) => {
   try {
     const { location, notes } = req.body;
-    const [emp] = await db.query("SELECT id, employer_id FROM employees WHERE user_id = ?", [req.user.id]);
+    const [emp] = await db.query("SELECT id, employer_id, company_id FROM employees WHERE user_id = ?", [req.user.id]);
 
     if (!emp.length) {
       return res.status(404).json({ success: false, message: 'Employee profile not found' });
@@ -348,6 +348,15 @@ const checkIn = async (req, res, next) => {
     const [existing] = await db.query("SELECT * FROM attendance WHERE employee_id = ? AND date = ?", [emp[0].id, today]);
     if (existing.length > 0) return res.status(400).json({ success: false, message: 'Already checked in today' });
 
+    let employerId = emp[0].employer_id || null;
+    if (!employerId && emp[0].company_id) {
+      const [empCo] = await db.query('SELECT id FROM employers WHERE company_id = ? LIMIT 1', [emp[0].company_id]);
+      if (empCo.length > 0) {
+        employerId = empCo[0].id;
+        await db.query('UPDATE employees SET employer_id = ? WHERE id = ?', [employerId, emp[0].id]);
+      }
+    }
+
     // Mark as 'late' if after 10:00 AM (example) 
     // You can adjust this threshold
     const now = new Date();
@@ -356,7 +365,7 @@ const checkIn = async (req, res, next) => {
     await db.query(`
       INSERT INTO attendance (employee_id, employer_id, user_id, date, check_in, status, location, notes, created_at, updated_at)
       VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, NOW(), NOW())
-    `, [emp[0].id, emp[0].employer_id, req.user.id, today, isLate ? 'late' : 'present', location || 'Office', notes || null]);
+    `, [emp[0].id, employerId, req.user.id, today, isLate ? 'late' : 'present', location || 'Office', notes || null]);
 
     auditService.log({
       userId: req.user.id,
@@ -367,7 +376,7 @@ const checkIn = async (req, res, next) => {
 
     // Non-blocking automated WhatsApp Attendance Alert
     whatsappService.sendAttendanceAlert({
-      tenantId: emp[0].employer_id || req.user.company_id || 1,
+      tenantId: employerId || req.user.company_id || 1,
       employeeName: req.user.name,
       employeePhone: req.user.phone,
       date: today,
@@ -478,14 +487,17 @@ const getAttendance = async (req, res, next) => {
 const getTrainings = async (req, res, next) => {
   try {
     const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
+    if (!emp.length) return res.json({ success: true, data: [] });
+
     const [rows] = await db.query(`
       SELECT te.id, te.status, te.test_score as score, te.created_at,
-             c.title as course_title, c.title as name, c.description, c.start_date, c.end_date,
-             c.trainer_name, c.duration, c.category
+             te.due_date, te.assigned_date, te.completion_percentage,
+             c.id as course_id, c.title as course_title, c.title as name, c.description, c.start_date, c.end_date,
+             c.trainer_name, c.trainer_name as instructor, c.duration, c.category
       FROM training_enrollments te
       JOIN training_courses c ON te.training_id = c.id
       WHERE te.employee_id = ?
-      ORDER BY c.start_date DESC
+      ORDER BY te.created_at DESC, c.start_date DESC
     `, [emp[0].id]);
     res.json({ success: true, data: rows });
   } catch (err) { next(err); }
@@ -497,6 +509,8 @@ const getTrainings = async (req, res, next) => {
 const getTests = async (req, res, next) => {
   try {
     const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
+    if (!emp.length) return res.json({ success: true, data: [] });
+
     const [rows] = await db.query(`
       SELECT te.id, te.id as enrollment_id, te.status, te.test_score as score,
              c.title as course_title, c.title as course_name,
@@ -513,12 +527,14 @@ const getTests = async (req, res, next) => {
 const getCertificates = async (req, res, next) => {
   try {
     const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
+    if (!emp.length) return res.json({ success: true, data: [] });
+
     const [rows] = await db.query(`
       SELECT te.id, te.id as certificate_id, 'Generated' as certificate_url, te.updated_at as issue_date, 
              c.title as course_title, c.title as course_name
       FROM training_enrollments te
       JOIN training_courses c ON te.training_id = c.id
-      WHERE te.employee_id = ? AND te.status = 'Completed'
+      WHERE te.employee_id = ? AND (te.status = 'Completed' OR te.status = 'completed')
     `, [emp[0].id]);
     res.json({ success: true, data: rows });
   } catch (err) { next(err); }
@@ -698,8 +714,49 @@ const applyForJob = async (req, res, next) => {
 const getBankDetails = async (req, res, next) => {
   try {
     const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
-    const [rows] = await db.query("SELECT * FROM bank_details WHERE employee_id = ?", [emp[0].id]);
+    if (!emp.length) return res.json({ success: true, data: [] });
+    const [rows] = await db.query("SELECT * FROM bank_details WHERE employee_id = ? ORDER BY is_primary DESC, id DESC", [emp[0].id]);
     res.json({ success: true, data: rows });
+  } catch (err) { next(err); }
+};
+
+const verifyBankDetails = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
+    if (!emp.length) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+    await db.query(
+      "UPDATE bank_details SET verification_status = 'verified', status = 'Active', updated_at = NOW() WHERE id = ? AND employee_id = ?",
+      [id, emp[0].id]
+    );
+
+    res.json({ success: true, message: 'Bank account verified successfully' });
+  } catch (err) { next(err); }
+};
+
+const setPrimaryBankDetails = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
+    if (!emp.length) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+    await db.query("UPDATE bank_details SET is_primary = 0 WHERE employee_id = ?", [emp[0].id]);
+    await db.query("UPDATE bank_details SET is_primary = 1 WHERE id = ? AND employee_id = ?", [id, emp[0].id]);
+
+    res.json({ success: true, message: 'Primary bank account updated successfully' });
+  } catch (err) { next(err); }
+};
+
+const deleteBankDetails = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
+    if (!emp.length) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+    await db.query("DELETE FROM bank_details WHERE id = ? AND employee_id = ?", [id, emp[0].id]);
+
+    res.json({ success: true, message: 'Bank account deleted successfully' });
   } catch (err) { next(err); }
 };
 
@@ -720,6 +777,9 @@ module.exports = {
   getCertificates,
   addBankDetails,
   getBankDetails,
+  verifyBankDetails,
+  setPrimaryBankDetails,
+  deleteBankDetails,
   getTransactions,
   getMyApplications,
   getAllJobs,

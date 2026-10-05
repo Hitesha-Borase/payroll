@@ -46,9 +46,9 @@ const AdminTraining = () => {
         const employeesData = empResponse.data.data || [];
         setEmployees(employeesData.map(emp => ({
           id: emp.id,
-          name: emp.user?.name || 'N/A',
-          department: emp.designation || 'N/A',
-          email: emp.user?.email || 'N/A',
+          name: emp.user?.name || emp.name || emp.u_name || 'N/A',
+          department: emp.designation || emp.department || 'N/A',
+          email: emp.user?.email || emp.email || emp.u_email || 'N/A',
         })));
       }
 
@@ -1028,28 +1028,35 @@ const AdminTraining = () => {
                     </div>
                     <div className="mb-3">
                       <label className="form-label">Select Employees</label>
-                      <div className="border rounded p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      <select
+                        className="form-select"
+                        value={
+                          assignForm.employees.length === 1
+                            ? assignForm.employees[0]
+                            : (assignForm.employees.length > 1 && assignForm.employees.length === employees.length ? 'all' : (assignForm.employees[0] || ''))
+                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (!val) {
+                            setAssignForm({ ...assignForm, employees: [] });
+                          } else if (val === 'all') {
+                            setAssignForm({ ...assignForm, employees: employees.map(emp => emp.id.toString()) });
+                          } else {
+                            setAssignForm({ ...assignForm, employees: [val] });
+                          }
+                        }}
+                        required
+                      >
+                        <option value="">Select Employee</option>
+                        {employees.length > 1 && (
+                          <option value="all">All Employees ({employees.length})</option>
+                        )}
                         {employees.map((employee) => (
-                          <div key={employee.id} className="form-check">
-                            <input
-                              className="form-check-input"
-                              type="checkbox"
-                              id={`emp-${employee.id}`}
-                              checked={assignForm.employees.includes(employee.id.toString())}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setAssignForm({ ...assignForm, employees: [...assignForm.employees, employee.id.toString()] });
-                                } else {
-                                  setAssignForm({ ...assignForm, employees: assignForm.employees.filter(id => id !== employee.id.toString()) });
-                                }
-                              }}
-                            />
-                            <label className="form-check-label" htmlFor={`emp-${employee.id}`}>
-                              {employee.name} - {employee.department}
-                            </label>
-                          </div>
+                          <option key={employee.id} value={employee.id.toString()}>
+                            {employee.name} {employee.department && employee.department !== 'N/A' ? `(${employee.department})` : ''}
+                          </option>
                         ))}
-                      </div>
+                      </select>
                     </div>
                     <div className="mb-3">
                       <label className="form-label">Due Date</label>

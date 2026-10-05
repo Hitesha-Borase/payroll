@@ -58,7 +58,7 @@ const UserProfilePage = () => {
   // Temporary state for form inputs in modals
   const [tempPersonal, setTempPersonal] = useState(profile.personalDetails);
   const [tempSummary, setTempSummary] = useState(profile.professionalSummary);
-  const [tempSkills, setTempSkills] = useState(profile.skills.join(', '));
+  const [tempSkills, setTempSkills] = useState(Array.isArray(profile.skills) ? profile.skills.join(', ') : (profile.skills || ''));
   const [tempExperience, setTempExperience] = useState(profile.experience);
   const [tempEducation, setTempEducation] = useState(profile.education);
   const [tempPreferences, setTempPreferences] = useState(profile.jobPreferences);
@@ -67,7 +67,7 @@ const UserProfilePage = () => {
   useEffect(() => {
     setTempPersonal(profile.personalDetails);
     setTempSummary(profile.professionalSummary);
-    setTempSkills(profile.skills.join(', '));
+    setTempSkills(Array.isArray(profile.skills) ? profile.skills.join(', ') : (profile.skills || ''));
     setTempExperience(profile.experience);
     setTempEducation(profile.education);
     setTempPreferences(profile.jobPreferences);
@@ -220,7 +220,7 @@ const UserProfilePage = () => {
       try {
         const formData = new FormData();
         formData.append('file', e.target.files[0]);
-        formData.append('title', 'Resume');
+        formData.append('title', e.target.files[0].name);
         const response = await publicAPI.submitResume(formData);
         if (response?.data?.success) {
           setProfile({ ...profile, resume: { fileName: e.target.files[0].name } });

@@ -166,35 +166,36 @@ const MonthlySalary = () => {
   };
 
   // Fetch bank details from API
-  useEffect(() => {
-    const fetchBankDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await employeeAPI.getBankDetails();
-        if (response?.data?.success) {
-          const accounts = response.data.data || [];
-          setBankAccounts(accounts.map(acc => ({
-            id: acc.id,
-            bankName: acc.bank_name,
-            accountNumber: acc.account_number,
-            accountType: acc.account_type || 'Savings',
-            branch: acc.branch_name || acc.branch,
-            ifscCode: acc.ifsc_code,
-            isPrimary: acc.is_primary ? true : false,
-            isVerified: acc.verification_status === 'verified',
-            verificationStatus: acc.verification_status || 'pending',
-            verificationDate: acc.updated_at,
-            balance: parseFloat(acc.balance || 0),
-            status: acc.status || 'Active'
-          })));
-        }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch bank details');
-      } finally {
-        setLoading(false);
+  const fetchBankDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await employeeAPI.getBankDetails();
+      if (response?.data?.success) {
+        const accounts = response.data.data || [];
+        setBankAccounts(accounts.map(acc => ({
+          id: acc.id,
+          bankName: acc.bank_name,
+          accountNumber: acc.account_number,
+          accountType: acc.account_type || 'Savings',
+          branch: acc.branch_name || acc.branch,
+          ifscCode: acc.ifsc_code,
+          isPrimary: acc.is_primary ? true : false,
+          isVerified: acc.verification_status === 'verified' || acc.verification_status === 'Verified',
+          verificationStatus: acc.verification_status || 'pending',
+          verificationDate: acc.updated_at,
+          balance: parseFloat(acc.balance || 0),
+          status: acc.status || 'Active'
+        })));
       }
-    };
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch bank details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchBankDetails();
   }, []);
 
@@ -212,25 +213,7 @@ const MonthlySalary = () => {
 
       const response = await employeeAPI.addBankDetails(bankData);
       if (response?.data?.success) {
-        // Refresh list
-        const listRes = await employeeAPI.getBankDetails();
-        if (listRes?.data?.success) {
-          const accounts = listRes.data.data || [];
-          setBankAccounts(accounts.map(acc => ({
-            id: acc.id,
-            bankName: acc.bank_name,
-            accountNumber: acc.account_number,
-            accountType: acc.account_type || 'Savings',
-            branch: acc.branch_name || acc.branch,
-            ifscCode: acc.ifsc_code,
-            isPrimary: acc.is_primary ? true : false,
-            isVerified: acc.verification_status === 'verified',
-            verificationStatus: acc.verification_status || 'pending',
-            verificationDate: acc.updated_at,
-            balance: parseFloat(acc.balance || 0),
-            status: acc.status || 'Active'
-          })));
-        }
+        await fetchBankDetails();
         setShowAddAccountModal(false);
         setNewAccount({
           bankName: '',
@@ -249,33 +232,56 @@ const MonthlySalary = () => {
     }
   };
 
-  const handleVerifyAccount = () => {
+  const handleVerifyAccount = async () => {
     if (selectedAccount) {
-      setBankAccounts(bankAccounts.map(account =>
-        account.id === selectedAccount.id
-          ? {
-            ...account,
-            isVerified: true,
-            verificationDate: new Date().toISOString().split('T')[0],
-            status: 'Active'
-          }
-          : account
-      ));
-      setShowVerifyAccountModal(false);
-      setVerificationStep(1);
-      setVerificationCode('');
-      setVerificationProgress(0);
+      try {
+        const res = await employeeAPI.verifyBankDetails(selectedAccount.id);
+        if (res?.data?.success) {
+          toast.success('Bank account verified successfully!');
+          await fetchBankDetails();
+        } else {
+          toast.error(res?.data?.message || 'Verification failed');
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Failed to verify account');
+      } finally {
+        setShowVerifyAccountModal(false);
+        setVerificationStep(1);
+        setVerificationCode('');
+        setVerificationProgress(0);
+      }
     }
   };
 
-  const handleSetPrimaryAccount = (accountId) => {
-    setBankAccounts(bankAccounts.map(account =>
-      ({ ...account, isPrimary: account.id === accountId })
-    ));
+  const handleSetPrimaryAccount = async (accountId) => {
+    try {
+      const res = await employeeAPI.setPrimaryBankDetails(accountId);
+      if (res?.data?.success) {
+        toast.success('Primary account updated successfully!');
+        await fetchBankDetails();
+      } else {
+        toast.error(res?.data?.message || 'Failed to set primary account');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to set primary account');
+    }
   };
 
-  const handleDeleteAccount = (accountId) => {
-    setBankAccounts(bankAccounts.filter(account => account.id !== accountId));
+  const handleDeleteAccount = async (accountId) => {
+    if (!window.confirm('Are you sure you want to delete this bank account?')) {
+      return;
+    }
+    try {
+      const res = await employeeAPI.deleteBankDetails(accountId);
+      if (res?.data?.success) {
+        toast.success('Bank account deleted successfully!');
+        await fetchBankDetails();
+      } else {
+        toast.error(res?.data?.message || 'Failed to delete bank account');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete bank account');
+    }
   };
 
   const handleViewAccountDetails = (account) => {
@@ -403,38 +409,98 @@ const MonthlySalary = () => {
                         {account.status}
                       </Badge>
                     </div>
-                    <div className="d-flex gap-2">
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        style={{ fontSize: '12px', padding: '4px 8px' }}
+                    <div className="d-flex align-items-center gap-1.5">
+                      <button
+                        type="button"
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          backgroundColor: '#EFF6FF',
+                          color: '#2563EB',
+                          border: '1px solid #BFDBFE',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          padding: 0
+                        }}
                         onClick={() => handleViewAccountDetails(account)}
+                        title="View Details"
                       >
-                        <FaSearch />
-                      </Button>
+                        <FaSearch size={12} />
+                      </button>
                       {!account.isVerified && (
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          style={{ fontSize: '12px', padding: '4px 8px' }}
+                        <button
+                          type="button"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            backgroundColor: '#FFFBEB',
+                            color: '#D97706',
+                            border: '1px solid #FDE68A',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            padding: 0
+                          }}
                           onClick={() => {
                             setSelectedAccount(account);
                             setShowVerifyAccountModal(true);
                           }}
+                          title="Verify Account"
                         >
-                          <FaShieldAlt />
-                        </Button>
+                          <FaShieldAlt size={12} />
+                        </button>
                       )}
                       {!account.isPrimary && (
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          style={{ fontSize: '12px', padding: '4px 8px' }}
+                        <button
+                          type="button"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            backgroundColor: '#F3F4F6',
+                            color: '#4B5563',
+                            border: '1px solid #E5E7EB',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            padding: 0
+                          }}
                           onClick={() => handleSetPrimaryAccount(account.id)}
+                          title="Set as Primary"
                         >
-                          <FaCreditCard />
-                        </Button>
+                          <FaCreditCard size={12} />
+                        </button>
                       )}
+                      <button
+                        type="button"
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          backgroundColor: '#FEF2F2',
+                          color: '#DC2626',
+                          border: '1px solid #FECACA',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          padding: 0
+                        }}
+                        onClick={() => handleDeleteAccount(account.id)}
+                        title="Delete Account"
+                      >
+                        <FaTimesCircle size={12} />
+                      </button>
                     </div>
                   </div>
                 </Card.Body>
@@ -518,50 +584,106 @@ const MonthlySalary = () => {
                     </div>
                   </td>
                   <td>
-                    <div className="btn-group" role="group">
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        style={{ fontSize: '12px' }}
+                    <div className="d-flex align-items-center gap-1.5" style={{ minWidth: '135px' }}>
+                      <button
+                        type="button"
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          backgroundColor: '#EFF6FF',
+                          color: '#2563EB',
+                          border: '1px solid #BFDBFE',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          padding: 0
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#DBEAFE'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#EFF6FF'}
                         onClick={() => handleViewAccountDetails(account)}
                         title="View Details"
                       >
-                        <FaSearch />
-                      </Button>
+                        <FaSearch size={12} />
+                      </button>
                       {!account.isVerified && (
-                        <Button
-                          variant="outline-warning"
-                          size="sm"
-                          style={{ fontSize: '12px' }}
+                        <button
+                          type="button"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            backgroundColor: '#FFFBEB',
+                            color: '#D97706',
+                            border: '1px solid #FDE68A',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            padding: 0
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEF3C7'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFBEB'}
                           onClick={() => {
                             setSelectedAccount(account);
                             setShowVerifyAccountModal(true);
                           }}
                           title="Verify Account"
                         >
-                          <FaShieldAlt />
-                        </Button>
+                          <FaShieldAlt size={12} />
+                        </button>
                       )}
                       {!account.isPrimary && (
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          style={{ fontSize: '12px' }}
+                        <button
+                          type="button"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            backgroundColor: '#F3F4F6',
+                            color: '#4B5563',
+                            border: '1px solid #E5E7EB',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            padding: 0
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#E5E7EB'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#F3F4F6'}
                           onClick={() => handleSetPrimaryAccount(account.id)}
                           title="Set as Primary"
                         >
-                          <FaCreditCard />
-                        </Button>
+                          <FaCreditCard size={12} />
+                        </button>
                       )}
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        style={{ fontSize: '12px' }}
+                      <button
+                        type="button"
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          backgroundColor: '#FEF2F2',
+                          color: '#DC2626',
+                          border: '1px solid #FECACA',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          padding: 0
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FEF2F2'}
                         onClick={() => handleDeleteAccount(account.id)}
                         title="Delete Account"
                       >
-                        <FaTimesCircle />
-                      </Button>
+                        <FaTimesCircle size={12} />
+                      </button>
                     </div>
                   </td>
                 </tr>

@@ -78,13 +78,15 @@ const EmployeeTraining = () => {
             id: t.id,
             title: t.course_title || t.name || 'Training Course',
             instructor: t.trainer_name || t.instructor || 'Instructor',
-            duration: t.duration || '2 Weeks',
+            duration: t.duration || (t.end_date && t.start_date ?
+              `${Math.ceil((new Date(t.end_date) - new Date(t.start_date)) / (1000 * 60 * 60 * 24))} days` : '2 Weeks'),
             category: t.category || 'General',
             startDate: t.start_date?.split('T')[0] || t.created_at?.split('T')[0] || '-',
-            assignDate: t.created_at?.split('T')[0] || '-',
-            dueDate: t.end_date?.split('T')[0] || t.due_date?.split('T')[0] || '-',
-            status: t.status === 'completed' ? 'Completed' : t.status === 'in_progress' ? 'In Progress' : 'Not Started',
-            completion: t.progress || t.completion_percentage || (t.status === 'completed' ? 100 : 0)
+            assignDate: t.assigned_date?.split('T')[0] || t.created_at?.split('T')[0] || '-',
+            dueDate: t.due_date?.split('T')[0] || t.end_date?.split('T')[0] || '-',
+            status: (t.status === 'completed' || t.status === 'Completed') ? 'Completed' :
+              (t.status === 'in_progress' || t.status === 'In Progress') ? 'In Progress' : 'Not Started',
+            completion: t.completion_percentage !== undefined && t.completion_percentage !== null ? t.completion_percentage : (t.progress || (t.status === 'completed' ? 100 : 0))
           })));
         }
 

@@ -39,6 +39,9 @@ router.get('/certificates', employeeController.getCertificates);
 // 8. Bank Details
 router.post('/bank/add', employeeController.addBankDetails);
 router.get('/bank/list', employeeController.getBankDetails);
+router.put('/bank/:id/verify', employeeController.verifyBankDetails);
+router.put('/bank/:id/primary', employeeController.setPrimaryBankDetails);
+router.delete('/bank/:id', employeeController.deleteBankDetails);
 
 // 9. Transactions
 router.get('/transactions', employeeController.getTransactions);

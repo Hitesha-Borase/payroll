@@ -108,11 +108,11 @@ const EmployerTraining = () => {
           id: t.id,
           title: t.title,
           description: t.description || 'No description provided.',
-          instructor: t.instructor || 'Not assigned',
+          instructor: t.trainer_name || t.instructor || 'Not assigned',
           start_date: t.start_date,
           end_date: t.end_date,
-          duration: t.end_date && t.start_date ?
-            `${Math.ceil((new Date(t.end_date) - new Date(t.start_date)) / (1000 * 60 * 60 * 24))} days` : 'N/A',
+          duration: t.duration || (t.end_date && t.start_date ?
+            `${Math.ceil((new Date(t.end_date) - new Date(t.start_date)) / (1000 * 60 * 60 * 24))} days` : 'N/A'),
           category: t.category || 'Technical',
           assignedCount: (t.assignments || []).length
         })));
@@ -128,11 +128,14 @@ const EmployerTraining = () => {
                 courseTitle: training.title,
                 employeeId: assignment.employee_id,
                 employeeName: assignment.employee?.user?.name || assignment.employee?.name || 'Employee',
-                assignDate: assignment.assigned_date || training.start_date,
-                dueDate: assignment.due_date || training.end_date,
-                status: assignment.status === 'completed' ? 'Completed' :
-                  assignment.status === 'in_progress' ? 'In Progress' : 'Not Started',
-                completion: assignment.completion_percentage || (assignment.status === 'completed' ? 100 : 0)
+                assignDate: assignment.assigned_date || assignment.created_at || training.start_date,
+                dueDate: assignment.due_date || training.due_date || training.end_date,
+                status: (assignment.status === 'completed' || assignment.status === 'Completed') ? 'Completed' :
+                  (assignment.status === 'in_progress' || assignment.status === 'In Progress') ? 'In Progress' :
+                  (assignment.status === 'assigned' || assignment.status === 'Assigned') ? 'Assigned' : 'Not Started',
+                completion: assignment.completion_percentage !== undefined && assignment.completion_percentage !== null
+                  ? assignment.completion_percentage
+                  : (assignment.status === 'completed' ? 100 : 0)
               });
             });
           }
@@ -174,7 +177,8 @@ const EmployerTraining = () => {
       setSuccessMessage(null);
 
       const response = await employerAPI.assignTrainingToEmployees(assignForm.courseId, {
-        employee_ids: [parseInt(assignForm.employeeId)]
+        employee_ids: [parseInt(assignForm.employeeId)],
+        due_date: assignForm.dueDate
       });
 
       if (response?.data?.success) {
@@ -253,6 +257,7 @@ const EmployerTraining = () => {
         return { backgroundColor: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' };
       case 'in progress':
         return { backgroundColor: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE' };
+      case 'assigned':
       case 'not started':
         return { backgroundColor: '#FFFBEB', color: '#92400E', border: '1px solid #FDE68A' };
       case 'failed':
@@ -523,7 +528,7 @@ const EmployerTraining = () => {
                 }}
                 onClick={() => setActiveView('assign')}
               >
-                <FaUserCheck size={isMobile ? 12 : 14} /> Assigned Trainings
+                <FaUserCheck size={isMobile ? 12 : 14} /> Assigned Trainings ({assignedTrainings.length})
               </button>
               <button
                 className="btn flex-fill d-flex align-items-center justify-content-center gap-1.5 text-nowrap"

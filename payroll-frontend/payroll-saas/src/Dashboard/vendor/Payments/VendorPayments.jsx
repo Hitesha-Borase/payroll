@@ -412,9 +412,10 @@ const VendorPayments = () => {
       setLoading(true);
       setError(null);
 
-      const [paymentsRes, paymentStatusRes] = await Promise.all([
-        vendorAPI.getMyPayments(),
-        vendorAPI.getPaymentStatus()
+      const [paymentsRes, paymentStatusRes, bankAccountsRes] = await Promise.all([
+        vendorAPI.getMyPayments().catch(err => { console.error("Error fetching payments:", err); return null; }),
+        vendorAPI.getPaymentStatus().catch(err => { console.error("Error fetching payment status:", err); return null; }),
+        vendorAPI.getBankAccounts().catch(err => { console.error("Error fetching bank accounts:", err); return null; })
       ]);
 
       if (paymentsRes?.data?.success) {
@@ -448,6 +449,10 @@ const VendorPayments = () => {
           taxId: statusData.tax_id || '',
           description: statusData.description || ''
         });
+      }
+
+      if (bankAccountsRes?.data?.success && Array.isArray(bankAccountsRes.data.data)) {
+        setBankAccounts(bankAccountsRes.data.data);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch data.');
@@ -575,31 +580,36 @@ const VendorPayments = () => {
     input.click();
   };
 
-  const handleAddBankAccount = (e) => {
+  const handleAddBankAccount = async (e) => {
     e.preventDefault();
-    const newAccount = {
-      ...bankForm,
-      id: bankAccounts.length + 1
-    };
-
-    if (bankForm.isPrimary) {
-      setBankAccounts(bankAccounts.map(account => ({
-        ...account,
-        isPrimary: account.id === newAccount.id
-      })));
-    } else {
-      setBankAccounts([...bankAccounts, newAccount]);
+    try {
+      const res = await vendorAPI.createBankAccount(bankForm);
+      if (res?.data?.success) {
+        toast.success(res.data.message || "Bank account added successfully!");
+        const savedAccount = res.data.data;
+        if (savedAccount?.isPrimary) {
+          setBankAccounts(prev => [
+            ...prev.map(account => ({ ...account, isPrimary: false })),
+            savedAccount
+          ]);
+        } else {
+          setBankAccounts(prev => [...prev, savedAccount]);
+        }
+        setBankForm({
+          bankName: "",
+          accountNumber: "",
+          accountType: "Savings",
+          ifscCode: "",
+          branch: "",
+          isPrimary: false
+        });
+        setShowAddBankModal(false);
+      } else {
+        toast.error(res?.data?.message || "Failed to add bank account.");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to add bank account.");
     }
-
-    setBankForm({
-      bankName: "",
-      accountNumber: "",
-      accountType: "Savings",
-      ifscCode: "",
-      branch: "",
-      isPrimary: false
-    });
-    setShowAddBankModal(false);
   };
 
   const handleUpdateProfile = async (e) => {
@@ -634,16 +644,36 @@ const VendorPayments = () => {
     }
   };
 
-  const handleSetPrimaryBank = (id) => {
-    setBankAccounts(bankAccounts.map(account => ({
-      ...account,
-      isPrimary: account.id === id
-    })));
+  const handleSetPrimaryBank = async (id) => {
+    try {
+      const res = await vendorAPI.setPrimaryBankAccount(id);
+      if (res?.data?.success) {
+        toast.success(res.data.message || "Primary bank account updated.");
+        setBankAccounts(prev => prev.map(account => ({
+          ...account,
+          isPrimary: account.id === id
+        })));
+      } else {
+        toast.error(res?.data?.message || "Failed to set primary bank account.");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to set primary bank account.");
+    }
   };
 
-  const handleDeleteBankAccount = (id) => {
+  const handleDeleteBankAccount = async (id) => {
     if (window.confirm("Are you sure you want to delete this bank account?")) {
-      setBankAccounts(bankAccounts.filter(account => account.id !== id));
+      try {
+        const res = await vendorAPI.deleteBankAccount(id);
+        if (res?.data?.success) {
+          toast.success(res.data.message || "Bank account deleted successfully.");
+          setBankAccounts(prev => prev.filter(account => account.id !== id));
+        } else {
+          toast.error(res?.data?.message || "Failed to delete bank account.");
+        }
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Failed to delete bank account.");
+      }
     }
   };
 
@@ -1007,7 +1037,11 @@ const VendorPayments = () => {
                           <div>
                             <div style={{ fontSize: "14px", color: COLORS.text, marginBottom: "4px" }}>Account Number</div>
                             <div style={{ fontSize: "16px", fontWeight: 500, color: COLORS.black }}>
-                              {account.accountNumber.replace(/(\d{4})(\d{4})(\d{4})/, "$1XXXXXX$3")}
+                              {account.accountNumber
+                                ? (account.accountNumber.length >= 8
+                                  ? account.accountNumber.slice(0, 4) + 'XXXXXX' + account.accountNumber.slice(-4)
+                                  : account.accountNumber)
+                                : '—'}
                             </div>
                           </div>
                           <div>

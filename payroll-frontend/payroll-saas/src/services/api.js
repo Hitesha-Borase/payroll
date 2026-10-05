@@ -101,6 +101,9 @@ export const employeeAPI = {
     getCertificates: () => axiosInstance.get('/employee/certificates'),
     getBankDetails: () => axiosInstance.get('/employee/bank/list'),
     addBankDetails: (data) => axiosInstance.post('/employee/bank/add', data),
+    verifyBankDetails: (id) => axiosInstance.put(`/employee/bank/${id}/verify`),
+    setPrimaryBankDetails: (id) => axiosInstance.put(`/employee/bank/${id}/primary`),
+    deleteBankDetails: (id) => axiosInstance.delete(`/employee/bank/${id}`),
     getTransactions: () => axiosInstance.get('/employee/transactions'),
     getMyApplications: () => axiosInstance.get('/employee/job/applications'),
     getAllJobs: () => axiosInstance.get('/employee/jobs'),
@@ -321,6 +324,10 @@ export const vendorAPI = {
     getContracts: () => axiosInstance.get('/vendor/payments'),
     getPayments: () => axiosInstance.get('/vendor/payments'),
     updateContractDetails: (data) => axiosInstance.put('/vendor/contract-details', data),
+    getBankAccounts: () => axiosInstance.get('/vendor/bank-accounts'),
+    createBankAccount: (data) => axiosInstance.post('/vendor/bank-accounts', data),
+    deleteBankAccount: (id) => axiosInstance.delete(`/vendor/bank-accounts/${id}`),
+    setPrimaryBankAccount: (id) => axiosInstance.put(`/vendor/bank-accounts/${id}/primary`),
 };
 
 // ==================== JOB SEEKER API ====================

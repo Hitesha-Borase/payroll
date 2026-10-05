@@ -57,7 +57,7 @@ export default function JobPortal() {
             description: job.description,
             status: job.status,
             postedDate: job.created_at ? job.created_at.substring(0, 10) : '',
-            salary: job.salary_min, // Using single salary field for now
+            salary: job.salary || (job.salary_min && job.salary_max ? `${parseFloat(job.salary_min)} - ${parseFloat(job.salary_max)}` : (job.salary_min ? `${parseFloat(job.salary_min)}` : '')),
             employer: job.employer_name || 'N/A',
             level: job.level || 'N/A',
             employmentType: job.job_type,
