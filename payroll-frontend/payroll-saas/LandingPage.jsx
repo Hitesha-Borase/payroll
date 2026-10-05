@@ -8,6 +8,7 @@ import { motion, useScroll, useTransform, useInView, useAnimation } from 'framer
 import { Modal, Button, Form, Alert, Spinner } from 'react-bootstrap';
 import { publicAPI, superadminAPI } from './src/services/api';
 import toast from 'react-hot-toast';
+import { Capacitor } from '@capacitor/core';
 
 import { 
     Globe, Instagram, Linkedin, Mail, MapPin, Phone, Youtube, Building, User, Lock, 
@@ -130,6 +131,7 @@ const clientTestimonials = [
 ];
 
 const LandingPage = () => {
+    const isNativeApp = Capacitor.isNativePlatform();
     const { edition } = useRegional();
     const [activeTab, setActiveTab] = useState('home');
     const [scrolled, setScrolled] = useState(false);
@@ -686,13 +688,14 @@ const LandingPage = () => {
                                 </button>
                             </motion.div>
 
-                            {/* Android & iOS App Download Buttons (Red & White Theme) */}
-                            <motion.div 
-                                className="d-flex flex-wrap align-items-center gap-3 mb-5"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.35, duration: 0.6 }}
-                            >
+                            {/* Android & iOS App Download Buttons (Red & White Theme) - Web / Browser Only */}
+                            {!isNativeApp && (
+                                <motion.div 
+                                    className="d-flex flex-wrap align-items-center gap-3 mb-5"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.35, duration: 0.6 }}
+                                >
                                 {/* Android Download Button */}
                                 <a 
                                     href="/kiaan-payroll.apk" 
@@ -791,6 +794,7 @@ const LandingPage = () => {
                                     </div>
                                 </a>
                             </motion.div>
+                            )}
 
                             {/* 4 Metric Stats in a Row */}
                             <motion.div 

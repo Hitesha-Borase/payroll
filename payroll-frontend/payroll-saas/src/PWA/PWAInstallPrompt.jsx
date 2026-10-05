@@ -2,19 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { usePWA } from './usePWA';
 import { PWA_CONFIG } from './pwaConfig';
 import { 
-  Download, X, Smartphone, Monitor, WifiOff, 
+  Download, X, Smartphone, WifiOff, 
   RefreshCw, CheckCircle2, Share, PlusSquare 
 } from 'lucide-react';
 import './PWAInstallPrompt.css';
 
 /**
  * PWAInstallPrompt Component
- * Manages iOS instructions modal, offline banner, and update notifications
+ * 
+ * Manages:
+ * 1. PWA Install App banner & button (Web & Mobile browser only; NEVER in Capacitor Android APK or Installed PWA)
+ * 2. iOS Add to Home Screen Instructions Modal (Browser only; NEVER in native app)
+ * 3. Offline notification bar
+ * 4. App version update notification
  */
 export const PWAInstallPrompt = () => {
   const { 
     isInstallable, 
     isInstalled, 
+    isNativeApp,
+    showInstallApp,
     isIOS, 
     isOnline, 
     hasUpdate, 
@@ -26,8 +33,9 @@ export const PWAInstallPrompt = () => {
   const [showIOSModal, setShowIOSModal] = useState(false);
   const [installing, setInstalling] = useState(false);
 
-  // Check if previously dismissed
+  // Check if previously dismissed (browser only)
   useEffect(() => {
+    if (isNativeApp) return;
     try {
       const dismissedUntil = localStorage.getItem(PWA_CONFIG.DISMISS_STORAGE_KEY);
       if (dismissedUntil && new Date().getTime() < Number(dismissedUntil)) {
@@ -36,7 +44,7 @@ export const PWAInstallPrompt = () => {
     } catch {
       // ignore storage errors
     }
-  }, []);
+  }, [isNativeApp]);
 
   const handleDismiss = () => {
     setDismissed(true);
@@ -49,6 +57,9 @@ export const PWAInstallPrompt = () => {
   };
 
   const handleInstallClick = async () => {
+    // If native app, this should never be callable
+    if (isNativeApp) return;
+
     if (isIOS) {
       setShowIOSModal(true);
       return;
@@ -66,9 +77,13 @@ export const PWAInstallPrompt = () => {
     }
   };
 
+  // Condition to show installation UI:
+  // Must NOT be native Capacitor app, must NOT be installed PWA, must be installable, and not dismissed
+  const canShowInstallUI = !isNativeApp && !isInstalled && showInstallApp && !dismissed;
+
   return (
     <>
-      {/* 1. Offline Notification Bar */}
+      {/* 1. Offline Notification Bar (Network state) */}
       {!isOnline && (
         <div className="pwa-offline-bar">
           <div className="pwa-offline-content">
@@ -91,8 +106,50 @@ export const PWAInstallPrompt = () => {
         </div>
       )}
 
-      {/* 3. iOS / Safari Add to Home Screen Instructions Modal */}
-      {showIOSModal && (
+      {/* 3. PWA Install App Banner (Visible ONLY in Web / Mobile Browser when installable) */}
+      {canShowInstallUI && (
+        <div 
+          className="pwa-install-banner" 
+          role="region" 
+          aria-label="Install Kiaan Payroll Application"
+          id="pwa-install-banner"
+        >
+          <div className="pwa-install-banner-content">
+            <div className="pwa-install-banner-icon">
+              <Smartphone size={22} className="text-white" />
+            </div>
+            <div className="pwa-install-banner-info">
+              <div className="pwa-install-banner-title">Install Kiaan Payroll</div>
+              <div className="pwa-install-banner-desc">Install app for instant home screen access and offline capabilities.</div>
+            </div>
+            <div className="pwa-install-banner-actions">
+              <button 
+                type="button" 
+                className="btn pwa-install-btn" 
+                onClick={handleInstallClick}
+                disabled={installing}
+                id="pwa-install-button"
+                aria-label="Install App"
+              >
+                <Download size={14} className="me-1" />
+                {installing ? 'Installing...' : 'Install App'}
+              </button>
+              <button 
+                type="button" 
+                className="btn pwa-dismiss-btn" 
+                onClick={handleDismiss}
+                id="pwa-dismiss-button"
+                aria-label="Dismiss installation banner"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. iOS / Safari Add to Home Screen Instructions Modal (NEVER in Capacitor Native App) */}
+      {!isNativeApp && !isInstalled && showIOSModal && (
         <div className="pwa-modal-overlay" onClick={() => setShowIOSModal(false)}>
           <div className="pwa-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="pwa-modal-header">
@@ -109,7 +166,7 @@ export const PWAInstallPrompt = () => {
 
             <div className="pwa-modal-body">
               <p className="text-muted small mb-3">
-                Follow these simple steps to install <strong>Kiaan Payroll</strong> as a native app on your phone or computer:
+                Follow these simple steps to install <strong>Kiaan Payroll</strong> on your phone or computer:
               </p>
 
               <div className="pwa-step-list">

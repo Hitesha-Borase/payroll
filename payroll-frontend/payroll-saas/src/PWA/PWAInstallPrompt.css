@@ -174,3 +174,135 @@
   border-top: 1px solid #f1f5f9;
   background: #f8fafc;
 }
+
+/* 4. PWA Install App Banner */
+.pwa-install-banner {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9998;
+  max-width: 440px;
+  width: calc(100% - 48px);
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 16px;
+  box-shadow: 0 20px 35px -5px rgba(15, 23, 42, 0.4), 0 8px 12px -4px rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 14px 18px;
+  animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 576px) {
+  .pwa-install-banner {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    padding: 12px 14px;
+  }
+}
+
+.pwa-install-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-install-banner-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #c62828, #e53935);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(198, 40, 40, 0.35);
+}
+
+.pwa-install-banner-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-install-banner-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 2px;
+  letter-spacing: 0.2px;
+}
+
+.pwa-install-banner-desc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pwa-install-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pwa-install-btn {
+  background: #c62828;
+  color: #ffffff;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.pwa-install-btn:hover {
+  background: #b71c1c;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.pwa-install-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.pwa-dismiss-btn {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.pwa-dismiss-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
