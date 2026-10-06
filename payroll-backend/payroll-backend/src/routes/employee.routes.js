@@ -38,6 +38,7 @@ router.post('/training/:id/progress', employeeController.updateTrainingProgress)
 
 // 7. Assignments, Tests & Certificates
 router.get('/tests', employeeController.getTests);
+router.post('/tests/:id/submit', employeeController.submitTest);
 router.get('/certificates', employeeController.getCertificates);
 
 // 8. Bank Details

@@ -648,6 +648,33 @@ const getTests = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const submitTest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { score, answers } = req.body || {};
+    const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
+    if (!emp.length) return res.status(404).json({ success: false, message: 'Employee profile not found' });
+
+    const finalScore = score !== undefined ? parseInt(score) : 85;
+    const isPassed = finalScore >= 60;
+    const newStatus = isPassed ? 'Completed' : 'in_progress';
+
+    await db.query(`
+      UPDATE training_enrollments 
+      SET test_score = ?, status = ?, completion_percentage = 100, updated_at = NOW() 
+      WHERE employee_id = ? AND (id = ? OR training_id = ?)
+    `, [finalScore, newStatus, emp[0].id, id, id]);
+
+    res.json({
+      success: true,
+      message: `Assessment test submitted successfully! Score: ${finalScore}%`,
+      data: { id, score: finalScore, status: newStatus }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getCertificates = async (req, res, next) => {
   try {
     const [emp] = await db.query("SELECT id FROM employees WHERE user_id = ?", [req.user.id]);
@@ -911,6 +938,7 @@ module.exports = {
   startTraining,
   updateTrainingProgress,
   getTests,
+  submitTest,
   getCertificates,
   addBankDetails,
   getBankDetails,
