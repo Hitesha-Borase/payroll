@@ -1,10 +1,7 @@
 import axios from 'axios';
 
-// API Base Configuration - Explicitly connected to Live Backend Domain
-let API_BASE_URL = 'https://api.payroll.kiaantechnology.com/api';
-if (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.startsWith('/')) {
-    API_BASE_URL = import.meta.env.VITE_API_URL;
-}
+// API Base Configuration
+let API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Ensure it ends with / so relative paths append correctly
 if (!API_BASE_URL.endsWith('/')) {
