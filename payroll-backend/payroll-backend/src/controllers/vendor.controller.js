@@ -166,7 +166,13 @@ const updateContractDetails = async (req, res, next) => {
  */
 const getMyPayments = async (req, res, next) => {
   try {
-    const [rows] = await db.query('SELECT * FROM vendors WHERE user_id = ?', [req.user.id]);
+    const [rows] = await db.query(`
+      SELECT v.*, emp.company_name as emp_company_name, u.name as emp_user_name
+      FROM vendors v
+      LEFT JOIN employers emp ON (v.employer_id = emp.id OR v.company_id = emp.company_id)
+      LEFT JOIN users u ON emp.user_id = u.id
+      WHERE v.user_id = ?
+    `, [req.user.id]);
     const vendor = rows[0];
 
     if (!vendor) {
@@ -178,12 +184,16 @@ const getMyPayments = async (req, res, next) => {
 
     // Get transactions where vendor is the beneficiary
     const [transactions] = await db.query(`
-        SELECT t.*, emp.company_name as emp_company_name
+        SELECT t.*, emp.company_name as emp_company_name, u.name as emp_user_name
         FROM transactions t
         LEFT JOIN employers emp ON t.employer_id = emp.id
+        LEFT JOIN users u ON emp.user_id = u.id
         WHERE t.user_id = ? AND t.type = 'vendor_payment' AND t.status = 'success'
         ORDER BY t.date DESC
     `, [req.user.id]);
+
+    // Determine actual employer name dynamically
+    const actualEmployerName = vendor.emp_company_name || vendor.emp_user_name || (transactions.length > 0 ? (transactions[0].emp_company_name || transactions[0].emp_user_name) : null) || 'Employer';
 
     // Calculate totals
     const totalPaid = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
@@ -205,7 +215,7 @@ const getMyPayments = async (req, res, next) => {
           id: t.id,
           amount: parseFloat(t.amount || 0),
           description: t.description,
-          employer: t.emp_company_name || 'N/A',
+          employer: t.emp_company_name || t.emp_user_name || actualEmployerName,
           date: t.date,
           reference: t.reference,
           status: 'Completed',
@@ -221,7 +231,7 @@ const getMyPayments = async (req, res, next) => {
         contracts: [
           {
             id: 'CON-001',
-            employer: 'Main Employer',
+            employer: actualEmployerName,
             amount: totalPaid,
             startDate: vendor.created_at,
             endDate: new Date(),

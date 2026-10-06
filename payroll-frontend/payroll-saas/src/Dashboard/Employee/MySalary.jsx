@@ -103,17 +103,23 @@ const MySalary = () => {
               lastDigits: '',
             });
 
-            setSalaryHistory(salaries.map(s => ({
-              id: s.id,
-              month: s.month && s.year ? `${s.month} ${s.year}` : '-',
-              grossSalary: parseFloat(s.gross_salary || s.amount || 0),
-              deductions: parseFloat(s.total_deductions || 0),
-              netSalary: parseFloat(s.net_salary || 0),
-              status: s.status || 'Pending',
-              paymentDate: s.payment_date || '-',
-              paymentMethod: s.payment_method || 'Bank Transfer',
-              data: s // Keep full object for payslip
-            })));
+            setSalaryHistory(salaries.map(s => {
+              const payDate = s.payment_date || s.created_at;
+              const monthLabel = s.month && s.year ? `${s.month} ${s.year}` : (payDate ? new Date(payDate).toLocaleString('default', { month: 'long', year: 'numeric' }) : 'Salary Slip');
+              return {
+                id: s.id,
+                month: monthLabel,
+                grossSalary: parseFloat(s.gross_salary || s.amount || 0),
+                amount: parseFloat(s.amount || s.gross_salary || 0),
+                deductions: parseFloat(s.total_deductions || 0),
+                netSalary: parseFloat(s.net_salary || s.amount || 0),
+                status: s.status || 'Paid',
+                paymentDate: payDate || '-',
+                paymentMethod: s.payment_method || 'Bank Transfer',
+                payslipAvailable: true,
+                data: s
+              };
+            }));
           }
         }
 
@@ -210,8 +216,26 @@ const MySalary = () => {
   };
 
   const handleDownloadPayslip = (salary) => {
-    setSelectedSalary(salary);
-    setShowPayslipModal(true);
+    const sData = salary.data || salary;
+    const fullSalary = {
+      month: salary.month && salary.month !== '-' ? salary.month : (sData.month && sData.year ? `${sData.month} ${sData.year}` : 'Salary Slip'),
+      amount: parseFloat(sData.amount || sData.gross_salary || salary.grossSalary || salary.amount || 0),
+      netSalary: parseFloat(sData.net_salary || salary.netSalary || sData.amount || 0),
+      deductions: parseFloat(sData.total_deductions || salary.deductions || 0),
+      basicPay: parseFloat(sData.basic_salary || sData.amount || salary.netSalary || 0),
+      hra: parseFloat(sData.hra || 0),
+      allowances: parseFloat(sData.special_allowance || 0),
+      pf: parseFloat(sData.pf || 0),
+      tax: parseFloat(sData.tds || 0),
+      otherDeductions: parseFloat(sData.professional_tax || 0),
+      status: sData.status || salary.status || 'Paid',
+      paymentDate: sData.payment_date || salary.paymentDate || new Date().toISOString().split('T')[0],
+      paymentMethod: sData.payment_method || salary.paymentMethod || 'Bank Transfer',
+      bankName: sData.bank_name || employeeData.bankName || 'Bank',
+      paymentReference: sData.reference_id || 'REF-' + (salary.id || Date.now()),
+    };
+    setSelectedSalary(fullSalary);
+    generatePayslipPDF(fullSalary);
   };
 
   // Function to generate and download payslip PDF

@@ -190,7 +190,7 @@ const SubmitResume = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
 
     if (!validateForm()) {
       return;
@@ -225,7 +225,7 @@ const SubmitResume = () => {
           }
           return prev + 10;
         });
-      }, 200);
+      }, 100);
 
       // Call API
       const response = await publicAPI.submitResume(formDataToSend);
@@ -236,6 +236,7 @@ const SubmitResume = () => {
       if (response?.data?.success) {
         setIsSubmitting(false);
         setShowSuccess(true);
+        toast.success(response?.data?.message || 'Resume submitted successfully!');
 
         // Reset form after 3 seconds
         setTimeout(() => {
@@ -259,6 +260,7 @@ const SubmitResume = () => {
       setIsSubmitting(false);
       setShowError(true);
       setUploadProgress(0);
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to submit resume');
       setTimeout(() => setShowError(false), 5000);
     }
   };
@@ -320,43 +322,37 @@ const SubmitResume = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.fullName.trim()) {
+    if (!formData.fullName || !formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required';
-    } else if (formData.fullName.trim().length < 3) {
-      newErrors.fullName = 'Full name must be at least 3 characters';
+    } else if (formData.fullName.trim().length < 2) {
+      newErrors.fullName = 'Full name must be at least 2 characters';
     }
 
-    if (!formData.email.trim()) {
+    if (!formData.email || !formData.email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    } else if (!/\S+@\S+\.\S+/.test(formData.email.trim())) {
       newErrors.email = 'Email is invalid';
     }
 
-    if (!formData.phone.trim()) {
+    if (!formData.phone || !formData.phone.trim()) {
       newErrors.phone = 'Phone number is required';
-    } else if (!/^\d{10}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Phone number must be 10 digits';
     }
 
-    if (!formData.skills.trim()) {
+    if (!formData.skills || !formData.skills.trim()) {
       newErrors.skills = 'Skills are required';
-    } else if (formData.skills.trim().length < 10) {
-      newErrors.skills = 'Please provide at least 10 characters for skills';
     }
 
-    if (!formData.experience.trim()) {
+    if (!formData.experience || !formData.experience.trim()) {
       newErrors.experience = 'Experience is required';
-    } else if (formData.experience.trim().length < 20) {
-      newErrors.experience = 'Please provide at least 20 characters for experience';
     }
 
     if (!formData.resumeFile) {
-      newErrors.resumeFile = 'Resume file is required';
-    } else {
-      const isPdfMime = formData.resumeFile.type === 'application/pdf';
-      const isPdfExt = formData.resumeFile.name.toLowerCase().endsWith('.pdf');
-
-      if (!isPdfMime && !isPdfExt) {
+      newErrors.resumeFile = 'Please select a PDF resume file to upload';
+    } else if (formData.resumeFile instanceof File) {
+      const fileName = formData.resumeFile.name || '';
+      const isPdfExt = fileName.toLowerCase().endsWith('.pdf');
+      const isPdfMime = formData.resumeFile.type === 'application/pdf' || formData.resumeFile.type === '';
+      if (!isPdfExt && !isPdfMime) {
         newErrors.resumeFile = 'Only PDF files are allowed';
       } else if (formData.resumeFile.size > 5 * 1024 * 1024) {
         newErrors.resumeFile = 'File size must be less than 5MB';
@@ -364,7 +360,14 @@ const SubmitResume = () => {
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
+      toast.error(firstError);
+      return false;
+    }
+
+    return true;
   };
 
   return (
@@ -578,12 +581,20 @@ const SubmitResume = () => {
                 </Button>
                 <Button
                   type="submit"
+                  onClick={handleSubmit}
                   style={{ ...buttonStyle, padding: '8px 24px', flex: windowWidth < 500 ? 1 : 'none' }}
                   disabled={isSubmitting}
                   onMouseEnter={(e) => !isSubmitting && (e.target.style.backgroundColor = colors.darkRed)}
                   onMouseLeave={(e) => !isSubmitting && (e.target.style.backgroundColor = colors.primaryRed)}
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit Resume'}
+                  {isSubmitting ? (
+                    <>
+                      <Spinner animation="border" size="sm" className="me-2" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Resume'
+                  )}
                 </Button>
               </div>
             </Form>

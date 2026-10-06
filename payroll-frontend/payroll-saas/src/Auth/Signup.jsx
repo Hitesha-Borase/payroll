@@ -260,7 +260,8 @@ const Signup = () => {
                       <option value="employer">Employer / Company (HR &amp; Payroll Management)</option>
                       <option value="employee">Employee (Workforce &amp; Payslips)</option>
                       <option value="vendor">Vendor / Partner</option>
-                      <option value="find-job">Find Job / Explorer</option>
+                      <option value="admin">Admin</option>
+                      <option value="superadmin">Super Admin</option>
                     </select>
                   </div>
 

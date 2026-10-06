@@ -470,8 +470,9 @@ export const publicAPI = {
     // Support Ticket Request (No auth required - from Support Center Modal)
     createSupportTicket: (data) => axiosInstance.post('public/support-ticket', data),
 
-    // Custom Plan Requirement Request (No auth required)
-    createCustomPlanRequest: (data) => axiosInstance.post('custom-plan-request', data),
+    // Privacy Policy & How To Use
+    getPrivacyPolicy: () => axiosInstance.get('public/privacy-policy'),
+    getHowToUseGuides: (role) => axiosInstance.get('public/how-to-use', { params: { role } }),
 
     // Razorpay Online Checkout (Public / Registration)
     createRazorpayOrder: (data) => axiosInstance.post('payment/razorpay/create-order', data),

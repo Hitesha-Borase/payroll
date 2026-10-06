@@ -384,6 +384,16 @@ const ManagementSystem = () => {
         if (empResponse?.data?.success) {
           const employersData = empResponse.data.data || [];
           setEmployers(employersData.map(emp => {
+            let bankConfig = {};
+            if (emp.paymentSetups && emp.paymentSetups.length > 0 && emp.paymentSetups[0].config) {
+              try {
+                bankConfig = typeof emp.paymentSetups[0].config === 'string'
+                  ? JSON.parse(emp.paymentSetups[0].config)
+                  : emp.paymentSetups[0].config;
+              } catch (e) {
+                console.error('Failed to parse bank config:', e);
+              }
+            }
             return ({
               id: emp.id,
               name: emp.company_name || emp.user?.name || 'N/A',
@@ -394,12 +404,12 @@ const ManagementSystem = () => {
               password: '***',
               balance: emp.credit?.balance !== undefined ? emp.credit.balance : 0,
               level: emp.subscription_plan || 'Basic',
-              bankName: emp.paymentSetups?.[0]?.provider === 'bank_transfer' ? (JSON.parse(emp.paymentSetups[0].config).bank_name || '') : (emp.bank_name || ''),
-              accountNumber: emp.paymentSetups?.[0]?.provider === 'bank_transfer' ? (JSON.parse(emp.paymentSetups[0].config).account_number || '') : (emp.account_number || ''),
-              ifscCode: emp.paymentSetups?.[0]?.provider === 'bank_transfer' ? (JSON.parse(emp.paymentSetups[0].config).ifsc_code || '') : (emp.ifsc_code || ''),
-              branch: emp.paymentSetups?.[0]?.provider === 'bank_transfer' ? (JSON.parse(emp.paymentSetups[0].config).branch || '') : (emp.branch || ''),
-              panNumber: emp.pan_number || '',
-              gstNumber: emp.gst_number || '',
+              bankName: bankConfig.bank_name || emp.bank_name || '',
+              accountNumber: bankConfig.account_number || emp.account_number || '',
+              ifscCode: bankConfig.ifsc_code || emp.ifsc_code || '',
+              branch: bankConfig.branch || emp.branch || '',
+              panNumber: emp.pan_number || bankConfig.pan_number || '',
+              gstNumber: emp.gst_number || bankConfig.gst_number || '',
               user: emp.user,
               credit: emp.credit,
               paymentSetups: emp.paymentSetups,

@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
+import { publicAPI } from '../services/api';
 import {
   FaRocket,
   FaShieldAlt,
@@ -408,7 +409,29 @@ const HowToUsePage = () => {
     return 'admin';
   }, [currentPath, storedRole]);
 
-  const guide = DASHBOARD_GUIDES[roleKey] || DASHBOARD_GUIDES.superadmin || DASHBOARD_GUIDES.admin;
+  const [apiGuideData, setApiGuideData] = useState(null);
+
+  useEffect(() => {
+    const fetchGuide = async () => {
+      try {
+        const response = await publicAPI.getHowToUseGuides(roleKey);
+        if (response?.data?.success) {
+          setApiGuideData(response.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch How To Use guide from API:', err);
+      }
+    };
+    fetchGuide();
+  }, [roleKey]);
+
+  const defaultGuide = DASHBOARD_GUIDES[roleKey] || DASHBOARD_GUIDES.superadmin || DASHBOARD_GUIDES.admin;
+  const guide = {
+    ...defaultGuide,
+    title: apiGuideData?.title || defaultGuide?.title,
+    subtitle: apiGuideData?.subtitle || defaultGuide?.subtitle,
+    badge: apiGuideData?.badge || defaultGuide?.badge,
+  };
   const GuideIcon = guide?.icon || FaShieldAlt;
 
   return (

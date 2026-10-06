@@ -131,11 +131,11 @@ const PaymentEmployer = () => {
         const payments = (transactionsRes.data.data || []).map(t => ({
           id: t.id,
           date: t.date || t.created_at ? new Date(t.date || t.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          recipient: t.description || 'Payment',
+          recipient: t.recipient_name || t.employee_name || t.vendor_name || t.user_name || t.name || t.description || 'Payment',
           type: t.type === 'salary' ? 'Employee' : t.type === 'vendor_payment' ? 'Vendor' : 'Bank Transfer',
           amount: parseFloat(t.amount) || 0,
           method: 'Bank Transfer',
-          status: t.status === 'success' ? 'Success' : t.status === 'pending' ? 'Pending' : 'Failed',
+          status: (t.status === 'success' || t.status === 'completed' || t.status === 'paid') ? 'Success' : t.status === 'pending' ? 'Pending' : 'Failed',
           notes: t.description || '',
           accountNumber: t.account_number || ''
         }));
