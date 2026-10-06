@@ -27,10 +27,14 @@ router.get('/bill/list', employeeController.getBills);
 // 5. Attendance
 router.post('/check-in', employeeController.checkIn);
 router.post('/check-out', employeeController.checkOut);
+router.post('/attendance/details', employeeController.updateAttendanceDetails);
+router.put('/attendance/details', employeeController.updateAttendanceDetails);
 router.get('/attendance/list', employeeController.getAttendance);
 
 // 6. Training
 router.get('/training/list', employeeController.getTrainings);
+router.post('/training/:id/start', employeeController.startTraining);
+router.post('/training/:id/progress', employeeController.updateTrainingProgress);
 
 // 7. Assignments, Tests & Certificates
 router.get('/tests', employeeController.getTests);
