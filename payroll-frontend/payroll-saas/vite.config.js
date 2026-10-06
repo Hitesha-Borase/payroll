@@ -24,6 +24,14 @@ function attendanceApiPlugin() {
           return;
         }
 
+        // Intercept test submit route to return 200 OK
+        if (req.url && req.url.includes('/api/employee/tests/') && req.url.includes('/submit')) {
+          res.setHeader('Content-Type', 'application/json');
+          res.statusCode = 200;
+          res.end(JSON.stringify({ success: true, message: 'Assessment test submitted successfully', score: 85, status: 'Completed' }));
+          return;
+        }
+
         // Intercept bank account verify route to return 200 OK
         if (req.url && req.url.includes('/api/employee/bank/') && req.url.includes('/verify')) {
           res.setHeader('Content-Type', 'application/json');
