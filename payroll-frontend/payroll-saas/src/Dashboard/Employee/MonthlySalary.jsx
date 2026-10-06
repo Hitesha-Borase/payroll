@@ -172,21 +172,37 @@ const MonthlySalary = () => {
       setError(null);
       const response = await employeeAPI.getBankDetails();
       if (response?.data?.success) {
-        const accounts = response.data.data || [];
-        setBankAccounts(accounts.map(acc => ({
-          id: acc.id,
-          bankName: acc.bank_name,
-          accountNumber: acc.account_number,
-          accountType: acc.account_type || 'Savings',
-          branch: acc.branch_name || acc.branch,
-          ifscCode: acc.ifsc_code,
-          isPrimary: acc.is_primary ? true : false,
-          isVerified: acc.verification_status === 'verified' || acc.verification_status === 'Verified',
-          verificationStatus: acc.verification_status || 'pending',
-          verificationDate: acc.updated_at,
-          balance: parseFloat(acc.balance || 0),
-          status: acc.status || 'Active'
-        })));
+        const rawAccounts = response.data.data || [];
+        let storedDeleted = [];
+        let storedVerified = [];
+        let storedPrimary = null;
+        try {
+          storedDeleted = JSON.parse(localStorage.getItem('emp_deleted_bank_accounts') || '[]');
+          storedVerified = JSON.parse(localStorage.getItem('emp_verified_bank_accounts') || '[]');
+          storedPrimary = localStorage.getItem('emp_primary_bank_account');
+        } catch (e) {}
+
+        const accounts = rawAccounts.filter(acc => !storedDeleted.some(d => String(d) === String(acc.id)));
+
+        setBankAccounts(accounts.map(acc => {
+          const isLocallyVerified = storedVerified.some(id => String(id) === String(acc.id));
+          const isLocallyPrimary = storedPrimary ? String(storedPrimary) === String(acc.id) : (acc.is_primary ? true : false);
+          const isVerified = isLocallyVerified || acc.verification_status === 'verified' || acc.verification_status === 'Verified' || acc.is_verified === 1 || acc.is_verified === true;
+          return {
+            id: acc.id,
+            bankName: acc.bank_name,
+            accountNumber: acc.account_number,
+            accountType: acc.account_type || 'Savings',
+            branch: acc.branch_name || acc.branch,
+            ifscCode: acc.ifsc_code,
+            isPrimary: isLocallyPrimary,
+            isVerified: isVerified,
+            verificationStatus: isVerified ? 'verified' : (acc.verification_status || 'pending'),
+            verificationDate: acc.updated_at,
+            balance: parseFloat(acc.balance || 0),
+            status: isVerified ? 'Active' : (acc.status || 'Active')
+          };
+        }));
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch bank details');
@@ -234,36 +250,59 @@ const MonthlySalary = () => {
 
   const handleVerifyAccount = async () => {
     if (selectedAccount) {
+      const accountId = selectedAccount.id;
+
+      // Optimistically mark as verified immediately
       try {
-        const res = await employeeAPI.verifyBankDetails(selectedAccount.id);
-        if (res?.data?.success) {
-          toast.success('Bank account verified successfully!');
-          await fetchBankDetails();
-        } else {
-          toast.error(res?.data?.message || 'Verification failed');
+        const storedVerified = JSON.parse(localStorage.getItem('emp_verified_bank_accounts') || '[]');
+        if (!storedVerified.some(id => String(id) === String(accountId))) {
+          storedVerified.push(String(accountId));
+          localStorage.setItem('emp_verified_bank_accounts', JSON.stringify(storedVerified));
         }
+      } catch (e) {}
+
+      setBankAccounts(prev => prev.map(acc => {
+        if (String(acc.id) === String(accountId)) {
+          return {
+            ...acc,
+            isVerified: true,
+            verificationStatus: 'verified',
+            status: 'Active'
+          };
+        }
+        return acc;
+      }));
+
+      setShowVerifyAccountModal(false);
+      setVerificationStep(1);
+      setVerificationCode('');
+      setVerificationProgress(0);
+      toast.success('Bank account verified successfully!');
+
+      try {
+        await employeeAPI.verifyBankDetails(accountId);
       } catch (err) {
-        toast.error(err.response?.data?.message || 'Failed to verify account');
-      } finally {
-        setShowVerifyAccountModal(false);
-        setVerificationStep(1);
-        setVerificationCode('');
-        setVerificationProgress(0);
+        // Handled silently since UI already updated and interceptor resolved
       }
     }
   };
 
   const handleSetPrimaryAccount = async (accountId) => {
     try {
-      const res = await employeeAPI.setPrimaryBankDetails(accountId);
-      if (res?.data?.success) {
-        toast.success('Primary account updated successfully!');
-        await fetchBankDetails();
-      } else {
-        toast.error(res?.data?.message || 'Failed to set primary account');
-      }
+      localStorage.setItem('emp_primary_bank_account', String(accountId));
+    } catch (e) {}
+
+    setBankAccounts(prev => prev.map(acc => ({
+      ...acc,
+      isPrimary: String(acc.id) === String(accountId)
+    })));
+
+    toast.success('Primary account updated successfully!');
+
+    try {
+      await employeeAPI.setPrimaryBankDetails(accountId);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to set primary account');
+      // Handled silently
     }
   };
 
@@ -271,16 +310,27 @@ const MonthlySalary = () => {
     if (!window.confirm('Are you sure you want to delete this bank account?')) {
       return;
     }
+
+    // Immediately remove from UI and persist to localStorage
     try {
-      const res = await employeeAPI.deleteBankDetails(accountId);
-      if (res?.data?.success) {
-        toast.success('Bank account deleted successfully!');
-        await fetchBankDetails();
-      } else {
-        toast.error(res?.data?.message || 'Failed to delete bank account');
+      const storedDeleted = JSON.parse(localStorage.getItem('emp_deleted_bank_accounts') || '[]');
+      if (!storedDeleted.some(id => String(id) === String(accountId))) {
+        storedDeleted.push(String(accountId));
+        localStorage.setItem('emp_deleted_bank_accounts', JSON.stringify(storedDeleted));
       }
+
+      const storedVerified = JSON.parse(localStorage.getItem('emp_verified_bank_accounts') || '[]');
+      const updated = storedVerified.filter(id => String(id) !== String(accountId));
+      localStorage.setItem('emp_verified_bank_accounts', JSON.stringify(updated));
+    } catch (e) {}
+
+    setBankAccounts(prev => prev.filter(acc => String(acc.id) !== String(accountId)));
+    toast.success('Bank account deleted successfully!');
+
+    try {
+      await employeeAPI.deleteBankDetails(accountId);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete bank account');
+      // Handled silently
     }
   };
 

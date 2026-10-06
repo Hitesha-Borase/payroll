@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaUserTie, FaBuilding, FaUniversity, FaTimes, FaEye, FaCalendarAlt, FaMoneyBillWave, FaUser, FaStore, FaFilter, FaSearch, FaExchangeAlt, FaArrowRight, FaCheckCircle, FaClock, FaExclamationCircle, FaInfoCircle } from 'react-icons/fa';
 import { employerAPI } from '../../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
@@ -6,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useRegional } from '../../context/RegionalContext';
 
 const PaymentEmployer = () => {
+  const navigate = useNavigate();
   const { formatCurrency } = useRegional();
   // --- STATE MANAGEMENT ---
   const [employees, setEmployees] = useState([]);
@@ -86,15 +88,40 @@ const PaymentEmployer = () => {
         setEmployees(empData);
       }
 
-      if (vendorsRes?.data?.success) {
-        const venData = (vendorsRes.data.data || []).map(vendor => ({
-          id: vendor.id,
-          name: vendor.user?.name || vendor.company_name || 'Unknown',
-          accountNumber: '', // Vendor bank details not in current model
-          ifsc: ''
-        }));
-        setVendors(venData);
+      // Vendors
+      const rawVendors = vendorsRes?.data;
+      let apiVendors = [];
+      if (Array.isArray(rawVendors)) apiVendors = rawVendors;
+      else if (Array.isArray(rawVendors?.data)) apiVendors = rawVendors.data;
+      else if (Array.isArray(rawVendors?.vendors)) apiVendors = rawVendors.vendors;
+
+      const vendorData = apiVendors.map(vendor => ({
+        id: vendor.id,
+        name: vendor.user?.name || vendor.contact_person || vendor.company_name || vendor.name || 'Unknown',
+        accountNumber: vendor.account_number || '',
+        ifsc: vendor.ifsc_code || ''
+      }));
+
+      // Merge with custom local vendors so created vendors are always payable
+      try {
+        const userKey = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'current';
+        const localVendors = JSON.parse(localStorage.getItem(`employer_vendors_${userKey}`) || localStorage.getItem('employer_custom_vendors') || '[]');
+        localVendors.forEach(loc => {
+          const exists = vendorData.some(v => String(v.id) === String(loc.id) || (v.name && v.name === (loc.name || loc.companyName)));
+          if (!exists) {
+            vendorData.push({
+              id: loc.id,
+              name: loc.name || loc.companyName || 'Vendor',
+              accountNumber: loc.accountNumber || '',
+              ifsc: loc.ifsc || ''
+            });
+          }
+        });
+      } catch (storageErr) {
+        console.warn('Could not read stored vendors in PaymentEmployer:', storageErr);
       }
+
+      setVendors(vendorData);
 
       if (creditRes?.data?.success) {
         setCreditBalance(creditRes.data.data?.balance || 0);
@@ -132,7 +159,18 @@ const PaymentEmployer = () => {
 
     const employee = employees.find(emp => emp.id == employeePayment.employeeId);
     if (!employee || !employeePayment.amount || !employeePayment.accountNumber || !employeePayment.ifsc) {
-      setError('Please fill in all required fields.');
+      const msg = 'Please fill in all required fields.';
+      setError(msg);
+      toast.error(msg);
+      setIsLoading(false);
+      return;
+    }
+
+    const payAmount = parseFloat(employeePayment.amount) || 0;
+    if (creditBalance < payAmount) {
+      const msg = `Insufficient credit balance. Required: ${formatCurrency(payAmount)}, Available: ${formatCurrency(creditBalance)}. Please add credits from 'My Credits'.`;
+      setError(msg);
+      toast.error(msg);
       setIsLoading(false);
       return;
     }
@@ -146,15 +184,21 @@ const PaymentEmployer = () => {
       });
 
       if (response?.data?.success) {
+        toast.success(`Salary of ${formatCurrency(employeePayment.amount)} paid to ${employee.name} successfully.`);
         setSuccessMessage(`Bank transfer of ${formatCurrency(employeePayment.amount)} to ${employee.name} initiated successfully.`);
         setShowPayEmployeeModal(false);
         setEmployeePayment({ employeeId: '', amount: '', accountNumber: '', ifsc: '', notes: '' });
         fetchData(); // Refresh data
       } else {
-        setError(response?.data?.message || 'Failed to process payment.');
+        const msg = response?.data?.message || 'Failed to process payment.';
+        setError(msg);
+        toast.error(msg);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to process payment.');
+      console.error('paySalary error:', err);
+      const msg = err.response?.data?.message || 'Failed to process payment.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -169,7 +213,18 @@ const PaymentEmployer = () => {
 
     const vendor = vendors.find(v => v.id == vendorPayment.vendorId);
     if (!vendor || !vendorPayment.amount || !vendorPayment.accountNumber || !vendorPayment.ifsc) {
-      setError('Please fill in all required fields.');
+      const msg = 'Please fill in all required fields.';
+      setError(msg);
+      toast.error(msg);
+      setIsLoading(false);
+      return;
+    }
+
+    const payAmount = parseFloat(vendorPayment.amount) || 0;
+    if (creditBalance < payAmount) {
+      const msg = `Insufficient credit balance. Required: ${formatCurrency(payAmount)}, Available: ${formatCurrency(creditBalance)}. Please add credits from 'My Credits'.`;
+      setError(msg);
+      toast.error(msg);
       setIsLoading(false);
       return;
     }
@@ -183,15 +238,21 @@ const PaymentEmployer = () => {
       });
 
       if (response?.data?.success) {
+        toast.success(`Bank transfer of ${formatCurrency(vendorPayment.amount)} to ${vendor.name} initiated successfully.`);
         setSuccessMessage(`Bank transfer of ${formatCurrency(vendorPayment.amount)} to ${vendor.name} initiated successfully.`);
         setShowPayVendorModal(false);
         setVendorPayment({ vendorId: '', amount: '', accountNumber: '', ifsc: '', notes: '' });
         fetchData(); // Refresh data
       } else {
-        setError(response?.data?.message || 'Failed to process payment.');
+        const msg = response?.data?.message || 'Failed to process payment.';
+        setError(msg);
+        toast.error(msg);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to process payment.');
+      console.error('payVendor error:', err);
+      const msg = err.response?.data?.message || 'Failed to process payment.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -626,6 +687,31 @@ const PaymentEmployer = () => {
               </div>
               <form onSubmit={handlePayEmployee}>
                 <div className="modal-body p-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                  {error && (
+                    <div className="alert alert-danger py-2 px-3 mb-3 small d-flex justify-content-between align-items-center">
+                      <span>{error}</span>
+                      <button type="button" className="btn-close btn-sm" onClick={() => setError(null)}></button>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between align-items-center small mb-3 p-2 px-3 rounded" style={{ backgroundColor: creditBalance <= 0 ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${creditBalance <= 0 ? '#FCA5A5' : '#E2E8F0'}` }}>
+                    <div>
+                      <span className="text-muted me-1">Available Credit Balance:</span>
+                      <strong style={{ color: creditBalance <= 0 ? '#DC2626' : '#16A34A' }}>{formatCurrency(creditBalance)}</strong>
+                    </div>
+                    {creditBalance <= 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger py-0 px-2 fw-semibold"
+                        style={{ fontSize: '11.5px' }}
+                        onClick={() => {
+                          setShowPayEmployeeModal(false);
+                          navigate('/employer/credits/balance');
+                        }}
+                      >
+                        + Add Credits
+                      </button>
+                    )}
+                  </div>
                   <div className="alert alert-info d-flex align-items-center" role="alert">
                     <FaInfoCircle className="me-2" />
                     <div className="small">Payment will be processed directly to employee's bank account.</div>
@@ -747,6 +833,31 @@ const PaymentEmployer = () => {
               </div>
               <form onSubmit={handlePayVendor}>
                 <div className="modal-body p-4" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                  {error && (
+                    <div className="alert alert-danger py-2 px-3 mb-3 small d-flex justify-content-between align-items-center">
+                      <span>{error}</span>
+                      <button type="button" className="btn-close btn-sm" onClick={() => setError(null)}></button>
+                    </div>
+                  )}
+                  <div className="d-flex justify-content-between align-items-center small mb-3 p-2 px-3 rounded" style={{ backgroundColor: creditBalance <= 0 ? '#FEF2F2' : '#F8FAFC', border: `1px solid ${creditBalance <= 0 ? '#FCA5A5' : '#E2E8F0'}` }}>
+                    <div>
+                      <span className="text-muted me-1">Available Credit Balance:</span>
+                      <strong style={{ color: creditBalance <= 0 ? '#DC2626' : '#16A34A' }}>{formatCurrency(creditBalance)}</strong>
+                    </div>
+                    {creditBalance <= 0 && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger py-0 px-2 fw-semibold"
+                        style={{ fontSize: '11.5px' }}
+                        onClick={() => {
+                          setShowPayVendorModal(false);
+                          navigate('/employer/credits/balance');
+                        }}
+                      >
+                        + Add Credits
+                      </button>
+                    )}
+                  </div>
                   <div className="alert alert-info d-flex align-items-center" role="alert">
                     <FaInfoCircle className="me-2" />
                     <div className="small">Payment will be processed directly to the vendor's bank account.</div>

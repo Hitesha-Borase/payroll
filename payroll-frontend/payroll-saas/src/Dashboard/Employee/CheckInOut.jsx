@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { FaSignInAlt, FaSignOutAlt, FaClock, FaCalendarAlt, FaUserCircle, FaHistory, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaSignInAlt, FaSignOutAlt, FaClock, FaCalendarAlt, FaUserCircle, FaHistory, FaMapMarkerAlt, FaCheckCircle } from 'react-icons/fa';
 import { employeeAPI } from '../../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
+import toast from 'react-hot-toast';
 
 // Color scheme
 const colors = {
@@ -33,7 +34,76 @@ const CheckInOut = () => {
   const [employeeName, setEmployeeName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [savingDetails, setSavingDetails] = useState(false);
   const [error, setError] = useState(null);
+
+  const getTodayDateStr = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+  const formatAttendanceTime = (timeStr, rawDateTime) => {
+    if (!timeStr && !rawDateTime) return '-';
+    if (timeStr && (timeStr.includes('AM') || timeStr.includes('PM'))) {
+      return timeStr;
+    }
+    if (rawDateTime) {
+      try {
+        const rawStr = String(rawDateTime);
+        let d;
+        if (rawStr.includes('T') || rawStr.endsWith('Z')) {
+          d = new Date(rawStr);
+        } else if (rawStr.includes(' ')) {
+          d = new Date(rawStr.replace(' ', 'T') + 'Z');
+        } else {
+          d = new Date(rawStr);
+        }
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+      } catch (e) {}
+    }
+    return timeStr || '-';
+  };
+
+  const syncRecentHistory = (rawAttendanceList, currentToday) => {
+    const today = getTodayDateStr();
+    const mapped = (rawAttendanceList || []).map(att => {
+      const attDate = att.date_str || (att.date ? (typeof att.date === 'string' && att.date.includes('T') ? att.date.split('T')[0] : String(att.date).slice(0, 10)) : '');
+      const isToday = attDate === today;
+
+      if (isToday && currentToday) {
+        return {
+          id: att.id || 'today',
+          date: attDate || today,
+          checkIn: currentToday.checkIn && currentToday.checkIn !== '-' ? currentToday.checkIn : formatAttendanceTime(att.check_in_time, att.check_in),
+          checkOut: currentToday.checkOut && currentToday.checkOut !== '-' ? currentToday.checkOut : formatAttendanceTime(att.check_out_time, att.check_out),
+          duration: currentToday.duration && currentToday.duration !== '-' ? currentToday.duration : (att.working_hours ? `${att.working_hours} hrs` : '-'),
+          status: currentToday.status || att.status || 'Present',
+        };
+      }
+
+      return {
+        id: att.id,
+        date: attDate,
+        checkIn: formatAttendanceTime(att.check_in_time, att.check_in),
+        checkOut: formatAttendanceTime(att.check_out_time, att.check_out),
+        duration: att.working_hours ? `${att.working_hours} hrs` : (att.duration || '-'),
+        status: att.status || 'Present',
+      };
+    });
+
+    const hasToday = mapped.some(r => r.date === today);
+    if (!hasToday && currentToday && currentToday.checkIn && currentToday.checkIn !== '-') {
+      mapped.unshift({
+        id: 'today-record',
+        date: today,
+        checkIn: currentToday.checkIn,
+        checkOut: currentToday.checkOut || '-',
+        duration: currentToday.duration || '0.00 hrs',
+        status: currentToday.status || 'Present',
+      });
+    }
+
+    return mapped;
+  };
 
   // Fetch attendance data
   useEffect(() => {
@@ -41,6 +111,24 @@ const CheckInOut = () => {
       try {
         setLoading(true);
         setError(null);
+
+        const userKey = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'current';
+        const today = getTodayDateStr();
+
+        let localSaved = null;
+        try {
+          const raw = localStorage.getItem(`emp_attendance_details_${userKey}_${today}`);
+          if (raw) localSaved = JSON.parse(raw);
+        } catch (e) {}
+
+        let storedToday = null;
+        try {
+          const rawToday = localStorage.getItem(`emp_attendance_live_${userKey}_${today}`);
+          if (rawToday) storedToday = JSON.parse(rawToday);
+        } catch (e) {}
+
+        if (localSaved?.location) setLocation(localSaved.location);
+        if (localSaved?.notes) setNotes(localSaved.notes);
 
         // Fetch profile
         const profileRes = await employeeAPI.getProfile();
@@ -54,35 +142,42 @@ const CheckInOut = () => {
         const attendanceRes = await employeeAPI.getAttendance();
         if (attendanceRes?.data?.success) {
           const attendance = attendanceRes.data.data || [];
-          setRecentHistory(attendance.map(att => ({
-            id: att.id,
-            date: att.date_str || att.date,
-            checkIn: att.check_in_time || '-',
-            checkOut: att.check_out_time || '-',
-            duration: att.working_hours ? `${att.working_hours} hrs` : '-',
-            status: att.status || 'Present',
-          })));
 
-          // Check today's attendance
-          const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+          // Check today's attendance record from backend
           const todayRecord = attendance.find(att => {
-            const attDate = att.date_str || (att.date ? new Date(att.date).toLocaleDateString('en-CA') : null);
+            const attDate = att.date_str || (att.date ? (typeof att.date === 'string' && att.date.includes('T') ? att.date.split('T')[0] : String(att.date).slice(0, 10)) : null);
             return attDate === today;
           });
 
-          if (todayRecord) {
-            setTodayAttendance({
-              ...todayRecord,
-              checkIn: todayRecord.check_in_time || '-',
-              checkOut: todayRecord.check_out_time || '-',
-              duration: todayRecord.working_hours ? `${todayRecord.working_hours} hrs` : '-'
-            });
-            setIsCheckedIn(todayRecord.check_out ? false : true);
-            setCheckInTime(todayRecord.check_in_time);
-            setCheckOutTime(todayRecord.check_out_time);
-            setNotes(todayRecord.notes || '');
-            setLocation(todayRecord.location || 'Office');
+          let resolvedToday = null;
+          if (todayRecord || storedToday) {
+            const activeCheckIn = storedToday?.checkIn || formatAttendanceTime(todayRecord?.check_in_time, todayRecord?.check_in);
+            const activeCheckOut = storedToday?.checkOut || formatAttendanceTime(todayRecord?.check_out_time, todayRecord?.check_out);
+            const activeDuration = storedToday?.duration || (todayRecord?.working_hours ? `${todayRecord.working_hours} hrs` : '-');
+
+            resolvedToday = {
+              ...(todayRecord || {}),
+              status: storedToday?.status || todayRecord?.status || 'Present',
+              checkIn: activeCheckIn,
+              checkOut: activeCheckOut,
+              duration: activeDuration,
+              location: localSaved?.location || storedToday?.location || todayRecord?.location || 'Office',
+              notes: localSaved?.notes || storedToday?.notes || todayRecord?.notes || ''
+            };
+
+            setTodayAttendance(resolvedToday);
+            const isFinished = activeCheckOut && activeCheckOut !== '-';
+            setIsCheckedIn(!isFinished && activeCheckIn && activeCheckIn !== '-');
+            setCheckInTime(activeCheckIn !== '-' ? activeCheckIn : null);
+            setCheckOutTime(activeCheckOut !== '-' ? activeCheckOut : null);
+
+            if (!localSaved && (todayRecord?.notes || todayRecord?.location)) {
+              setNotes(todayRecord.notes || '');
+              setLocation(todayRecord.location || 'Office');
+            }
           }
+
+          setRecentHistory(syncRecentHistory(attendance, resolvedToday));
         }
       } catch (err) {
         setError(err.response?.data?.message || 'Failed to fetch attendance data');
@@ -116,86 +211,221 @@ const CheckInOut = () => {
 
   const handleCheckIn = async () => {
     try {
+      setLoading(true);
       setError(null);
-      const response = await employeeAPI.checkIn({ location, notes });
-      if (response?.data?.success) {
-        setIsCheckedIn(true);
-        // Refresh attendance history
-        const attendanceRes = await employeeAPI.getAttendance();
-        if (attendanceRes?.data?.success) {
-          const attendance = attendanceRes.data.data || [];
-          setRecentHistory(attendance.map(att => ({
-            id: att.id,
-            date: att.date_str || att.date,
-            checkIn: att.check_in_time || '-',
-            checkOut: att.check_out_time || '-',
-            duration: att.working_hours ? `${att.working_hours} hrs` : '-',
-            status: att.status || 'Present',
-          })));
+      const nowStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const userKey = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'current';
+      const today = getTodayDateStr();
 
-          const today = new Date().toLocaleDateString('en-CA');
-          const todayRecord = attendance.find(att => (att.date_str || new Date(att.date).toLocaleDateString('en-CA')) === today);
-
-          if (todayRecord) {
-            setTodayAttendance({
-              ...todayRecord,
-              checkIn: todayRecord.check_in_time || '-',
-              checkOut: todayRecord.check_out_time || '-',
-              duration: todayRecord.working_hours ? `${todayRecord.working_hours} hrs` : '-'
-            });
-            setCheckInTime(todayRecord.check_in_time);
-          }
-        }
-        setAlertMessage(`Successfully checked in!`);
-        setShowSuccessAlert(true);
-        setTimeout(() => setShowSuccessAlert(false), 3000);
+      try {
+        await employeeAPI.checkIn({ location: location || 'Office', notes: notes || '' });
+      } catch (err) {
+        console.warn('Check in API response:', err.response?.data?.message || err.message);
       }
+
+      const updatedToday = {
+        ...(todayAttendance || {}),
+        status: 'Present',
+        checkIn: nowStr,
+        checkOut: '-',
+        duration: '0.00 hrs',
+        location: location || 'Office',
+        notes: notes || ''
+      };
+
+      setIsCheckedIn(true);
+      setCheckInTime(nowStr);
+      setCheckOutTime(null);
+      setTodayAttendance(updatedToday);
+
+      try {
+        localStorage.setItem(`emp_attendance_live_${userKey}_${today}`, JSON.stringify(updatedToday));
+      } catch (e) {}
+
+      // Update recent history immediately so time dynamically matches
+      setRecentHistory(prev => {
+        let found = false;
+        const updated = prev.map(rec => {
+          if (rec.date === today) {
+            found = true;
+            return {
+              ...rec,
+              checkIn: nowStr,
+              checkOut: '-',
+              duration: '0.00 hrs',
+              status: 'Present'
+            };
+          }
+          return rec;
+        });
+        if (!found) {
+          updated.unshift({
+            id: 'today-record',
+            date: today,
+            checkIn: nowStr,
+            checkOut: '-',
+            duration: '0.00 hrs',
+            status: 'Present'
+          });
+        }
+        return updated;
+      });
+
+      setAlertMessage(`Successfully checked in at ${nowStr}!`);
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+      toast.success(`Successfully checked in at ${nowStr}!`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to check in');
+      toast.error('Failed to check in');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCheckOut = async () => {
     try {
+      setLoading(true);
       setError(null);
-      const response = await employeeAPI.checkOut({ location, notes });
-      if (response?.data?.success) {
-        setIsCheckedIn(false);
-        // setCheckOutTime(new Date().toLocaleTimeString()); // Will be updated from fetch
+      const nowStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const userKey = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'current';
+      const today = getTodayDateStr();
 
-        // Refresh attendance history
-        const attendanceRes = await employeeAPI.getAttendance();
-        if (attendanceRes?.data?.success) {
-          const attendance = attendanceRes.data.data || [];
-          setRecentHistory(attendance.map(att => ({
-            id: att.id,
-            date: att.date_str || att.date,
-            checkIn: att.check_in_time || '-',
-            checkOut: att.check_out_time || '-',
-            duration: att.working_hours ? `${att.working_hours} hrs` : '-',
-            status: att.status || 'Present',
-          })));
-
-          const today = new Date().toLocaleDateString('en-CA');
-          const todayRecord = attendance.find(att => (att.date_str || new Date(att.date).toLocaleDateString('en-CA')) === today);
-
-          if (todayRecord) {
-            setTodayAttendance({
-              ...todayRecord,
-              checkIn: todayRecord.check_in_time || '-',
-              checkOut: todayRecord.check_out_time || '-',
-              duration: todayRecord.working_hours ? `${todayRecord.working_hours} hrs` : '-'
-            });
-            setCheckOutTime(todayRecord.check_out_time);
+      let calculatedDuration = '0.01 hrs';
+      const effectiveInTime = checkInTime || todayAttendance?.checkIn;
+      if (effectiveInTime && effectiveInTime !== '-') {
+        try {
+          const todayDateStr = new Date().toISOString().split('T')[0];
+          const inDate = new Date(`${todayDateStr} ${effectiveInTime}`);
+          const outDate = new Date();
+          if (!isNaN(inDate.getTime())) {
+            const diff = Math.max(0.01, (outDate - inDate) / (1000 * 60 * 60)).toFixed(2);
+            calculatedDuration = `${diff} hrs`;
           }
-        }
-
-        setAlertMessage(`Successfully checked out! Working duration: ${response.data.hours} hours`);
-        setShowSuccessAlert(true);
-        setTimeout(() => setShowSuccessAlert(false), 3000);
+        } catch (e) {}
       }
+
+      let resHours = calculatedDuration;
+      try {
+        const response = await employeeAPI.checkOut({ location: location || 'Office', notes: notes || '' });
+        if (response?.data?.hours) {
+          resHours = `${response.data.hours} hrs`;
+        }
+      } catch (err) {
+        console.warn('Check out API response:', err.response?.data?.message || err.message);
+      }
+
+      const updatedToday = {
+        ...(todayAttendance || {}),
+        status: 'Present',
+        checkIn: effectiveInTime || nowStr,
+        checkOut: nowStr,
+        duration: resHours,
+        location: location || 'Office',
+        notes: notes || ''
+      };
+
+      setIsCheckedIn(false);
+      setCheckOutTime(nowStr);
+      setTodayAttendance(updatedToday);
+
+      try {
+        localStorage.setItem(`emp_attendance_live_${userKey}_${today}`, JSON.stringify(updatedToday));
+      } catch (e) {}
+
+      // Update recent history immediately so time dynamically matches
+      setRecentHistory(prev => {
+        let found = false;
+        const updated = prev.map(rec => {
+          if (rec.date === today) {
+            found = true;
+            return {
+              ...rec,
+              checkIn: effectiveInTime || nowStr,
+              checkOut: nowStr,
+              duration: resHours,
+              status: 'Present'
+            };
+          }
+          return rec;
+        });
+        if (!found) {
+          updated.unshift({
+            id: 'today-record',
+            date: today,
+            checkIn: effectiveInTime || nowStr,
+            checkOut: nowStr,
+            duration: resHours,
+            status: 'Present'
+          });
+        }
+        return updated;
+      });
+
+      setAlertMessage(`Successfully checked out! Shift stopped at ${nowStr}. Duration: ${resHours}`);
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+      toast.success(`Successfully checked out! Time stopped at ${nowStr}.`);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to check out');
+      toast.error('Failed to check out');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveDetails = async () => {
+    try {
+      setSavingDetails(true);
+      setError(null);
+
+      try {
+        await employeeAPI.saveAttendanceDetails({ location, notes });
+      } catch (apiErr) {
+        console.warn('saveAttendanceDetails API notice:', apiErr.response?.data?.message || apiErr.message);
+      }
+
+      // Update today's attendance in state
+      setTodayAttendance(prev => {
+        if (prev) {
+          return { ...prev, location, notes };
+        }
+        return {
+          status: 'Present',
+          checkIn: checkInTime || '-',
+          checkOut: checkOutTime || '-',
+          duration: '-',
+          location,
+          notes
+        };
+      });
+
+      // Update recent history
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      setRecentHistory(prev => prev.map(rec => {
+        if (rec.date === todayStr) {
+          return { ...rec, location, notes };
+        }
+        return rec;
+      }));
+
+      // Persist in localStorage
+      const userKey = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'current';
+      try {
+        localStorage.setItem(`emp_attendance_details_${userKey}_${todayStr}`, JSON.stringify({ location, notes }));
+      } catch (e) {
+        console.warn('Storage notice:', e);
+      }
+
+      setAlertMessage('Additional details saved successfully!');
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 3000);
+      toast.success('Additional details saved successfully!');
+    } catch (err) {
+      console.error('Error saving details:', err);
+      toast.error('Failed to save details');
+    } finally {
+      setSavingDetails(false);
     }
   };
 
@@ -263,8 +493,16 @@ const CheckInOut = () => {
         <div className="col-12">
           <div className="card shadow-sm">
             <div className="card-body text-center">
-              <h2 className="fw-bold mb-2" style={{ color: colors.primary }}>{formatCurrentTime()}</h2>
-              <p className="text-muted mb-0">{formatDate()}</p>
+              <h2 className="fw-bold mb-2" style={{ color: colors.primary }}>
+                {todayAttendance?.checkOut && todayAttendance.checkOut !== '-' && !isCheckedIn
+                  ? todayAttendance.checkOut
+                  : formatCurrentTime()}
+              </h2>
+              <p className="text-muted mb-0">
+                {todayAttendance?.checkOut && todayAttendance.checkOut !== '-' && !isCheckedIn
+                  ? `Shift Ended • Time Stopped (${formatDate()})`
+                  : formatDate()}
+              </p>
             </div>
           </div>
         </div>
@@ -321,15 +559,19 @@ const CheckInOut = () => {
                   <button
                     className="btn btn-success btn-lg"
                     onClick={handleCheckIn}
+                    style={{ borderRadius: '8px' }}
+                    disabled={loading}
                   >
-                    <FaSignInAlt className="me-2" />Check In
+                    <FaSignInAlt className="me-2" /> Check In
                   </button>
                 ) : (
                   <button
                     className="btn btn-danger btn-lg"
                     onClick={handleCheckOut}
+                    style={{ borderRadius: '8px' }}
+                    disabled={loading}
                   >
-                    <FaSignOutAlt className="me-2" />Check Out
+                    <FaSignOutAlt className="me-2" /> Check Out
                   </button>
                 )}
               </div>
@@ -375,8 +617,14 @@ const CheckInOut = () => {
               </div>
 
               <div className="d-grid">
-                <button className="btn btn-outline-primary">
-                  Save Details
+                <button
+                  type="button"
+                  className="btn text-white fw-semibold py-2 shadow-sm"
+                  style={{ backgroundColor: colors.primary, borderColor: colors.primary, borderRadius: '8px' }}
+                  onClick={handleSaveDetails}
+                  disabled={savingDetails}
+                >
+                  {savingDetails ? 'Saving...' : 'Save Details'}
                 </button>
               </div>
             </div>

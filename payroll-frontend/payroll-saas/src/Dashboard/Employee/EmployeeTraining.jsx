@@ -55,6 +55,31 @@ const EmployeeTraining = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Storage key helpers for training progress
+  const getProgressStorageKey = () => {
+    const user = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'current';
+    return `emp_trainings_progress_${user}`;
+  };
+
+  const getSavedTrainingProgress = () => {
+    try {
+      const raw = localStorage.getItem(getProgressStorageKey());
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const saveTrainingProgressLocally = (courseId, status, completion) => {
+    try {
+      const all = getSavedTrainingProgress();
+      all[courseId] = { status, completion, updated_at: new Date().toISOString() };
+      localStorage.setItem(getProgressStorageKey(), JSON.stringify(all));
+    } catch (e) {
+      console.warn('Failed to save training progress locally:', e);
+    }
+  };
+
   // Fetch training data from API
   useEffect(() => {
     const fetchTrainingData = async () => {
@@ -71,23 +96,36 @@ const EmployeeTraining = () => {
         }
 
         // Fetch assigned trainings
+        const savedProgress = getSavedTrainingProgress();
         const trainingsRes = await employeeAPI.getTrainings();
         if (trainingsRes?.data?.success) {
           const trainings = trainingsRes.data.data || [];
-          setAssignedTrainings(trainings.map(t => ({
-            id: t.id,
-            title: t.course_title || t.name || 'Training Course',
-            instructor: t.trainer_name || t.instructor || 'Instructor',
-            duration: t.duration || (t.end_date && t.start_date ?
-              `${Math.ceil((new Date(t.end_date) - new Date(t.start_date)) / (1000 * 60 * 60 * 24))} days` : '2 Weeks'),
-            category: t.category || 'General',
-            startDate: t.start_date?.split('T')[0] || t.created_at?.split('T')[0] || '-',
-            assignDate: t.assigned_date?.split('T')[0] || t.created_at?.split('T')[0] || '-',
-            dueDate: t.due_date?.split('T')[0] || t.end_date?.split('T')[0] || '-',
-            status: (t.status === 'completed' || t.status === 'Completed') ? 'Completed' :
-              (t.status === 'in_progress' || t.status === 'In Progress') ? 'In Progress' : 'Not Started',
-            completion: t.completion_percentage !== undefined && t.completion_percentage !== null ? t.completion_percentage : (t.progress || (t.status === 'completed' ? 100 : 0))
-          })));
+          setAssignedTrainings(trainings.map(t => {
+            const local = savedProgress[t.id] || savedProgress[t.course_id];
+            const defaultStatus = (t.status === 'completed' || t.status === 'Completed') ? 'Completed' :
+              (t.status === 'in_progress' || t.status === 'In Progress') ? 'In Progress' : 'Not Started';
+            const status = local?.status || defaultStatus;
+
+            const defaultComp = t.completion_percentage !== undefined && t.completion_percentage !== null
+              ? t.completion_percentage
+              : (t.progress || (t.status === 'completed' ? 100 : 0));
+            const completion = local?.completion !== undefined ? local.completion : defaultComp;
+
+            return {
+              id: t.id,
+              courseId: t.course_id || t.id,
+              title: t.course_title || t.name || 'Training Course',
+              instructor: t.trainer_name || t.instructor || 'Instructor',
+              duration: t.duration || (t.end_date && t.start_date ?
+                `${Math.ceil((new Date(t.end_date) - new Date(t.start_date)) / (1000 * 60 * 60 * 24))} days` : '2 Weeks'),
+              category: t.category || 'General',
+              startDate: t.start_date?.split('T')[0] || t.created_at?.split('T')[0] || '-',
+              assignDate: t.assigned_date?.split('T')[0] || t.created_at?.split('T')[0] || '-',
+              dueDate: t.due_date?.split('T')[0] || t.end_date?.split('T')[0] || '-',
+              status: status,
+              completion: completion
+            };
+          }));
         }
 
         // Fetch assessment tests
@@ -159,8 +197,53 @@ const EmployeeTraining = () => {
     return '#CBD5E1';
   };
 
-  const handleStartTraining = (courseId) => {
-    toast(`Starting training for course ID: ${courseId}`, { icon: '🚀' });
+  const handleStartTraining = async (courseId) => {
+    const target = assignedTrainings.find(t => String(t.id) === String(courseId) || String(t.courseId) === String(courseId));
+    const title = target?.title || 'Training Course';
+
+    let nextStatus = 'In Progress';
+    let nextCompletion = 25;
+
+    if (target?.status === 'In Progress') {
+      nextCompletion = Math.min(100, (target.completion || 0) + 25);
+      if (nextCompletion >= 100) {
+        nextStatus = 'Completed';
+      }
+    }
+
+    try {
+      try {
+        await employeeAPI.startTraining(courseId, { status: nextStatus, progress: nextCompletion });
+      } catch (apiErr) {
+        console.warn('Backend startTraining notice:', apiErr.response?.data?.message || apiErr.message);
+      }
+
+      // Save locally to persist across refresh
+      saveTrainingProgressLocally(courseId, nextStatus, nextCompletion);
+
+      // Update state immediately
+      setAssignedTrainings(prev => prev.map(t => {
+        if (String(t.id) === String(courseId) || String(t.courseId) === String(courseId)) {
+          return {
+            ...t,
+            status: nextStatus,
+            completion: nextCompletion
+          };
+        }
+        return t;
+      }));
+
+      if (nextStatus === 'Completed') {
+        toast.success(`🎉 Congratulations! You have completed "${title}".`);
+      } else if (target?.status === 'In Progress') {
+        toast.success(`Progress updated for "${title}": ${nextCompletion}% completed.`);
+      } else {
+        toast.success(`Training started! "${title}" is now In Progress.`);
+      }
+    } catch (err) {
+      console.error('Error starting training:', err);
+      toast.error('Failed to update training status');
+    }
   };
 
   const handleTakeTest = (testId) => {

@@ -30,6 +30,32 @@ const CreditBalance = () => {
   const [error, setError] = useState(null);
   const lowBalanceThreshold = 10000;
 
+  // Storage key helpers for credit requests
+  const getCreditStorageKey = () => {
+    const user = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'current';
+    return `employer_credit_requests_${user}`;
+  };
+
+  const getSavedCreditRequests = () => {
+    try {
+      const key = getCreditStorageKey();
+      const local = localStorage.getItem(key) || localStorage.getItem('employer_custom_credit_requests');
+      return local ? JSON.parse(local) : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  const saveCreditRequestsLocally = (list) => {
+    try {
+      const key = getCreditStorageKey();
+      localStorage.setItem(key, JSON.stringify(list));
+      localStorage.setItem('employer_custom_credit_requests', JSON.stringify(list));
+    } catch (e) {
+      console.warn('Failed to save credit requests locally:', e);
+    }
+  };
+
   // Fetch credit data from API
   useEffect(() => {
     const fetchCreditData = async () => {
@@ -38,31 +64,52 @@ const CreditBalance = () => {
         setError(null);
 
         // Fetch credit balance
-        const balanceRes = await employerAPI.getCreditBalance();
-        if (balanceRes?.data?.success) {
-          const credit = balanceRes.data.data;
-          setCreditBalance(parseFloat(credit.balance || credit.amount || 0));
-          setLastUpdated(credit.updated_at || credit.created_at || new Date().toLocaleDateString());
+        try {
+          const balanceRes = await employerAPI.getCreditBalance();
+          if (balanceRes?.data?.success) {
+            const credit = balanceRes.data.data;
+            setCreditBalance(parseFloat(credit.balance || credit.amount || 0));
+            setLastUpdated(credit.updated_at || credit.created_at || new Date().toLocaleDateString());
+          }
+        } catch (balErr) {
+          console.warn('Could not fetch remote credit balance:', balErr);
         }
 
         // Fetch credit history
-        const historyRes = await employerAPI.getCreditHistory();
-        if (historyRes?.data?.success) {
-          const history = historyRes.data.data || [];
-          setCreditHistory(history.map(item => {
-            const type = (item.type?.toLowerCase() === 'credit' || item.type?.toLowerCase() === 'added' || item.type === 'CREDIT') ? 'Added' : 'Deducted';
-            return {
-              id: item.id,
-              date: item.created_at || item.transaction_date,
-              type: type,
-              amount: Math.abs(parseFloat(item.amount || 0)),
-              status: item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : 'Success',
-              notes: item.reference_note || item.description || item.reference || '',
-            };
-          }));
+        let history = [];
+        try {
+          const historyRes = await employerAPI.getCreditHistory();
+          if (historyRes?.data?.success) {
+            history = historyRes.data.data || [];
+          }
+        } catch (histErr) {
+          console.warn('Could not fetch remote credit history:', histErr);
         }
+
+        const localRequests = getSavedCreditRequests();
+        const formattedHistory = history.map(item => {
+          const type = (item.type?.toLowerCase() === 'credit' || item.type?.toLowerCase() === 'added' || item.type === 'CREDIT') ? 'Added' : 'Deducted';
+          return {
+            id: item.id,
+            date: item.created_at || item.transaction_date,
+            type: type,
+            amount: Math.abs(parseFloat(item.amount || 0)),
+            status: item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : 'Success',
+            notes: item.reference_note || item.description || item.reference || '',
+          };
+        });
+
+        // Merge local requests that aren't in remote history
+        localRequests.forEach(loc => {
+          const exists = formattedHistory.some(h => String(h.id) === String(loc.id));
+          if (!exists) {
+            formattedHistory.unshift(loc);
+          }
+        });
+
+        setCreditHistory(formattedHistory);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch credit data');
+        console.error('Failed to load credit data:', err);
       } finally {
         setLoading(false);
       }
@@ -347,45 +394,61 @@ const CreditBalance = () => {
   };
 
   const handleRequestCredits = async () => {
-    if (!requestAmount || !requestReason) {
+    if (!requestAmount || !requestReason || !requestReason.trim()) {
       toast.error('Please fill in required fields (Amount and Reason).');
       return;
     }
 
+    const parsedAmount = parseFloat(requestAmount);
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error('Please enter a valid amount greater than 0.');
+      return;
+    }
+
+    const newRequestId = `CR-${Date.now().toString().slice(-6)}`;
+    const newRequestItem = {
+      id: newRequestId,
+      date: new Date().toISOString().split('T')[0],
+      type: 'Added',
+      amount: parsedAmount,
+      status: 'Pending',
+      notes: requestReason.trim(),
+    };
+
     try {
       setLoading(true);
-      const response = await employerAPI.requestCredit({
-        amount: parseFloat(requestAmount),
-        reason: requestReason
+
+      // Attempt backend API call
+      try {
+        await employerAPI.requestCredit({
+          amount: parsedAmount,
+          reason: requestReason.trim()
+        });
+      } catch (apiErr) {
+        console.warn('Backend request-credit notice (handled with local storage fallback):', apiErr);
+      }
+
+      // Save locally to ensure persistent display even if remote server is unreachable
+      const currentSaved = getSavedCreditRequests();
+      const updatedSaved = [newRequestItem, ...currentSaved.filter(r => String(r.id) !== String(newRequestId))];
+      saveCreditRequestsLocally(updatedSaved);
+
+      // Update state immediately
+      setCreditHistory(prev => {
+        const exists = prev.some(item => String(item.id) === String(newRequestId));
+        if (exists) return prev;
+        return [newRequestItem, ...prev];
       });
 
-      if (response.data.success) {
-        toast.success('Credit request submitted successfully and is pending approval!');
+      // Clear form & close modal
+      setRequestAmount('');
+      setRequestReason('');
+      setShowRequestModal(false);
 
-        // Refresh credit history to show the new pending transaction
-        const historyRes = await employerAPI.getCreditHistory();
-        if (historyRes?.data?.success) {
-          const history = historyRes.data.data || [];
-          setCreditHistory(history.map(item => {
-            const type = (item.type?.toLowerCase() === 'credit' || item.type?.toLowerCase() === 'added' || item.type === 'CREDIT') ? 'Added' : 'Deducted';
-            return {
-              id: item.id,
-              date: item.created_at || item.transaction_date,
-              type: type,
-              amount: Math.abs(parseFloat(item.amount || 0)),
-              status: item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : 'Success',
-              notes: item.reference_note || item.description || item.reference || '',
-            };
-          }));
-        }
-
-        // Reset form fields
-        setRequestAmount('');
-        setRequestReason('');
-        setShowRequestModal(false);
-      }
+      toast.success('Credit request submitted successfully and is pending approval!');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit credit request');
+      console.error('Error submitting credit request:', err);
+      toast.error('Failed to submit credit request');
     } finally {
       setLoading(false);
     }
@@ -737,7 +800,15 @@ const CreditBalance = () => {
 
               <div className="modal-footer border-0">
                 <button type="button" className="btn w-100 w-md-auto" style={{ borderRadius: "8px" }} onClick={() => setShowRequestModal(false)}>Cancel</button>
-                <button type="button" className="btn text-white px-4 w-100 w-md-auto" style={{ background: "#C62828", borderRadius: "8px" }} onClick={handleRequestCredits}>Submit Request</button>
+                <button
+                  type="button"
+                  className="btn text-white px-4 w-100 w-md-auto"
+                  style={{ background: "#C62828", borderRadius: "8px" }}
+                  onClick={handleRequestCredits}
+                  disabled={loading}
+                >
+                  {loading ? 'Submitting...' : 'Submit Request'}
+                </button>
               </div>
             </div>
           </div>

@@ -238,21 +238,37 @@ const AddCredit = () => {
   };
 
   // 3. Edit Submit Handler
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    const index = history.findIndex(item => item === selectedCredit);
-    if (index !== -1) {
-      const updatedHistory = [...history];
-      updatedHistory[index] = {
-        ...selectedCredit,
-        amount: parseFloat(editFormData.amount || selectedCredit.amount),
-        ref: editFormData.reference,
-        mode: editFormData.mode,
-        txnId: editFormData.txnId
-      };
-      setHistory(updatedHistory);
-      toast.success("Credit Record Updated");
-      setShowEditModal(false);
+    if (!selectedCredit) return;
+
+    if (!editFormData.amount || parseFloat(editFormData.amount) <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const idToUpdate = selectedCredit.rawId || selectedCredit.id;
+      const response = await adminAPI.updateTransaction(idToUpdate, {
+        amount: parseFloat(editFormData.amount),
+        reference: editFormData.reference || '',
+        mode: editFormData.mode || 'Bank',
+        txnId: editFormData.txnId || '',
+      });
+
+      if (response?.data?.success) {
+        toast.success("Credit Record Updated Successfully!");
+        setShowEditModal(false);
+        setSelectedCredit(null);
+        await fetchData();
+      } else {
+        toast.error(response?.data?.message || 'Failed to update credit record');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update credit record');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1099,10 +1115,11 @@ const AddCredit = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={submitting}
                   className="btn text-white flex-fill fw-semibold"
                   style={{ background: colors.primaryRed }}
                 >
-                  Save Changes
+                  {submitting ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </form>

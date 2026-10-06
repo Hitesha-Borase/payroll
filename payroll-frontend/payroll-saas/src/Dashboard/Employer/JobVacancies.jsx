@@ -3,6 +3,7 @@ import { FaBriefcase, FaMapMarkerAlt, FaMoneyBillWave, FaPlus, FaTimes, FaEye, F
 import "bootstrap/dist/css/bootstrap.min.css";
 import { employerAPI } from '../../services/api';
 import { Spinner, Alert } from 'react-bootstrap';
+import toast from 'react-hot-toast';
 
 const JobVacancies = () => {
   // State for managing job postings
@@ -14,6 +15,7 @@ const JobVacancies = () => {
   // Loading and error states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [formError, setFormError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
   // State for form inputs
@@ -237,30 +239,55 @@ const JobVacancies = () => {
   };
 
   // Handle job posting submission
+  // Handle job posting submission
   const handlePostJob = async (e) => {
     e.preventDefault();
 
     if (!newJob.title || !newJob.location || !newJob.description) {
-      setError("Please fill in all required fields");
+      const msg = "Please fill in all required fields (Job Title, Location, and Description)";
+      setFormError(msg);
+      toast.error(msg);
       return;
     }
 
     try {
       setLoading(true);
       setError(null);
+      setFormError(null);
       setSuccessMessage(null);
+
+      // Parse salary
+      let salaryMin = null;
+      let salaryMax = null;
+      if (newJob.salary) {
+        const parts = String(newJob.salary).replace(/[^0-9.-]/g, ' ').trim().split(/\s+/);
+        if (parts.length >= 2) {
+          const n1 = parseFloat(parts[0]);
+          const n2 = parseFloat(parts[1]);
+          if (!isNaN(n1) && !isNaN(n2)) {
+            salaryMin = Math.min(n1, n2);
+            salaryMax = Math.max(n1, n2);
+          }
+        } else if (parts.length === 1 && !isNaN(parseFloat(parts[0]))) {
+          salaryMin = parseFloat(parts[0]);
+        }
+      }
 
       const jobData = {
         title: newJob.title,
         description: newJob.description,
         location: newJob.location,
-        job_type: newJob.type,
-        salary_range: newJob.salary,
-        experience_required: newJob.experience,
-        skills: newJob.requirements,
-        department: newJob.department,
-        employer_type: newJob.employerType,
-        expiry_date: newJob.expiryDate,
+        job_type: newJob.type || 'Full-time',
+        salary_range: newJob.salary || '',
+        salary_min: salaryMin,
+        salary_max: salaryMax,
+        experience: newJob.experience || '',
+        experience_required: newJob.experience || '',
+        skills: newJob.requirements || '',
+        requirements: newJob.requirements || '',
+        department: newJob.department || 'General',
+        employer_type: newJob.employerType || 'Company',
+        expiry_date: newJob.expiryDate || null,
         status: isJobExpired(newJob.expiryDate) ? 'Closed' : 'Active'
       };
 
@@ -268,24 +295,32 @@ const JobVacancies = () => {
         // Update existing job
         const response = await employerAPI.updateJob(editingJob.id, jobData);
         if (response?.data?.success) {
+          toast.success("Job updated successfully!");
           setSuccessMessage("Job updated successfully!");
           setEditingJob(null);
-          fetchJobs(); // Refresh jobs list
+          setShowPostForm(false);
+          await fetchJobs(); // Refresh jobs list
         } else {
-          setError(response?.data?.message || 'Failed to update job.');
+          const msg = response?.data?.message || 'Failed to update job.';
+          setFormError(msg);
+          toast.error(msg);
         }
       } else {
         // Create new job
         const response = await employerAPI.createJob(jobData);
         if (response?.data?.success) {
+          toast.success("Job posted successfully!");
           setSuccessMessage("Job posted successfully!");
-          fetchJobs(); // Refresh jobs list
+          setShowPostForm(false);
+          await fetchJobs(); // Refresh jobs list
         } else {
-          setError(response?.data?.message || 'Failed to create job.');
+          const msg = response?.data?.message || 'Failed to create job.';
+          setFormError(msg);
+          toast.error(msg);
         }
       }
 
-      // Reset form
+      // Reset form on success
       setNewJob({
         title: "",
         salary: "",
@@ -298,10 +333,15 @@ const JobVacancies = () => {
         expiryDate: "",
         employerType: "Company"
       });
-
-      setShowPostForm(false);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save job.');
+      console.error('Job submission error:', err);
+      let msg = err.response?.data?.message;
+      if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        msg = err.response.data.errors.map(e => e.message).join(', ');
+      }
+      msg = msg || err.message || 'Failed to save job.';
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -311,17 +351,19 @@ const JobVacancies = () => {
   const handleEditJob = (job) => {
     setEditingJob(job);
     setNewJob({
-      title: job.title,
-      salary: job.salary,
-      location: job.location,
-      department: job.department,
-      type: job.type,
-      experience: job.experience,
-      description: job.description,
-      requirements: job.requirements,
-      expiryDate: job.expiryDate,
+      title: job.title || "",
+      salary: job.salary === 'Not specified' ? "" : (job.salary || ""),
+      location: job.location === 'Not specified' ? "" : (job.location || ""),
+      department: job.department === 'General' ? "" : (job.department || ""),
+      type: job.type || "Full-time",
+      experience: job.experience === 'Not specified' ? "" : (job.experience || ""),
+      description: job.description || "",
+      requirements: job.requirements || "",
+      expiryDate: job.expiryDate || "",
       employerType: job.employerType || "Company"
     });
+    setFormError(null);
+    setError(null);
     setShowPostForm(true);
   };
 
@@ -1016,12 +1058,19 @@ const JobVacancies = () => {
                 onClick={() => {
                   setShowPostForm(false);
                   setEditingJob(null);
+                  setFormError(null);
                 }}
                 style={{ color: "#4A4A4A" }}
               >
                 <FaTimes size={20} />
               </button>
             </div>
+            {formError && (
+              <Alert variant="danger" className="py-2 px-3 mb-3 small d-flex justify-content-between align-items-center">
+                <span>{formError}</span>
+                <button type="button" className="btn-close btn-sm" onClick={() => setFormError(null)}></button>
+              </Alert>
+            )}
             <form onSubmit={handlePostJob}>
               <div className="row">
                 <div className={screenSize.isMobile ? "col-12 mb-3" : "col-md-6 mb-3"}>

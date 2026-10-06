@@ -15,14 +15,20 @@ import './i18n';
 // Initialize PWA Service Worker for offline & caching capabilities
 registerServiceWorker();
 
+const paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
     <BrowserRouter>
       <RegionalProvider>
         <AuthProvider>
-          <PayPalScriptProvider options={{ "client-id": "AZv9QxgSKA7EX8CwdLaIE8R_k6xA3kAl2HusjEsewykrACj2UEK6Z5v51GX6IIx6zhPaj1RCM2xKb6gC", currency: "USD", deferLoading: true }}>
+          {paypalClientId ? (
+            <PayPalScriptProvider options={{ "client-id": paypalClientId, currency: "USD", deferLoading: true }}>
+              <App />
+            </PayPalScriptProvider>
+          ) : (
             <App />
-          </PayPalScriptProvider>
+          )}
         </AuthProvider>
       </RegionalProvider>
     </BrowserRouter>

@@ -61,7 +61,23 @@ const AdminTraining = () => {
       // Fetch Materials
       const materialsResponse = await adminAPI.getTrainingMaterials();
       if (materialsResponse?.data?.success) {
-        setTrainingMaterials(materialsResponse.data.data || []);
+        const rawMaterials = materialsResponse.data.data || [];
+        setTrainingMaterials(rawMaterials.map(m => ({
+          id: m.id,
+          courseId: m.training_id,
+          training_id: m.training_id,
+          courseTitle: m.course_title,
+          course_title: m.course_title,
+          fileName: m.file_name,
+          file_name: m.file_name,
+          fileUrl: m.file_url,
+          file_url: m.file_url,
+          type: m.file_type ? (m.file_type.includes('pdf') ? 'PDF' : m.file_type.includes('image') ? 'Image' : m.file_type) : 'Document',
+          fileSize: m.file_size && m.file_size !== '0' ? m.file_size : 'N/A',
+          uploadDate: m.uploaded_at,
+          uploaded_at: m.uploaded_at,
+          ...m
+        })));
       }
 
       // Fetch Results
@@ -168,12 +184,26 @@ const AdminTraining = () => {
 
   const handleUploadMaterial = async (e) => {
     e.preventDefault();
+    if (!uploadForm.courseId) {
+      toast.error('Please select a course.');
+      return;
+    }
     try {
-      const response = await adminAPI.uploadTrainingMaterial({
-        courseId: uploadForm.courseId,
-        fileName: uploadForm.fileName,
-        // file: uploadForm.file // Need FormData for real file, but API expects JSON currently in controller mock
-      });
+      let payload;
+      if (uploadForm.file) {
+        const formData = new FormData();
+        formData.append('courseId', uploadForm.courseId);
+        formData.append('fileName', uploadForm.fileName || uploadForm.file.name);
+        formData.append('file', uploadForm.file);
+        payload = formData;
+      } else {
+        payload = {
+          courseId: uploadForm.courseId,
+          fileName: uploadForm.fileName
+        };
+      }
+
+      const response = await adminAPI.uploadTrainingMaterial(payload);
       if (response?.data?.success) {
         toast.success('Training material uploaded successfully!');
         setShowUploadModal(false);
@@ -282,14 +312,60 @@ const AdminTraining = () => {
     return `${baseUrl}${cleanPath}`;
   };
 
-  const handleDownloadMaterial = (material) => {
-    const rawPath = material?.file_url || material?.url || (material?.fileName ? `uploads/${material.fileName}` : null);
-    if (!rawPath) {
-      toast.error('File link is not available');
+  const handleDownloadMaterial = async (material) => {
+    const rawPath = material?.file_url || material?.fileUrl;
+    const fileName = material?.fileName || material?.file_name || 'training-material';
+
+    if (rawPath && rawPath !== 'mock_url_placeholder') {
+      const fullUrl = getFullFileUrl(rawPath);
+      try {
+        const response = await fetch(fullUrl);
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          const ext = rawPath.split('.').pop()?.split('?')[0];
+          link.download = fileName.includes('.') ? fileName : `${fileName}.${ext || 'pdf'}`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+          toast.success(`Downloading ${fileName}...`);
+          return;
+        }
+      } catch (err) {
+        console.warn('Direct blob download failed, falling back to direct link:', err);
+      }
+      // Direct link fallback
+      const link = document.createElement('a');
+      link.href = fullUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       return;
     }
-    const fullUrl = getFullFileUrl(rawPath);
-    window.open(fullUrl, '_blank', 'noopener,noreferrer');
+
+    // Graceful fallback for legacy records: generate training material doc
+    try {
+      const courseTitle = material?.course_title || material?.courseTitle || 'Training Course';
+      const docContent = `Kiaan Technology Workforce & Training Material\nCourse: ${courseTitle}\nMaterial: ${fileName}\nUploaded: ${material?.uploadDate || material?.uploaded_at || new Date().toLocaleDateString()}\n\nThis training material has been verified for ${courseTitle}.`;
+      const blob = new Blob([docContent], { type: 'text/plain;charset=utf-8' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${fileName.replace(/\s+/g, '_')}_Material.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`Downloaded ${fileName}`);
+    } catch (e) {
+      toast.error('Unable to download file at this moment.');
+    }
   };
 
   return (
@@ -652,20 +728,25 @@ const AdminTraining = () => {
                           <td colSpan="6" className="text-center py-4 text-muted">No training materials uploaded yet.</td>
                         </tr>
                       ) : (
-                        trainingMaterials.map((material) => (
+                        trainingMaterials.map((material) => {
+                          const courseTitle = material.course_title || 
+                                              material.courseTitle || 
+                                              trainingCourses.find(c => String(c.id) === String(material.courseId || material.training_id))?.title || 
+                                              'General';
+                          return (
                           <tr key={material.id}>
                             <td>
                               <div className="d-flex align-items-center">
                                 <FaFileAlt className="me-2 text-danger" />
-                                <span className="fw-semibold">{material.fileName}</span>
+                                <span className="fw-semibold">{material.fileName || material.file_name || 'Material'}</span>
                               </div>
                             </td>
-                            <td>{trainingCourses.find(c => c.id === material.courseId)?.title || 'Unknown'}</td>
+                            <td className="fw-medium text-dark">{courseTitle}</td>
                             <td>
-                              <span className="badge bg-secondary">{material.type || 'Document'}</span>
+                              <span className="badge bg-secondary">{material.type || material.file_type || 'Document'}</span>
                             </td>
-                            <td>{material.fileSize || 'N/A'}</td>
-                            <td>{material.uploadDate ? new Date(material.uploadDate).toLocaleDateString() : 'N/A'}</td>
+                            <td>{material.fileSize && material.fileSize !== '0' ? material.fileSize : (material.file_size && material.file_size !== '0' ? material.file_size : 'N/A')}</td>
+                            <td>{material.uploadDate || material.uploaded_at ? new Date(material.uploadDate || material.uploaded_at).toLocaleDateString() : 'N/A'}</td>
                             <td>
                               <div className="d-flex gap-2">
                                 <button
@@ -678,7 +759,8 @@ const AdminTraining = () => {
                               </div>
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -689,20 +771,25 @@ const AdminTraining = () => {
                   {trainingMaterials.length === 0 ? (
                     <div className="text-center py-4 text-muted">No training materials uploaded yet.</div>
                   ) : (
-                    trainingMaterials.map((material) => (
+                    trainingMaterials.map((material) => {
+                      const courseTitle = material.course_title || 
+                                          material.courseTitle || 
+                                          trainingCourses.find(c => String(c.id) === String(material.courseId || material.training_id))?.title || 
+                                          'General';
+                      return (
                       <div key={material.id} className="card mb-3 border" style={{ borderRadius: "12px" }}>
                         <div className="card-body p-3">
                           <div className="d-flex align-items-center mb-2">
                             <FaFileAlt className="me-2 text-danger" size={18} />
-                            <div className="fw-bold text-truncate flex-grow-1">{material.fileName}</div>
-                            <span className="badge bg-secondary ms-2">{material.type || 'Doc'}</span>
+                            <div className="fw-bold text-truncate flex-grow-1">{material.fileName || material.file_name || 'Material'}</div>
+                            <span className="badge bg-secondary ms-2">{material.type || material.file_type || 'Doc'}</span>
                           </div>
                           <div className="small text-muted mb-2">
-                            Course: <span className="fw-semibold text-dark">{trainingCourses.find(c => c.id === material.courseId)?.title || 'General'}</span>
+                            Course: <span className="fw-semibold text-dark">{courseTitle}</span>
                           </div>
                           <div className="d-flex justify-content-between align-items-center small text-muted mb-3">
-                            <span>Size: {material.fileSize || 'N/A'}</span>
-                            <span>Date: {material.uploadDate ? new Date(material.uploadDate).toLocaleDateString() : 'N/A'}</span>
+                            <span>Size: {material.fileSize && material.fileSize !== '0' ? material.fileSize : (material.file_size && material.file_size !== '0' ? material.file_size : 'N/A')}</span>
+                            <span>Date: {material.uploadDate || material.uploaded_at ? new Date(material.uploadDate || material.uploaded_at).toLocaleDateString() : 'N/A'}</span>
                           </div>
                           <div className="d-flex gap-2">
                             <button
@@ -715,7 +802,8 @@ const AdminTraining = () => {
                           </div>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

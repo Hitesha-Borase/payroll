@@ -41,6 +41,8 @@ const SuperAdminSupport = () => {
 
   // Create Ticket Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [createForm, setCreateForm] = useState({
     companyName: '',
     contactName: '',
@@ -48,9 +50,46 @@ const SuperAdminSupport = () => {
     subject: '',
     category: 'General',
     priority: 'Normal',
-    message: '',
-    attachmentUrl: ''
+    message: ''
   });
+
+  const getAttachmentUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/').replace(/\/api\/?$/, '');
+    return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file (PNG, JPG, JPEG, GIF, WEBP).');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Image size must be less than 10MB.');
+        return;
+      }
+      setAttachmentFile(file);
+      setAttachmentPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setAttachmentFile(null);
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview);
+      setAttachmentPreview(null);
+    }
+    const inputEl = document.getElementById('ticket-image-upload');
+    if (inputEl) inputEl.value = '';
+  };
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
+    handleRemoveFile();
+  };
 
   // Handle window resize
   useEffect(() => {
@@ -164,10 +203,22 @@ const SuperAdminSupport = () => {
     }
 
     try {
-      const res = await api.createTicket(createForm);
+      const formData = new FormData();
+      formData.append('companyName', createForm.companyName || '');
+      formData.append('contactName', createForm.contactName || '');
+      formData.append('contactEmail', createForm.contactEmail || '');
+      formData.append('subject', createForm.subject);
+      formData.append('category', createForm.category);
+      formData.append('priority', createForm.priority);
+      formData.append('message', createForm.message);
+      if (attachmentFile) {
+        formData.append('attachment', attachmentFile);
+      }
+
+      const res = await api.createTicket(formData);
       if (res.data?.success) {
         toast.success('Support Ticket raised & notification sent to support@kiaantechnology.com!');
-        setShowCreateModal(false);
+        handleCloseCreateModal();
         setCreateForm({
           companyName: '',
           contactName: '',
@@ -175,8 +226,7 @@ const SuperAdminSupport = () => {
           subject: '',
           category: 'General',
           priority: 'Normal',
-          message: '',
-          attachmentUrl: ''
+          message: ''
         });
         fetchTickets();
       }
@@ -582,14 +632,31 @@ const SuperAdminSupport = () => {
                           </div>
 
                           {msg.attachment_url && (
-                            <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                            <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid rgba(0,0,0,0.1)' }}>
+                              {/\.(jpg|jpeg|png|gif|webp)$/i.test(msg.attachment_url) && (
+                                <div className="mb-1">
+                                  <a href={getAttachmentUrl(msg.attachment_url)} target="_blank" rel="noopener noreferrer">
+                                    <img
+                                      src={getAttachmentUrl(msg.attachment_url)}
+                                      alt="Attachment preview"
+                                      style={{
+                                        maxWidth: '180px',
+                                        maxHeight: '120px',
+                                        borderRadius: '6px',
+                                        border: '1px solid rgba(0,0,0,0.1)',
+                                        objectFit: 'cover'
+                                      }}
+                                    />
+                                  </a>
+                                </div>
+                              )}
                               <a
-                                href={msg.attachment_url.startsWith('http') ? msg.attachment_url : `${process.env.REACT_APP_API_URL || ''}${msg.attachment_url}`}
+                                href={getAttachmentUrl(msg.attachment_url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 style={{ color: isStaff ? '#60A5FA' : '#C62828', fontSize: '11px', fontWeight: 'bold', textDecoration: 'underline' }}
                               >
-                                📎 View Attached File
+                                📎 View Attached Image
                               </a>
                             </div>
                           )}
@@ -686,7 +753,7 @@ const SuperAdminSupport = () => {
       </Modal>
 
       {/* Create Ticket Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} centered size="lg">
+      <Modal show={showCreateModal} onHide={handleCloseCreateModal} centered size="lg">
         <Modal.Header closeButton style={{ backgroundColor: '#0F172A', color: '#FFFFFF', borderBottom: '2px solid #C62828', padding: isMobile ? '12px 16px' : '16px 24px' }}>
           <Modal.Title style={{ fontSize: isMobile ? '14px' : '16px', fontWeight: '800' }}>
             Raise New Support Ticket
@@ -784,20 +851,81 @@ const SuperAdminSupport = () => {
 
               <div className="col-12">
                 <Form.Group>
-                  <Form.Label style={{ fontWeight: '700', fontSize: '12.5px', color: '#334155' }}>Attachment URL (Optional)</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="e.g. /uploads/error_screenshot.png"
-                    value={createForm.attachmentUrl}
-                    onChange={(e) => setCreateForm({ ...createForm, attachmentUrl: e.target.value })}
-                    style={{ borderRadius: '8px', fontSize: '12.5px' }}
-                  />
+                  <Form.Label style={{ fontWeight: '700', fontSize: '12.5px', color: '#334155' }}>
+                    Upload Image / Screenshot (Optional)
+                  </Form.Label>
+                  <div
+                    style={{
+                      border: '1.5px dashed #CBD5E1',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      backgroundColor: '#F8FAFC',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '10px'
+                    }}
+                  >
+                    <div className="d-flex align-items-center gap-2">
+                      <input
+                        type="file"
+                        id="ticket-image-upload"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        style={{ display: 'none' }}
+                      />
+                      <label
+                        htmlFor="ticket-image-upload"
+                        className="btn btn-sm btn-outline-secondary mb-0 d-flex align-items-center gap-1.5"
+                        style={{
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          fontSize: '12px',
+                          borderRadius: '6px',
+                          backgroundColor: '#FFFFFF'
+                        }}
+                      >
+                        <Paperclip size={14} /> Choose Image
+                      </label>
+                      <span style={{ fontSize: '12px', color: attachmentFile ? '#0F172A' : '#94A3B8', fontWeight: attachmentFile ? '600' : 'normal' }}>
+                        {attachmentFile ? attachmentFile.name : 'No image chosen (PNG, JPG, JPEG, GIF, WEBP)'}
+                      </span>
+                    </div>
+
+                    {attachmentFile && (
+                      <div className="d-flex align-items-center gap-2">
+                        {attachmentPreview && (
+                          <img
+                            src={attachmentPreview}
+                            alt="Preview"
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              objectFit: 'cover',
+                              borderRadius: '6px',
+                              border: '1px solid #CBD5E1'
+                            }}
+                          />
+                        )}
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={handleRemoveFile}
+                          className="text-danger p-0 d-flex align-items-center"
+                          title="Remove image"
+                        >
+                          <X size={16} />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </Form.Group>
               </div>
             </div>
 
             <div className="d-flex justify-content-end gap-2 mt-3 pt-2 border-top">
-              <Button variant="secondary" onClick={() => setShowCreateModal(false)} style={{ borderRadius: '8px', fontSize: '12.5px' }}>
+              <Button variant="secondary" onClick={handleCloseCreateModal} style={{ borderRadius: '8px', fontSize: '12.5px' }}>
                 Cancel
               </Button>
               <Button type="submit" style={{ backgroundColor: '#C62828', borderColor: '#C62828', fontWeight: '700', borderRadius: '8px', fontSize: '12.5px' }}>
