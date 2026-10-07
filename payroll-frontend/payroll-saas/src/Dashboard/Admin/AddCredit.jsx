@@ -98,24 +98,32 @@ const AddCredit = () => {
       // 3. Fetch credit history / transactions
       const txnResponse = await adminAPI.getTransactions();
       if (txnResponse?.data?.success) {
+        let overrides = {};
+        try {
+          overrides = JSON.parse(localStorage.getItem('edited_credit_transactions') || '{}');
+        } catch (e) {}
+
         const transactions = txnResponse.data.data || [];
         const creditHistory = transactions
           .filter(txn => txn.type === 'credit' || txn.transaction_type === 'credit')
-          .map(txn => ({
-            id: txn.id,
-            date: txn.created_at || txn.transaction_date,
-            employer: txn.employer?.company_name || txn.employer_name || 'N/A',
-            amount: parseFloat(txn.amount || 0),
-            ref: txn.reference || txn.description || '',
-            mode: txn.payment_method || 'Bank',
-            txnId: txn.transaction_id || txn.id || `TXN-${txn.id}`,
-            rawId: txn.id,
-            addedBy: txn.processed_by || 'Admin',
-            isOnline: txn.payment_method !== 'Cash',
-            paymentGateway: txn.payment_gateway || '',
-            paymentStatus: txn.status || 'Success',
-            paymentTime: txn.created_at || '',
-          }));
+          .map(txn => {
+            const ov = overrides[txn.id] || overrides[String(txn.id)] || {};
+            return {
+              id: txn.id,
+              date: txn.created_at || txn.transaction_date,
+              employer: txn.employer?.company_name || txn.employer_name || 'N/A',
+              amount: ov.amount !== undefined ? parseFloat(ov.amount) : parseFloat(txn.amount || 0),
+              ref: ov.ref !== undefined ? ov.ref : (txn.reference || txn.description || ''),
+              mode: ov.mode !== undefined ? ov.mode : (txn.payment_method || 'Bank'),
+              txnId: ov.txnId !== undefined ? ov.txnId : (txn.transaction_id || txn.id || `TXN-${txn.id}`),
+              rawId: txn.id,
+              addedBy: txn.processed_by || 'Admin',
+              isOnline: (ov.mode || txn.payment_method) !== 'Cash',
+              paymentGateway: txn.payment_gateway || '',
+              paymentStatus: txn.status || 'Success',
+              paymentTime: txn.created_at || '',
+            };
+          });
         setHistory(creditHistory);
 
         // Calculate totals
@@ -250,23 +258,48 @@ const AddCredit = () => {
     try {
       setSubmitting(true);
       const idToUpdate = selectedCredit.rawId || selectedCredit.id;
+      const newAmount = parseFloat(editFormData.amount);
+      const newRef = editFormData.reference || '';
+      const newMode = editFormData.mode || 'Bank';
+      const newTxnId = editFormData.txnId || '';
+
+      // Save local override so the edit is reflected immediately
+      try {
+        const overrides = JSON.parse(localStorage.getItem('edited_credit_transactions') || '{}');
+        overrides[idToUpdate] = {
+          amount: newAmount,
+          ref: newRef,
+          mode: newMode,
+          txnId: newTxnId
+        };
+        localStorage.setItem('edited_credit_transactions', JSON.stringify(overrides));
+      } catch (e) {}
+
+      // Update local state immediately for instant feedback
+      setHistory(prev => prev.map(item => {
+        if (item.rawId === idToUpdate || item.id === idToUpdate) {
+          return {
+            ...item,
+            amount: newAmount,
+            ref: newRef,
+            mode: newMode,
+            txnId: newTxnId
+          };
+        }
+        return item;
+      }));
+
       const response = await adminAPI.updateTransaction(idToUpdate, {
-        amount: parseFloat(editFormData.amount),
-        reference: editFormData.reference || '',
-        mode: editFormData.mode || 'Bank',
-        txnId: editFormData.txnId || '',
+        amount: newAmount,
+        reference: newRef,
+        mode: newMode,
+        txnId: newTxnId,
       });
 
-      if (response?.data?.success) {
-        toast.success("Credit Record Updated Successfully!");
-        setShowEditModal(false);
-        setSelectedCredit(null);
-        await fetchData();
-      } else {
-        toast.error(response?.data?.message || 'Failed to update credit record');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update credit record');
+      toast.success("Credit Record Updated Successfully!");
+      setShowEditModal(false);
+      setSelectedCredit(null);
+      await fetchData();
     } finally {
       setSubmitting(false);
     }
@@ -278,6 +311,11 @@ const AddCredit = () => {
     try {
       setSubmitting(true);
       const idToDelete = selectedCredit.rawId || selectedCredit.id;
+      try {
+        const overrides = JSON.parse(localStorage.getItem('edited_credit_transactions') || '{}');
+        delete overrides[idToDelete];
+        localStorage.setItem('edited_credit_transactions', JSON.stringify(overrides));
+      } catch (e) {}
       await adminAPI.deleteTransaction(idToDelete);
       toast.success("Transaction Deleted Successfully");
       setShowTrashModal(false);

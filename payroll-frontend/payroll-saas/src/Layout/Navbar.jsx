@@ -90,7 +90,9 @@ const Navbar = ({ toggleSidebar }) => {
       await logout();
       navigate('/');
     } catch (error) {
+      const syncBackup = localStorage.getItem('payroll_training_sync');
       localStorage.clear();
+      if (syncBackup) localStorage.setItem('payroll_training_sync', syncBackup);
       navigate('/');
     }
   };

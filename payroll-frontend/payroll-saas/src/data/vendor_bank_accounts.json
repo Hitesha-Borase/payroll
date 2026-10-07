@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "bankName": "Union Bank",
+    "accountNumber": "567890123456",
+    "accountType": "Salary",
+    "ifscCode": "UBIN0532101",
+    "branch": "Indore",
+    "isPrimary": true
+  }
+]
