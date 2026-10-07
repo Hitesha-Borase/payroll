@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Form, Spinner, Modal } from 'react-bootstrap';
 import { 
   Calendar, Globe, Mail, MessageSquare, Megaphone, 
@@ -93,6 +93,7 @@ const AdminSettings = () => {
     autoSendAlerts: true
   });
   const [waInputPhone, setWaInputPhone] = useState('');
+  const hasUserEditedPhone = useRef(false);
   const [isConnectingWa, setIsConnectingWa] = useState(false);
   const [isDisconnectingWa, setIsDisconnectingWa] = useState(false);
   const [isSavingWaPref, setIsSavingWaPref] = useState(false);
@@ -226,7 +227,8 @@ const AdminSettings = () => {
           setIsConnectingWa(false);
           setIsGettingPairingCode(false);
         }
-        if (d.phoneNumber && !waInputPhone) {
+        if (d.phoneNumber && !hasUserEditedPhone.current) {
+          hasUserEditedPhone.current = true;
           setWaInputPhone(d.phoneNumber);
         }
       }
@@ -1550,7 +1552,10 @@ const AdminSettings = () => {
                               className="wa-phone-input-box"
                               placeholder="Enter WhatsApp number (e.g. 91XXXXXXXXXX)"
                               value={waInputPhone}
-                              onChange={(e) => setWaInputPhone(e.target.value)}
+                              onChange={(e) => {
+                                hasUserEditedPhone.current = true;
+                                setWaInputPhone(e.target.value);
+                              }}
                             />
                             <div className="text-muted mt-2" style={{ fontSize: '0.78rem' }}>
                               Enter your registered WhatsApp phone number with country code (e.g. 91 for India).
