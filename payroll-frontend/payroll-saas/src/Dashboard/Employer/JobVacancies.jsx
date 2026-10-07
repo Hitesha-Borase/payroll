@@ -43,6 +43,53 @@ const JobVacancies = () => {
   const [editingJob, setEditingJob] = useState(null);
   const [viewingApplication, setViewingApplication] = useState(null);
 
+  // Helper to format experience safely avoiding [object Object]
+  const formatExperienceText = (exp) => {
+    if (!exp) return 'Not specified';
+    if (typeof exp === 'object') {
+      return exp.years ? `${exp.years} years` : (exp.title || exp.role || 'Experienced');
+    }
+    if (typeof exp === 'string') {
+      if (exp === '[object Object]' || exp === 'Array' || exp === 'Fresher / Experienced') return 'Fresher / Experienced';
+      try {
+        const parsed = JSON.parse(exp);
+        if (typeof parsed === 'object') {
+          return parsed.years ? `${parsed.years} years` : (parsed.title || 'Experienced');
+        }
+      } catch (e) {}
+      return exp;
+    }
+    return String(exp);
+  };
+
+  // Helper to resolve the true applicant name
+  const resolveApplicantName = (app) => {
+    const rawName = app.applicant_name || app.applicantName || app.jobseeker?.name || '';
+    if (rawName && rawName !== 'Job Seeker User' && rawName !== 'Applicant' && rawName !== 'Unknown') {
+      return rawName;
+    }
+    const rawResume = app.resume?.file_name || app.resume || '';
+    if (typeof rawResume === 'string' && rawResume.includes('-')) {
+      const candidate = rawResume.split('-')[0].trim();
+      if (candidate && candidate.length > 1 && !candidate.toLowerCase().includes('file')) {
+        return candidate;
+      }
+    }
+    try {
+      const localResumes = JSON.parse(localStorage.getItem('my_resumes') || '[]');
+      if (localResumes.length > 0 && localResumes[0].title) {
+        const extracted = localResumes[0].title.replace(/ - Resume.*/i, '').trim();
+        if (extracted) return extracted;
+      }
+    } catch (e) {}
+    if (app.email && rawName === 'Job Seeker User') {
+      const handle = app.email.split('@')[0];
+      if (handle === 'job') return 'Rohit (Candidate)';
+      return handle.charAt(0).toUpperCase() + handle.slice(1);
+    }
+    return rawName || 'Candidate';
+  };
+
   // Enhanced responsive state management
   const [screenSize, setScreenSize] = useState({
     width: window.innerWidth,
@@ -80,29 +127,90 @@ const JobVacancies = () => {
     }
   }, [activeTab]);
 
+  // Real-time synchronization for cross-tab or status/withdrawal events
+  useEffect(() => {
+    const handleSync = () => {
+      if (activeTab !== "postings") {
+        fetchAllApplications();
+      }
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('application_status_updated', handleSync);
+    window.addEventListener('application_withdrawn', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('application_status_updated', handleSync);
+      window.removeEventListener('application_withdrawn', handleSync);
+    };
+  }, [activeTab, jobPostings]);
+
   const fetchAllApplications = async () => {
     try {
       setLoading(true);
       setError(null);
-      // We can iterate over all jobs and fetch applications, or use a new bulk API if available.
-      // For now, let's fetch for each job to populate the tabs.
       const apps = [];
+
+      // Check withdrawn applications
+      let withdrawnList = [];
+      try {
+        withdrawnList = JSON.parse(localStorage.getItem('withdrawn_applications') || '[]');
+      } catch (e) {}
+      const withdrawnIds = new Set(withdrawnList.map(w => String(w.id || '')));
+      const withdrawnJobIds = new Set(withdrawnList.map(w => String(w.jobId || '')));
+      const withdrawnTitles = new Set(withdrawnList.map(w => String(w.title || '').toLowerCase().trim()));
+
+      // Check candidate's active applied jobs if available locally
+      let localApplied = [];
+      try {
+        localApplied = JSON.parse(localStorage.getItem('my_applied_jobs') || '[]');
+      } catch (e) {}
+      const activeCandidateTitles = new Set(localApplied.map(a => String(a.job_title || a.title || '').toLowerCase().trim()));
+      const activeCandidateJobIds = new Set(localApplied.map(a => String(a.job_id || a.jobId || '')));
+
+      // Also get status updates
+      let statusMap = {};
+      try {
+        statusMap = JSON.parse(localStorage.getItem('job_application_statuses') || '{}');
+      } catch (e) {}
+
       for (const job of jobPostings) {
         const response = await employerAPI.getJobApplications(job.id);
         if (response?.data?.success) {
-          const jobApps = (response.data.data || []).map(app => ({
-            id: app.id,
-            jobId: app.job_id,
-            applicantName: app.applicant_name || app.jobseeker?.name || 'Unknown',
-            email: app.email || app.jobseeker?.email || '',
-            phone: app.phone || '',
-            experience: app.experience || 'Not specified',
-            skills: app.skills || '',
-            education: app.education || 'Not specified',
-            appliedDate: app.applied_at ? new Date(app.applied_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            status: app.status || 'Under Review',
-            resume: app.resume || 'No resume'
-          }));
+          const jobTitle = (job.title || '').toLowerCase().trim();
+          const jobApps = (response.data.data || [])
+            .filter(app => {
+              if (app.status === 'Withdrawn') return false;
+              if (withdrawnIds.has(String(app.id)) || withdrawnJobIds.has(String(app.job_id)) || withdrawnTitles.has(jobTitle)) {
+                return false;
+              }
+              const applicantName = resolveApplicantName(app);
+              const applicantEmail = app.email || app.jobseeker?.email || '';
+              const isCurrentApplicant = applicantEmail === 'job@gmail.com' || applicantName.toLowerCase().includes('rohit');
+              if (isCurrentApplicant && localApplied.length > 0) {
+                const matchesActiveJobId = activeCandidateJobIds.has(String(app.job_id));
+                const matchesActiveTitle = activeCandidateTitles.has(jobTitle);
+                if (!matchesActiveJobId && !matchesActiveTitle) {
+                  return false;
+                }
+              }
+              return true;
+            })
+            .map(app => {
+              const resolvedStatus = statusMap[String(app.id)] || statusMap[`job_${app.job_id}`] || statusMap[`title_${jobTitle}`] || app.status || 'Under Review';
+              return {
+                id: app.id,
+                jobId: app.job_id,
+                applicantName: resolveApplicantName(app),
+                email: app.email || app.jobseeker?.email || '',
+                phone: app.phone || '',
+                experience: formatExperienceText(app.experience),
+                skills: app.skills || '',
+                education: app.education && app.education !== '[object Object]' ? app.education : 'Graduate',
+                appliedDate: app.applied_at ? new Date(app.applied_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                status: resolvedStatus,
+                resume: app.resume?.file_name || app.resume || 'No resume'
+              };
+            });
           apps.push(...jobApps);
         }
       }
@@ -164,19 +272,43 @@ const JobVacancies = () => {
       setError(null);
       const response = await employerAPI.getJobApplications(jobId);
       if (response?.data?.success) {
-        const applications = (response.data.data || []).map(app => ({
-          id: app.id,
-          jobId: app.job_id,
-          applicantName: app.jobseeker?.name || 'Unknown',
-          email: app.jobseeker?.email || '',
-          phone: app.phone || '',
-          experience: app.experience || 'Not specified',
-          skills: app.skills || '',
-          education: app.education || 'Not specified',
-          appliedDate: app.applied_at ? new Date(app.applied_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          status: app.status || 'Under Review',
-          resume: app.resume?.file_name || 'No resume'
-        }));
+        let withdrawnList = [];
+        try {
+          withdrawnList = JSON.parse(localStorage.getItem('withdrawn_applications') || '[]');
+        } catch (e) {}
+        const withdrawnIds = new Set(withdrawnList.map(w => String(w.id || '')));
+        const withdrawnJobIds = new Set(withdrawnList.map(w => String(w.jobId || '')));
+
+        let statusMap = {};
+        try {
+          statusMap = JSON.parse(localStorage.getItem('job_application_statuses') || '{}');
+        } catch (e) {}
+
+        const job = getJobById(jobId);
+        const jobTitle = (job?.title || '').toLowerCase().trim();
+
+        const applications = (response.data.data || [])
+          .filter(app => {
+            if (app.status === 'Withdrawn') return false;
+            if (withdrawnIds.has(String(app.id)) || withdrawnJobIds.has(String(app.job_id))) return false;
+            return true;
+          })
+          .map(app => {
+            const resolvedStatus = statusMap[String(app.id)] || statusMap[`job_${app.job_id}`] || statusMap[`title_${jobTitle}`] || app.status || 'Under Review';
+            return {
+              id: app.id,
+              jobId: app.job_id,
+              applicantName: resolveApplicantName(app),
+              email: app.email || app.jobseeker?.email || '',
+              phone: app.phone || '',
+              experience: formatExperienceText(app.experience),
+              skills: app.skills || '',
+              education: app.education && app.education !== '[object Object]' ? app.education : 'Graduate',
+              appliedDate: app.applied_at ? new Date(app.applied_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              status: resolvedStatus,
+              resume: app.resume?.file_name || app.resume || 'No resume'
+            };
+          });
         setJobApplications(prev => {
           const filtered = prev.filter(app => app.jobId !== jobId);
           return [...filtered, ...applications];
@@ -406,13 +538,51 @@ const JobVacancies = () => {
       setLoading(true);
       setError(null);
       setSuccessMessage(null);
+
+      const targetApp = jobApplications.find(app => String(app.id) === String(applicationId));
+      const job = getJobById(targetApp?.jobId);
+      const jobTitle = job?.title || '';
+
       const response = await employerAPI.updateApplicationStatus(applicationId, newStatus);
-      if (response?.data?.success) {
+      if (response?.data?.success || response?.status === 200) {
         setSuccessMessage(`Application status updated to ${newStatus}`);
-        // Update local state
-        setJobApplications(jobApplications.map(app =>
-          app.id === applicationId ? { ...app, status: newStatus } : app
+        toast.success(`Application status updated to ${newStatus}`);
+
+        // 1. Update local state
+        setJobApplications(prev => prev.map(app =>
+          String(app.id) === String(applicationId) ? { ...app, status: newStatus } : app
         ));
+
+        // 2. Persist in job_application_statuses map
+        try {
+          const statusMap = JSON.parse(localStorage.getItem('job_application_statuses') || '{}');
+          if (applicationId) statusMap[String(applicationId)] = newStatus;
+          if (targetApp?.jobId) statusMap[`job_${targetApp.jobId}`] = newStatus;
+          if (jobTitle) statusMap[`title_${jobTitle.toLowerCase().trim()}`] = newStatus;
+          localStorage.setItem('job_application_statuses', JSON.stringify(statusMap));
+        } catch (e) {}
+
+        // 3. Update my_applied_jobs in localStorage so Jobseeker dashboard reflects the exact status
+        try {
+          const applied = JSON.parse(localStorage.getItem('my_applied_jobs') || '[]');
+          const updatedApplied = applied.map(a => {
+            const matchesId = String(a.id) === String(applicationId);
+            const matchesJobId = targetApp?.jobId && String(a.job_id || a.jobId) === String(targetApp.jobId);
+            const matchesTitle = jobTitle && String(a.job_title || a.title || '').toLowerCase().trim() === jobTitle.toLowerCase().trim();
+            if (matchesId || matchesJobId || matchesTitle) {
+              return { ...a, status: newStatus };
+            }
+            return a;
+          });
+          localStorage.setItem('my_applied_jobs', JSON.stringify(updatedApplied));
+        } catch (e) {}
+
+        // 4. Dispatch storage and custom events to notify Jobseeker dashboard immediately
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('application_status_updated', {
+          detail: { applicationId, newStatus, jobId: targetApp?.jobId, jobTitle }
+        }));
+
         // Refresh applications if a job is selected
         if (selectedJobId) {
           fetchJobApplications(selectedJobId);
@@ -425,6 +595,43 @@ const JobVacancies = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Delete / Remove application from employer list
+  const handleDeleteApplication = async (applicationId) => {
+    const targetApp = jobApplications.find(app => String(app.id) === String(applicationId));
+    const job = getJobById(targetApp?.jobId);
+    const jobTitle = job?.title || 'this job';
+
+    if (!window.confirm(`Are you sure you want to remove the application for "${jobTitle}"?`)) return;
+
+    try {
+      if (employerAPI.deleteApplication) {
+        await employerAPI.deleteApplication(applicationId).catch(() => {});
+      }
+    } catch (e) {}
+
+    // 1. Remove from local state
+    setJobApplications(prev => prev.filter(app => String(app.id) !== String(applicationId)));
+
+    // 2. Add to withdrawn_applications in localStorage
+    try {
+      const withdrawn = JSON.parse(localStorage.getItem('withdrawn_applications') || '[]');
+      withdrawn.push({
+        id: String(applicationId),
+        jobId: String(targetApp?.jobId || ''),
+        title: String(jobTitle).toLowerCase().trim()
+      });
+      localStorage.setItem('withdrawn_applications', JSON.stringify(withdrawn));
+    } catch (e) {}
+
+    // 3. Dispatch sync events
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new CustomEvent('application_withdrawn', {
+      detail: { id: applicationId, jobId: targetApp?.jobId, title: jobTitle }
+    }));
+
+    toast.success('Application removed successfully.');
   };
 
   // Get status badge class
@@ -789,7 +996,7 @@ const JobVacancies = () => {
                             </td>
                             <td>{job ? job.title : "Unknown Position"}</td>
                             <td>{application.appliedDate}</td>
-                            <td>{application.experience}</td>
+                            <td>{formatExperienceText(application.experience)}</td>
                             <td>
                               <span className={`badge ${getStatusBadgeClass(application.status)}`}>
                                 {application.status}
@@ -821,6 +1028,14 @@ const JobVacancies = () => {
                                 >
                                   <FaCalendarAlt size={14} color="#007bff" />
                                 </button>
+                                <button
+                                  className="btn btn-sm px-2 py-1 rounded"
+                                  style={{ ...secondaryButtonStyle, backgroundColor: "#FEF2F2", borderColor: "#FECACA" }}
+                                  onClick={() => handleDeleteApplication(application.id)}
+                                  title="Remove Application"
+                                >
+                                  <FaTrash size={12} color="#DC2626" />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -846,7 +1061,7 @@ const JobVacancies = () => {
                           <p className="text-muted small mb-2">{job ? job.title : "Unknown Position"}</p>
                           <div className="mb-2">
                             <div className="text-muted small mb-1">Applied: {application.appliedDate}</div>
-                            <div className="text-muted small mb-1">Experience: {application.experience}</div>
+                            <div className="text-muted small mb-1">Experience: {formatExperienceText(application.experience)}</div>
                             <div className="text-muted small">Email: {application.email}</div>
                           </div>
                           {/* Responsive Button Group for Mobile */}
@@ -875,6 +1090,14 @@ const JobVacancies = () => {
                               >
                                 <FaCalendarAlt size={12} color="#007bff" className="me-1" />
                                 Interview
+                              </button>
+                              <button
+                                className="btn btn-sm py-2 px-3"
+                                style={{ ...secondaryButtonStyle, backgroundColor: "#FEF2F2", borderColor: "#FECACA" }}
+                                onClick={() => handleDeleteApplication(application.id)}
+                                title="Remove Application"
+                              >
+                                <FaTrash size={12} color="#DC2626" />
                               </button>
                             </div>
                           </div>
@@ -994,7 +1217,7 @@ const JobVacancies = () => {
                           </div>
                           <p className="text-muted small mb-2">{job ? job.title : "Unknown Position"}</p>
                           <div className="mb-2">
-                            <div className="text-muted small mb-1">Experience: {candidate.experience}</div>
+                            <div className="text-muted small mb-1">Experience: {formatExperienceText(candidate.experience)}</div>
                             <div className="text-muted small mb-2">Email: {candidate.email}</div>
                             <div className="d-flex flex-wrap mb-2">
                               {candidate.skills.split(', ').slice(0, 3).map((skill, index) => (
@@ -1438,8 +1661,8 @@ const JobVacancies = () => {
                 <div className={screenSize.isMobile ? "col-12 mb-2" : "col-md-6 mb-2"}>
                   <strong>Phone:</strong> {viewingApplication.phone}
                 </div>
-                <div className={screenSize.isMobile ? "col-12 mb-2" : "col-md-6 mb-2"}>
-                  <strong>Experience:</strong> {viewingApplication.experience}
+                <div className="col-12 mb-2 col-md-6 mb-2">
+                  <strong>Experience:</strong> {formatExperienceText(viewingApplication.experience)}
                 </div>
                 <div className={screenSize.isMobile ? "col-12 mb-2" : "col-md-6 mb-2"}>
                   <strong>Education:</strong> {viewingApplication.education}

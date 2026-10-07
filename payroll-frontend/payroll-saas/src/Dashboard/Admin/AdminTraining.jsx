@@ -191,31 +191,37 @@ const AdminTraining = () => {
     try {
       let payload;
       const cId = uploadForm.courseId;
+      const numId = parseInt(cId) || (trainingCourses[0]?.id || 1);
       const selCourse = trainingCourses.find(c => String(c.id || c.training_id || c.course_id) === String(cId));
-      const cTitle = selCourse?.title || selCourse?.name || 'CyberSecurity';
+      const cTitle = selCourse?.title || selCourse?.name || 'Training Course';
 
       if (uploadForm.file) {
         const formData = new FormData();
-        formData.append('training_id', cId);
-        formData.append('trainingId', cId);
-        formData.append('courseId', cId);
-        formData.append('course_id', cId);
+        formData.append('training_id', numId);
+        formData.append('trainingId', numId);
+        formData.append('courseId', numId);
+        formData.append('course_id', numId);
         formData.append('courseTitle', cTitle);
         formData.append('fileName', uploadForm.fileName || uploadForm.file.name);
         formData.append('file', uploadForm.file);
         payload = formData;
       } else {
         payload = {
-          training_id: cId,
-          trainingId: cId,
-          courseId: cId,
-          course_id: cId,
+          training_id: numId,
+          trainingId: numId,
+          courseId: numId,
+          course_id: numId,
           courseTitle: cTitle,
           fileName: uploadForm.fileName
         };
       }
 
-      const response = await adminAPI.uploadTrainingMaterial(payload);
+      const response = await adminAPI.uploadTrainingMaterial(payload, {
+        training_id: numId,
+        trainingId: numId,
+        courseId: numId,
+        course_id: numId
+      });
       if (response?.data?.success) {
         toast.success('Training material uploaded successfully!');
         setShowUploadModal(false);
@@ -330,35 +336,35 @@ const AdminTraining = () => {
 
     if (rawPath && rawPath !== 'mock_url_placeholder') {
       const fullUrl = getFullFileUrl(rawPath);
-      try {
-        const response = await fetch(fullUrl);
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          const ext = rawPath.split('.').pop()?.split('?')[0];
-          link.download = fileName.includes('.') ? fileName : `${fileName}.${ext || 'pdf'}`;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
-          toast.success(`Downloading ${fileName}...`);
-          return;
+      const localUrl = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+      // Priority: Try local static /uploads first, then full backend URL
+      const urlsToTry = [localUrl, fullUrl];
+
+      for (const url of urlsToTry) {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const blob = await response.blob();
+            // If the response is a JSON error message (e.g. Route not found), skip to next URL
+            if (blob.type && blob.type.includes('json')) {
+              continue;
+            }
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            const ext = rawPath.split('.').pop()?.split('?')[0];
+            link.download = fileName.includes('.') ? fileName : `${fileName}.${ext || 'pdf'}`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(blobUrl);
+            toast.success(`Downloading ${fileName}...`);
+            return;
+          }
+        } catch (err) {
+          console.warn(`Download failed from ${url}:`, err);
         }
-      } catch (err) {
-        console.warn('Direct blob download failed, falling back to direct link:', err);
       }
-      // Direct link fallback
-      const link = document.createElement('a');
-      link.href = fullUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      return;
     }
 
     // Graceful fallback for legacy records: generate training material doc

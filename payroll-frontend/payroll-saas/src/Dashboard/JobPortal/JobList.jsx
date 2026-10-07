@@ -12,7 +12,9 @@ import {
   FaTrash,
   FaFileAlt,
   FaBuilding,
-  FaTimes
+  FaTimes,
+  FaUndo,
+  FaTimesCircle
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { publicAPI } from '../../services/api';
@@ -36,44 +38,155 @@ const JobList = () => {
 
   const isMobile = windowWidth < 768;
 
-  // Fetch applied jobs from API
-  useEffect(() => {
-    const fetchAppliedJobs = async () => {
+  // Fetch applied jobs from API & sync with local storage
+  const fetchAppliedJobs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let apiApplications = [];
       try {
-        setLoading(true);
-        setError(null);
         const response = await publicAPI.getAppliedJobs();
-        if (response?.data?.success) {
-          const applications = response.data.data || [];
-          // Map API response to component format
-          const mappedJobs = applications.map(app => ({
-            id: app.id,
-            jobTitle: app.job?.title || 'N/A',
-            company: app.job?.employer?.company_name || 'N/A',
-            location: app.job?.location || 'N/A',
-            salary: (app.job?.salary_min || app.job?.salary_max) 
-              ? `$${app.job?.salary_min || 0} - $${app.job?.salary_max || 0}` 
-              : 'Not Disclosed',
-            jobType: app.job?.job_type || 'Full Time',
-            appliedDate: new Date(app.applied_at || app.created_at),
-            status: app.status || 'Pending',
-            logo: null,
-            resumeName: app.resume ? app.resume.split('/').pop() : 'N/A',
-            coverLetter: app.cover_letter || 'N/A',
-            jobId: app.job_id,
-            applicationData: app,
-          }));
-          setAppliedJobs(mappedJobs);
-        } else {
-          setError(response?.data?.message || 'Failed to fetch applied jobs');
+        if (response?.data?.success && Array.isArray(response.data.data)) {
+          apiApplications = response.data.data;
         }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch applied jobs');
-      } finally {
-        setLoading(false);
+      } catch (apiErr) {
+        console.warn("Live API getAppliedJobs notice:", apiErr?.message);
       }
-    };
+
+      // Also fetch local applications submitted in this session
+      let localApplications = [];
+      try {
+        const localStr = localStorage.getItem('my_applied_jobs');
+        if (localStr) {
+          const parsed = JSON.parse(localStr);
+          if (Array.isArray(parsed)) localApplications = parsed;
+        }
+      } catch (e) {}
+
+      // Check real-time status updates map
+      let statusMap = {};
+      try {
+        statusMap = JSON.parse(localStorage.getItem('job_application_statuses') || '{}');
+      } catch (e) {}
+
+      // Check withdrawn applications
+      let withdrawnList = [];
+      try {
+        withdrawnList = JSON.parse(localStorage.getItem('withdrawn_applications') || '[]');
+      } catch (e) {}
+      const withdrawnIds = new Set(withdrawnList.map(w => String(w.id || '')));
+      const withdrawnJobIds = new Set(withdrawnList.map(w => String(w.jobId || '')));
+      const withdrawnTitles = new Set(withdrawnList.map(w => String(w.title || '').toLowerCase().trim()));
+
+      const formatApp = (app, isLocal = false) => {
+        const jobId = app.job_id || app.jobId || app.job?.id || app.id;
+        const title = app.job?.title || app.job_title || app.title || app.jobTitle || 'Applied Job';
+        const company = app.job?.employer?.company_name || app.company_name || app.company || 'Kiaan Technology';
+        const location = app.job?.location || app.job_location || app.location || 'Remote';
+        
+        let salaryStr = 'Not Disclosed';
+        const sMin = app.job?.salary_min ?? app.salary_min;
+        const sMax = app.job?.salary_max ?? app.salary_max;
+        if (sMin || sMax) {
+          salaryStr = `$${sMin || 0} - $${sMax || 0}`;
+        } else if (app.salary) {
+          salaryStr = app.salary;
+        }
+
+        const jobType = app.job?.job_type || app.job_type || app.jobType || 'Full Time';
+        const appliedDate = new Date(app.applied_at || app.appliedDate || app.created_at || Date.now());
+
+        // Resolve status dynamically: Check statusMap first, then app.status, fallback 'Under Review'
+        const titleKey = `title_${String(title || '').toLowerCase().trim()}`;
+        const jobKey = `job_${jobId}`;
+        const status = statusMap[String(app.id)] || statusMap[jobKey] || statusMap[titleKey] || app.status || 'Under Review';
+
+        const rawResume = app.resume || app.resumeName || (app.resume_id ? `Resume #${app.resume_id}` : 'Resume.pdf');
+        const resumeName = String(rawResume).split('/').pop() || 'Resume.pdf';
+        const coverLetter = app.cover_letter || app.coverLetter || '';
+
+        return {
+          id: app.id || `local-${jobId}`,
+          jobId: jobId,
+          jobTitle: title,
+          company: company,
+          location: location,
+          salary: salaryStr,
+          jobType: jobType,
+          appliedDate: isNaN(appliedDate.getTime()) ? new Date() : appliedDate,
+          status: status,
+          logo: null,
+          resumeName: resumeName,
+          coverLetter: coverLetter,
+          applicationData: app,
+          isLocal: isLocal
+        };
+      };
+
+      const combinedMap = new Map();
+
+      // 1. Load API applications (live database data)
+      apiApplications.forEach(app => {
+        const item = formatApp(app, false);
+        const key = String(item.jobId || item.id);
+        const itemTitle = String(item.jobTitle || '').toLowerCase().trim();
+        // Check if withdrawn
+        if (item.status === 'Withdrawn' || withdrawnIds.has(String(item.id)) || withdrawnJobIds.has(String(item.jobId)) || withdrawnTitles.has(itemTitle)) {
+          return;
+        }
+        combinedMap.set(key, item);
+      });
+
+      // 2. Load Local applications (for any applications just submitted or during sync)
+      localApplications.forEach(app => {
+        const item = formatApp(app, true);
+        const key = String(item.jobId || item.id);
+        const itemTitle = String(item.jobTitle || '').toLowerCase().trim();
+        if (item.status === 'Withdrawn' || withdrawnIds.has(String(item.id)) || withdrawnJobIds.has(String(item.jobId)) || withdrawnTitles.has(itemTitle)) {
+          return;
+        }
+        if (!combinedMap.has(key)) {
+          combinedMap.set(key, item);
+        } else {
+          // Sync status if local or statusMap has updated value
+          const existing = combinedMap.get(key);
+          if (item.status && item.status !== 'Under Review' && existing.status === 'Under Review') {
+            combinedMap.set(key, { ...existing, status: item.status });
+          }
+        }
+      });
+
+      const mergedList = Array.from(combinedMap.values());
+      mergedList.sort((a, b) => b.appliedDate - a.appliedDate);
+
+      setAppliedJobs(mergedList);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch applied jobs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAppliedJobs();
+  }, []);
+
+  // Listen for real-time status updates and cross-tab storage changes
+  useEffect(() => {
+    const handleSync = () => {
+      fetchAppliedJobs();
+    };
+    window.addEventListener('storage', handleSync);
+    window.addEventListener('application_status_updated', handleSync);
+    window.addEventListener('application_withdrawn', handleSync);
+    window.addEventListener('focus', handleSync);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('application_status_updated', handleSync);
+      window.removeEventListener('application_withdrawn', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
   }, []);
 
   // Memoize unique values for filter dropdown
@@ -111,10 +224,65 @@ const JobList = () => {
     setShowApplicationModal(true);
   };
 
-  const handleWithdrawApplication = (jobId) => {
-    const jobToWithdraw = appliedJobs.find(job => job.id === jobId);
-    if (window.confirm(`Are you sure you want to withdraw your application for "${jobToWithdraw?.jobTitle}" at "${jobToWithdraw?.company}"?`)) {
-      setAppliedJobs(appliedJobs.filter(job => job.id !== jobId));
+  const handleWithdrawApplication = async (jobId) => {
+    const jobToWithdraw = appliedJobs.find(job => String(job.id) === String(jobId) || String(job.jobId) === String(jobId));
+    const titleText = jobToWithdraw?.jobTitle || 'this job';
+    const companyText = jobToWithdraw?.company || '';
+    
+    if (window.confirm(`Are you sure you want to withdraw your application for "${titleText}"${companyText ? ` at "${companyText}"` : ''}?`)) {
+      const targetId = String(jobToWithdraw?.id || jobId);
+      const targetJobId = String(jobToWithdraw?.jobId || '');
+      const targetTitle = String(jobToWithdraw?.jobTitle || '').toLowerCase().trim();
+
+      try {
+        if (publicAPI.withdrawApplication) {
+          if (targetJobId && !targetJobId.startsWith('local')) {
+            await publicAPI.withdrawApplication(targetJobId).catch(() => {});
+          }
+          if (targetId && !targetId.startsWith('local')) {
+            await publicAPI.withdrawApplication(targetId).catch(() => {});
+          }
+        }
+      } catch (e) {}
+
+      // Update state
+      const updated = appliedJobs.filter(job => {
+        const jId = String(job.id);
+        const jJobId = String(job.jobId);
+        const jTitle = String(job.jobTitle || '').toLowerCase().trim();
+        return jId !== targetId && jJobId !== targetJobId && (!targetTitle || jTitle !== targetTitle);
+      });
+      setAppliedJobs(updated);
+
+      // Update localStorage my_applied_jobs
+      try {
+        const local = JSON.parse(localStorage.getItem('my_applied_jobs') || '[]');
+        const updatedLocal = local.filter(a => {
+          const aId = String(a.id || '');
+          const aJobId = String(a.job_id || a.jobId || '');
+          const aTitle = String(a.job_title || a.title || '').toLowerCase().trim();
+          return aId !== targetId && aJobId !== targetJobId && (!targetTitle || aTitle !== targetTitle);
+        });
+        localStorage.setItem('my_applied_jobs', JSON.stringify(updatedLocal));
+      } catch (e) {}
+
+      // Store in withdrawn_applications so Employer dashboard filters it out too
+      try {
+        const withdrawn = JSON.parse(localStorage.getItem('withdrawn_applications') || '[]');
+        withdrawn.push({
+          id: targetId,
+          jobId: targetJobId,
+          title: targetTitle
+        });
+        localStorage.setItem('withdrawn_applications', JSON.stringify(withdrawn));
+      } catch (e) {}
+
+      // Dispatch event to sync immediately across tabs / components
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('application_withdrawn', {
+        detail: { id: targetId, jobId: targetJobId, title: targetTitle }
+      }));
+
       toast.success('Application withdrawn successfully.');
     }
   };
@@ -335,7 +503,7 @@ const JobList = () => {
                         style={{ borderRadius: '8px', padding: '7px 12px', fontSize: '0.8rem', fontWeight: 500 }}
                         onClick={() => handleWithdrawApplication(job.id)}
                       >
-                        <FaTrash /> Withdraw
+                        <FaTimesCircle /> Withdraw
                       </Button>
                     </div>
                   </div>
@@ -392,7 +560,7 @@ const JobList = () => {
                             style={{ borderRadius: '6px', fontSize: '0.82rem' }}
                             onClick={() => handleWithdrawApplication(job.id)}
                           >
-                            <FaTrash /> Withdraw
+                            <FaTimesCircle /> Withdraw
                           </Button>
                         </div>
                       </td>
