@@ -124,7 +124,19 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
-      localStorage.clear();
+      const syncBackup = localStorage.getItem('payroll_training_sync');
+      const authKeys = [
+        'token', 'authToken', 'accessToken', 'refreshToken',
+        'user', 'role', 'userRole', 'userId', 'userName', 'userEmail'
+      ];
+      authKeys.forEach(k => {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      });
+      if (syncBackup) {
+        localStorage.setItem('payroll_training_sync', syncBackup);
+        sessionStorage.setItem('payroll_training_sync', syncBackup);
+      }
       setUser(null);
       setIsAuthenticated(false);
       setLoading(false);

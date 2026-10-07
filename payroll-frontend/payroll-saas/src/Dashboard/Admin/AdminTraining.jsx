@@ -190,15 +190,27 @@ const AdminTraining = () => {
     }
     try {
       let payload;
+      const cId = uploadForm.courseId;
+      const selCourse = trainingCourses.find(c => String(c.id || c.training_id || c.course_id) === String(cId));
+      const cTitle = selCourse?.title || selCourse?.name || 'CyberSecurity';
+
       if (uploadForm.file) {
         const formData = new FormData();
-        formData.append('courseId', uploadForm.courseId);
+        formData.append('training_id', cId);
+        formData.append('trainingId', cId);
+        formData.append('courseId', cId);
+        formData.append('course_id', cId);
+        formData.append('courseTitle', cTitle);
         formData.append('fileName', uploadForm.fileName || uploadForm.file.name);
         formData.append('file', uploadForm.file);
         payload = formData;
       } else {
         payload = {
-          courseId: uploadForm.courseId,
+          training_id: cId,
+          trainingId: cId,
+          courseId: cId,
+          course_id: cId,
+          courseTitle: cTitle,
           fileName: uploadForm.fileName
         };
       }
@@ -1189,9 +1201,14 @@ const AdminTraining = () => {
                         required
                       >
                         <option value="">Select Course</option>
-                        {trainingCourses.map((course) => (
-                          <option key={course.id} value={course.id}>{course.title}</option>
-                        ))}
+                        {trainingCourses.map((course) => {
+                          const val = course.id || course.training_id || course.course_id;
+                          return (
+                            <option key={val} value={val}>
+                              {course.title || course.name || course.course_title}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                     <div className="mb-3">

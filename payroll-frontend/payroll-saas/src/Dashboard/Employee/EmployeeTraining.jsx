@@ -20,11 +20,13 @@ import {
   FaVideo,
   FaArrowLeft,
   FaArrowRight,
-  FaBookOpen
+  FaBookOpen,
+  FaRedo
 } from 'react-icons/fa';
 import { employeeAPI } from '../../services/api';
 import { Spinner, Alert, Modal, ProgressBar, Badge, Button, Form } from 'react-bootstrap';
 import toast from 'react-hot-toast';
+import { jsPDF } from 'jspdf';
 
 // Color scheme
 const colors = {
@@ -182,11 +184,40 @@ const EmployeeTraining = () => {
     }
   };
 
-  const saveTrainingProgressLocally = (courseId, status, completion) => {
+  const saveTrainingProgressLocally = (courseId, status, completion, extra = {}) => {
     try {
       const all = getSavedTrainingProgress();
-      all[courseId] = { status, completion, updated_at: new Date().toISOString() };
+      all[courseId] = { status, completion, updated_at: new Date().toISOString(), ...extra };
       localStorage.setItem(getProgressStorageKey(), JSON.stringify(all));
+
+      // Global synchronization object for Employer dashboard across storage
+      const syncRaw = localStorage.getItem('payroll_training_sync') || sessionStorage.getItem('payroll_training_sync');
+      const syncData = syncRaw ? JSON.parse(syncRaw) : {};
+      const curEmpId = String(employeeId || localStorage.getItem('userId') || localStorage.getItem('employeeId') || '').trim();
+      const curEmpName = String(employeeName || localStorage.getItem('userName') || '').trim();
+      const title = String(extra.courseTitle || selectedCourse?.title || '').trim();
+
+      const entry = {
+        courseId: String(courseId || ''),
+        courseTitle: title,
+        employeeId: String(curEmpId || ''),
+        employeeName: curEmpName,
+        status,
+        completion,
+        score: extra.score,
+        updated_at: new Date().toISOString()
+      };
+
+      if (courseId) syncData[String(courseId)] = entry;
+      if (title) syncData[String(title).toLowerCase().trim()] = entry;
+      if (curEmpId && courseId) syncData[`${curEmpId}_${courseId}`] = entry;
+      if (curEmpName && title) syncData[`${String(curEmpName).toLowerCase().trim()}_${String(title).toLowerCase().trim()}`] = entry;
+      if (curEmpName && courseId) syncData[`${String(curEmpName).toLowerCase().trim()}_${courseId}`] = entry;
+      if (curEmpId && title) syncData[`${curEmpId}_${String(title).toLowerCase().trim()}`] = entry;
+      if (curEmpId) syncData[`emp_${curEmpId}`] = entry;
+
+      localStorage.setItem('payroll_training_sync', JSON.stringify(syncData));
+      sessionStorage.setItem('payroll_training_sync', JSON.stringify(syncData));
     } catch (e) {
       console.warn('Failed to save training progress locally:', e);
     }
@@ -207,11 +238,45 @@ const EmployeeTraining = () => {
     }
   };
 
-  const saveTestResultLocally = (testId, score, status = 'Completed') => {
+  const saveTestResultLocally = (testId, score, status = 'Completed', extra = {}) => {
     try {
       const all = getSavedTestResults();
-      all[testId] = { score, status, updated_at: new Date().toISOString() };
+      all[testId] = { score, status, updated_at: new Date().toISOString(), ...extra };
       localStorage.setItem(getTestsStorageKey(), JSON.stringify(all));
+
+      // Synchronize test result with Employer view
+      const syncRaw = localStorage.getItem('payroll_training_sync') || sessionStorage.getItem('payroll_training_sync');
+      const syncData = syncRaw ? JSON.parse(syncRaw) : {};
+      const curEmpId = String(employeeId || localStorage.getItem('userId') || localStorage.getItem('employeeId') || '').trim();
+      const curEmpName = String(employeeName || localStorage.getItem('userName') || '').trim();
+      const title = String(extra.courseTitle || selectedTest?.courseTitle || '').trim();
+
+      const entry = {
+        courseId: String(testId || ''),
+        courseTitle: title,
+        employeeId: String(curEmpId || ''),
+        employeeName: curEmpName,
+        status,
+        completion: status === 'Completed' ? 100 : undefined,
+        score,
+        updated_at: new Date().toISOString()
+      };
+
+      syncData[`test_${testId}`] = entry;
+      if (testId) syncData[String(testId)] = { ...(syncData[String(testId)] || {}), ...entry };
+      if (title) syncData[String(title).toLowerCase().trim()] = { ...(syncData[String(title).toLowerCase().trim()] || {}), ...entry };
+      if (curEmpName && title) {
+        syncData[`${String(curEmpName).toLowerCase().trim()}_${String(title).toLowerCase().trim()}`] = {
+          ...(syncData[`${String(curEmpName).toLowerCase().trim()}_${String(title).toLowerCase().trim()}`] || {}),
+          ...entry
+        };
+      }
+      if (curEmpId && testId) syncData[`${curEmpId}_${testId}`] = entry;
+      if (curEmpName && testId) syncData[`${String(curEmpName).toLowerCase().trim()}_${testId}`] = entry;
+      if (curEmpId && title) syncData[`${curEmpId}_${String(title).toLowerCase().trim()}`] = entry;
+
+      localStorage.setItem('payroll_training_sync', JSON.stringify(syncData));
+      sessionStorage.setItem('payroll_training_sync', JSON.stringify(syncData));
     } catch (e) {
       console.warn('Failed to save test result locally:', e);
     }
@@ -276,6 +341,7 @@ const EmployeeTraining = () => {
             const score = local?.score !== undefined ? local.score : (t.score !== undefined && t.score !== null ? t.score : (isCompleted ? 85 : null));
             return {
               id: t.id,
+              courseId: t.course_id || t.training_id || t.id,
               courseTitle: t.course_title || t.course_name || 'Course Test',
               title: t.test_title || t.name || 'Assessment Test',
               testDate: t.test_date?.split('T')[0] || t.created_at?.split('T')[0] || '-',
@@ -304,7 +370,7 @@ const EmployeeTraining = () => {
         Object.keys(savedTests).forEach(tId => {
           if (savedTests[tId]?.status === 'Completed') {
             const matchingTest = (testsRes?.data?.data || []).find(t => String(t.id) === String(tId));
-            const cTitle = matchingTest?.course_title || matchingTest?.course_name || 'CyberSecurity';
+            const cTitle = matchingTest?.course_title || matchingTest?.course_name || savedTests[tId]?.courseTitle || 'Training Course';
             if (!certs.some(c => c.courseTitle.toLowerCase() === cTitle.toLowerCase())) {
               certs.push({
                 id: tId,
@@ -335,6 +401,8 @@ const EmployeeTraining = () => {
       case 'available':
       case 'passed':
         return { backgroundColor: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' };
+      case 'failed':
+        return { backgroundColor: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA' };
       case 'in progress':
         return { backgroundColor: '#EFF6FF', color: '#1E40AF', border: '1px solid #BFDBFE' };
       case 'not started':
@@ -396,7 +464,7 @@ const EmployeeTraining = () => {
       setActiveLessonIndex(activeLessonIndex + 1);
     }
 
-    saveTrainingProgressLocally(courseId, nextStatus, nextComp);
+    saveTrainingProgressLocally(courseId, nextStatus, nextComp, { courseTitle: title });
 
     if (nextStatus === 'Completed') {
       toast.success(`🎉 Curriculum completed for "${title}"! You can now take the Assessment Test.`);
@@ -405,7 +473,11 @@ const EmployeeTraining = () => {
     }
 
     try {
-      await employeeAPI.startTraining(courseId, { status: nextStatus, progress: nextComp });
+      const realCourseId = selectedCourse.courseId || selectedCourse.id;
+      await employeeAPI.startTraining(courseId, { status: nextStatus, progress: nextComp, courseId: realCourseId });
+      if (nextComp >= 100) {
+        await employeeAPI.updateTrainingProgress(realCourseId, { status: nextStatus, progress: nextComp, courseId: realCourseId, trainingId: realCourseId });
+      }
     } catch (err) {
       // Handled silently
     }
@@ -413,7 +485,7 @@ const EmployeeTraining = () => {
 
   // Start Training directly from button
   const handleStartTraining = async (course) => {
-    const target = (course && typeof course === 'object') ? course : (assignedTrainings.find(t => String(t.id) === String(course) || String(t.courseId) === String(course)) || { id: course || '3', title: 'CyberSecurity', completion: 25 });
+    const target = (course && typeof course === 'object') ? course : (assignedTrainings.find(t => String(t.id) === String(course) || String(t.courseId) === String(course)) || { id: course, title: 'Training Course', completion: 0 });
     if (target) {
       handleOpenCoursePlayer(target);
     }
@@ -421,7 +493,7 @@ const EmployeeTraining = () => {
 
   // Open Assessment Test Modal
   const handleTakeTest = (test) => {
-    const targetTest = (test && typeof test === 'object') ? test : (assessmentTests.find(t => String(t.id) === String(test)) || { id: test || '3', title: 'Final Assessment', courseTitle: 'CyberSecurity', duration: '60 Mins' });
+    const targetTest = (test && typeof test === 'object') ? test : (assessmentTests.find(t => String(t.id) === String(test)) || { id: test, title: 'Final Assessment', courseTitle: 'Training Course', duration: '60 Mins' });
     setSelectedTest(targetTest);
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
@@ -443,7 +515,7 @@ const EmployeeTraining = () => {
   const handleSubmitAssessmentTest = async () => {
     if (!selectedTest) return;
 
-    const questions = courseQuestionBank.default;
+    const questions = courseQuestionBank[selectedTest.courseTitle] || courseQuestionBank.default;
     let correctCount = 0;
     questions.forEach((q, idx) => {
       if (selectedAnswers[idx] === q.correctIndex) {
@@ -451,58 +523,83 @@ const EmployeeTraining = () => {
       }
     });
 
-    // Score calculation
-    const calculatedScore = Math.max(60, Math.round((correctCount / questions.length) * 100));
+    // Score calculation (strictly based on actual answers, no forced 60%)
+    const calculatedScore = Math.round((correctCount / questions.length) * 100);
     setTestScore(calculatedScore);
     setTestSubmitted(true);
 
+    const isPassed = calculatedScore >= 60;
+    const testStatus = isPassed ? 'Completed' : 'Failed';
     const testId = selectedTest.id;
-    const testTitle = selectedTest.courseTitle || selectedTest.title || 'Course Assessment';
+    const testTitle = selectedTest.courseTitle || selectedTest.title || 'Training Course';
+    const courseId = selectedTest.courseId || selectedTest.training_id || (assignedTrainings.find(t => t.title === testTitle)?.courseId) || testId;
 
-    // Save locally
-    saveTestResultLocally(testId, calculatedScore, 'Completed');
+    // Save test result locally and to sync
+    saveTestResultLocally(testId, calculatedScore, testStatus, { courseTitle: testTitle });
 
     // Update assessment tests state
     setAssessmentTests(prev => prev.map(t => {
       if (String(t.id) === String(testId)) {
         return {
           ...t,
-          status: 'Completed',
+          status: testStatus,
           score: calculatedScore
         };
       }
       return t;
     }));
 
-    // Update training progress to 100% completed
-    saveTrainingProgressLocally(testId, 'Completed', 100);
-    setAssignedTrainings(prev => prev.map(t => {
-      if (String(t.id) === String(testId) || String(t.title).toLowerCase() === String(testTitle).toLowerCase()) {
-        return { ...t, status: 'Completed', completion: 100 };
-      }
-      return t;
-    }));
+    if (isPassed) {
+      // Update training progress to 100% completed
+      saveTrainingProgressLocally(testId, 'Completed', 100, {
+        courseTitle: testTitle,
+        score: calculatedScore
+      });
+      setAssignedTrainings(prev => prev.map(t => {
+        if (String(t.id) === String(testId) || String(t.title).toLowerCase() === String(testTitle).toLowerCase()) {
+          return { ...t, status: 'Completed', completion: 100 };
+        }
+        return t;
+      }));
 
-    // Automatically issue Certificate
-    const certId = `CERT-KT-${testId}-${Date.now().toString().slice(-4)}`;
-    setCertificates(prev => {
-      if (!prev.some(c => c.courseTitle.toLowerCase() === testTitle.toLowerCase())) {
-        return [{
-          id: testId,
-          courseTitle: testTitle,
-          certificateId: certId,
-          issueDate: new Date().toISOString().split('T')[0],
-          status: 'Issued'
-        }, ...prev];
-      }
-      return prev;
-    });
+      // Automatically issue Certificate
+      const certId = `CERT-KT-${testId}-${Date.now().toString().slice(-4)}`;
+      setCertificates(prev => {
+        if (!prev.some(c => c.courseTitle.toLowerCase() === testTitle.toLowerCase())) {
+          return [{
+            id: testId,
+            courseTitle: testTitle,
+            certificateId: certId,
+            issueDate: new Date().toISOString().split('T')[0],
+            status: 'Issued'
+          }, ...prev];
+        }
+        return prev;
+      });
 
-    toast.success(`🎉 Assessment submitted successfully! You scored ${calculatedScore}%.`);
+      toast.success(`🎉 Assessment submitted successfully! You passed with ${calculatedScore}%.`);
+    } else {
+      toast.error(`Assessment submitted. You scored ${calculatedScore}%. Minimum 60% is required to pass.`);
+    }
 
     try {
       setIsSubmittingTest(true);
-      await employeeAPI.submitTest(testId, { score: calculatedScore, answers: selectedAnswers });
+      await employeeAPI.submitTest(testId, {
+        score: calculatedScore,
+        answers: selectedAnswers,
+        courseId: courseId,
+        trainingId: courseId,
+        status: testStatus,
+        progress: isPassed ? 100 : undefined
+      });
+      if (isPassed) {
+        await employeeAPI.updateTrainingProgress(courseId, {
+          status: 'Completed',
+          progress: 100,
+          trainingId: courseId,
+          courseId: courseId
+        });
+      }
     } catch (err) {
       // Handled silently
     } finally {
@@ -510,56 +607,200 @@ const EmployeeTraining = () => {
     }
   };
 
-  // Download Certificate function (generates instant printable PDF certificate)
+  // Download Certificate function (generates instant downloadable PDF certificate)
   const handleDownloadCertificate = (cert) => {
-    const certTitle = typeof cert === 'object' ? cert.courseTitle : 'Course Certificate';
-    const certNum = typeof cert === 'object' ? cert.certificateId : `CERT-${cert}`;
+    try {
+      const targetCert = (cert && typeof cert === 'object') ? cert :
+        (certificates.find(c => String(c.certificateId) === String(cert) || String(c.id) === String(cert)) || {
+          courseTitle: (typeof cert === 'string' && !cert.startsWith('CERT-')) ? cert : (certificates[0]?.courseTitle || 'Training Course'),
+          certificateId: (typeof cert === 'string' && cert.startsWith('CERT-')) ? cert : (certificates[0]?.certificateId || `CERT-KT-${Date.now().toString().slice(-4)}`),
+          issueDate: new Date().toISOString().split('T')[0]
+        });
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.success(`Certificate ${certNum} generated successfully!`);
-      return;
+      const certTitle = targetCert.courseTitle || 'Training Course';
+      const certNum = targetCert.certificateId || `CERT-KT-${Date.now().toString().slice(-6)}`;
+      const issueDate = targetCert.issueDate || new Date().toISOString().split('T')[0];
+      const recipient = employeeName || localStorage.getItem('userName') || 'Employee';
+
+      // Initialize jsPDF in landscape A4 (297mm x 210mm)
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = 297;
+      const pageHeight = 210;
+
+      // 1. Background Fill (clean crisp certificate background)
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+      // 2. Elegant Double Borders
+      // Outer dark red/burgundy border
+      doc.setDrawColor(183, 28, 28); // #B71C1C
+      doc.setLineWidth(3);
+      doc.rect(10, 10, pageWidth - 20, pageHeight - 20);
+
+      // Inner gold border
+      doc.setDrawColor(217, 119, 6); // #D97706
+      doc.setLineWidth(0.8);
+      doc.rect(14, 14, pageWidth - 28, pageHeight - 28);
+
+      // Subtle light border
+      doc.setDrawColor(226, 232, 240); // #E2E8F0
+      doc.setLineWidth(0.3);
+      doc.rect(16, 16, pageWidth - 32, pageHeight - 32);
+
+      // 3. Decorative Corner Accents
+      const drawCorner = (x, y, dx, dy) => {
+        doc.setDrawColor(183, 28, 28);
+        doc.setLineWidth(1.5);
+        doc.line(x, y, x + dx * 10, y);
+        doc.line(x, y, x, y + dy * 10);
+      };
+      drawCorner(18, 18, 1, 1);
+      drawCorner(pageWidth - 18, 18, -1, 1);
+      drawCorner(18, pageHeight - 18, 1, -1);
+      drawCorner(pageWidth - 18, pageHeight - 18, -1, -1);
+
+      // 4. Header: Company Name & Brand
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(22);
+      doc.setTextColor(183, 28, 28);
+      doc.text('KIAAN TECHNOLOGY', pageWidth / 2, 34, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text('WORKFORCE & PAYROLL SOLUTIONS', pageWidth / 2, 40, { align: 'center' });
+
+      // Gold divider line
+      doc.setDrawColor(217, 119, 6);
+      doc.setLineWidth(0.6);
+      doc.line(pageWidth / 2 - 35, 43, pageWidth / 2 + 35, 43);
+
+      // 5. Main Title
+      doc.setFont('times', 'bold');
+      doc.setFontSize(26);
+      doc.setTextColor(15, 23, 42); // slate 900
+      doc.text('CERTIFICATE OF COMPLETION', pageWidth / 2, 58, { align: 'center' });
+
+      // 6. Presentation text
+      doc.setFont('times', 'italic');
+      doc.setFontSize(13);
+      doc.setTextColor(100, 116, 139);
+      doc.text('This is to proudly certify that', pageWidth / 2, 69, { align: 'center' });
+
+      // 7. Recipient Name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(24);
+      doc.setTextColor(183, 28, 28);
+      doc.text(recipient.toUpperCase(), pageWidth / 2, 83, { align: 'center' });
+
+      // Underline recipient
+      doc.setDrawColor(183, 28, 28);
+      doc.setLineWidth(0.5);
+      const nameWidth = doc.getTextWidth(recipient.toUpperCase());
+      doc.line(pageWidth / 2 - nameWidth / 2 - 5, 86, pageWidth / 2 + nameWidth / 2 + 5, 86);
+
+      // 8. Description
+      doc.setFont('times', 'normal');
+      doc.setFontSize(12);
+      doc.setTextColor(51, 65, 85);
+      doc.text('has successfully completed the comprehensive training program and final assessment for', pageWidth / 2, 97, { align: 'center' });
+
+      // 9. Course Name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(30, 41, 59);
+      doc.text(`"${certTitle}"`, pageWidth / 2, 112, { align: 'center' });
+
+      // 10. Performance note
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Demonstrating excellence and mastery of all required industry modules and competencies.', pageWidth / 2, 122, { align: 'center' });
+
+      // 11. Certificate Metadata Box
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.4);
+      doc.roundedRect(pageWidth / 2 - 80, 132, 160, 16, 3, 3, 'FD');
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`Certificate ID: ${certNum}      |      Issue Date: ${issueDate}      |      Status: Verified`, pageWidth / 2, 142, { align: 'center' });
+
+      // 12. Signatures Section
+      const sigY = 175;
+
+      // Left Signature: Instructor
+      doc.setDrawColor(100, 116, 139);
+      doc.setLineWidth(0.4);
+      doc.line(45, sigY, 95, sigY);
+
+      doc.setFont('times', 'italic');
+      doc.setFontSize(13);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Ayush Patel', 70, sigY - 3, { align: 'center' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Course Instructor', 70, sigY + 5, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Technical Training Division', 70, sigY + 9, { align: 'center' });
+
+      // Center Official Seal Badge
+      doc.setFillColor(254, 242, 242);
+      doc.setDrawColor(217, 119, 6);
+      doc.setLineWidth(1);
+      doc.circle(pageWidth / 2, sigY - 2, 14, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(183, 28, 28);
+      doc.text('OFFICIAL', pageWidth / 2, sigY - 5, { align: 'center' });
+      doc.text('SEAL', pageWidth / 2, sigY - 1, { align: 'center' });
+      doc.text('* * *', pageWidth / 2, sigY + 3, { align: 'center' });
+      doc.setFontSize(6);
+      doc.setTextColor(217, 119, 6);
+      doc.text('VERIFIED', pageWidth / 2, sigY + 7, { align: 'center' });
+
+      // Right Signature: Registrar
+      doc.setDrawColor(100, 116, 139);
+      doc.setLineWidth(0.4);
+      doc.line(pageWidth - 95, sigY, pageWidth - 45, sigY);
+
+      doc.setFont('times', 'italic');
+      doc.setFontSize(13);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Director / Registrar', pageWidth - 70, sigY - 3, { align: 'center' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(71, 85, 105);
+      doc.text('Authorized Signatory', pageWidth - 70, sigY + 5, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text('Kiaan Technology Pvt Ltd', pageWidth - 70, sigY + 9, { align: 'center' });
+
+      // 13. Trigger instant PDF download
+      const fileName = `Certificate_${certTitle.replace(/[^a-zA-Z0-9]/g, '_')}_${certNum}.pdf`;
+      doc.save(fileName);
+
+      toast.success(`🎉 Downloaded: ${fileName}`);
+    } catch (error) {
+      console.error('Error generating PDF certificate:', error);
+      toast.error('Failed to generate PDF. Please try again.');
     }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Certificate of Completion - ${certTitle}</title>
-        <style>
-          body { font-family: 'Georgia', serif; margin: 0; padding: 40px; background: #fdfdfd; text-align: center; color: #1E293B; }
-          .certificate { border: 8px double #C62828; padding: 50px 30px; border-radius: 12px; background: #fff; max-width: 800px; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-          .logo { font-size: 26px; font-weight: bold; color: #C62828; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; }
-          h1 { font-size: 38px; color: #0F172A; margin: 10px 0 20px; font-family: 'Times New Roman', serif; }
-          p { font-size: 18px; margin: 12px 0; line-height: 1.6; }
-          .recipient { font-size: 32px; font-weight: bold; color: #C62828; margin: 25px 0 15px; border-bottom: 2px solid #E2E8F0; display: inline-block; padding: 0 30px 10px; }
-          .course { font-size: 24px; font-weight: bold; color: #1E293B; }
-          .footer { margin-top: 50px; display: flex; justify-content: space-between; padding: 0 40px; }
-          .sig { border-top: 1px solid #94A3B8; width: 200px; padding-top: 8px; font-size: 14px; color: #64748B; }
-          @media print { body { padding: 0; } }
-        </style>
-      </head>
-      <body>
-        <div class="certificate">
-          <div class="logo">KIAAN TECHNOLOGY WORKFORCE & PAYROLL</div>
-          <h1>CERTIFICATE OF ACHIEVEMENT</h1>
-          <p>This is to proudly certify that</p>
-          <div class="recipient">${employeeName || 'Employee'}</div>
-          <p>has successfully completed the curriculum and passed the assessment for</p>
-          <div class="course">${certTitle}</div>
-          <p style="margin-top: 25px; font-size: 15px; color: #64748B;">Certificate ID: <strong>${certNum}</strong> • Issued on: ${new Date().toLocaleDateString()}</p>
-          <div class="footer">
-            <div class="sig">Instructor Signature</div>
-            <div class="sig">Authorized Registrar</div>
-          </div>
-        </div>
-        <script>
-          window.onload = function() { window.print(); };
-        </script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-    toast.success(`Certificate downloaded for ${certTitle}!`);
   };
 
   // Calculate statistics
@@ -1125,6 +1366,14 @@ const EmployeeTraining = () => {
                             >
                               <FaPlay size={10} /> Take Test
                             </button>
+                          ) : test.status === 'Failed' ? (
+                            <button
+                              className="btn btn-sm w-100 btn-outline-danger d-flex align-items-center justify-content-center gap-1.5"
+                              style={{ borderRadius: '8px', fontWeight: 600, padding: '7px' }}
+                              onClick={() => handleTakeTest(test)}
+                            >
+                              <FaRedo size={11} /> Retake Test
+                            </button>
                           ) : test.status === 'Completed' ? (
                             <button
                               className="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-1.5"
@@ -1190,6 +1439,14 @@ const EmployeeTraining = () => {
                                   onClick={() => handleTakeTest(test)}
                                 >
                                   Take Test
+                                </button>
+                              ) : test.status === 'Failed' ? (
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  style={{ borderRadius: '6px', fontWeight: 500 }}
+                                  onClick={() => handleTakeTest(test)}
+                                >
+                                  <FaRedo size={12} className="me-1" /> Retake Test
                                 </button>
                               ) : test.status === 'Completed' ? (
                                 <button
@@ -1261,7 +1518,7 @@ const EmployeeTraining = () => {
                           <button
                             className="btn btn-sm w-100 text-white d-flex align-items-center justify-content-center gap-1.5"
                             style={{ backgroundColor: colors.primary, borderRadius: '8px', fontWeight: 600, padding: '7px' }}
-                            onClick={() => handleDownloadCertificate(cert.certificateId)}
+                            onClick={() => handleDownloadCertificate(cert)}
                           >
                             <FaDownload size={11} /> Download PDF Certificate
                           </button>
@@ -1297,7 +1554,7 @@ const EmployeeTraining = () => {
                               <button
                                 className="btn btn-sm text-white"
                                 style={{ backgroundColor: colors.primary, borderRadius: '6px', fontWeight: 500 }}
-                                onClick={() => handleDownloadCertificate(cert.certificateId)}
+                                onClick={() => handleDownloadCertificate(cert)}
                               >
                                 <FaDownload size={11} className="me-1" /> Download PDF
                               </button>
@@ -1490,12 +1747,12 @@ const EmployeeTraining = () => {
                 )}
               </div>
               <h3 className="fw-bold mb-1" style={{ color: testScore >= 60 ? '#065F46' : '#991B1B' }}>
-                {testScore >= 60 ? '🎉 Congratulations! You Passed!' : 'Assessment Attempt Recorded'}
+                {testScore >= 60 ? '🎉 Congratulations! You Passed!' : 'Assessment Not Passed'}
               </h3>
               <p className="text-muted mb-3" style={{ fontSize: '14px' }}>
                 {testScore >= 60
                   ? 'You demonstrated excellent understanding of the course curriculum.'
-                  : 'You have submitted the assessment.'}
+                  : `You scored ${testScore}%. Minimum 60% is required to pass and earn your certificate.`}
               </p>
 
               <div className="d-inline-flex align-items-center gap-4 p-3 rounded-3 mb-4" style={{ backgroundColor: '#F8FAFC', border: `1px solid ${colors.border}` }}>
@@ -1511,14 +1768,23 @@ const EmployeeTraining = () => {
                 <div style={{ height: '36px', width: '1px', backgroundColor: '#E2E8F0' }}></div>
                 <div>
                   <div className="text-muted small">Certification Status</div>
-                  <div className="fw-bold h4 mb-0 text-success">Issued</div>
+                  <div className={`fw-bold h4 mb-0 ${testScore >= 60 ? 'text-success' : 'text-danger'}`}>
+                    {testScore >= 60 ? 'Issued' : 'Not Issued'}
+                  </div>
                 </div>
               </div>
 
-              <div className="alert alert-success d-flex align-items-center justify-content-center gap-2 mb-0" role="alert" style={{ borderRadius: '10px' }}>
-                <FaAward size={20} color="#059669" />
-                <span className="small fw-semibold">Your Certificate of Completion has been generated and added to the Certificates tab!</span>
-              </div>
+              {testScore >= 60 ? (
+                <div className="alert alert-success d-flex align-items-center justify-content-center gap-2 mb-0" role="alert" style={{ borderRadius: '10px' }}>
+                  <FaAward size={20} color="#059669" />
+                  <span className="small fw-semibold">Your Certificate of Completion has been generated and added to the Certificates tab!</span>
+                </div>
+              ) : (
+                <div className="alert alert-danger d-flex align-items-center justify-content-center gap-2 mb-0" role="alert" style={{ borderRadius: '10px' }}>
+                  <FaTimes size={18} color="#EF4444" />
+                  <span className="small fw-semibold">You did not reach the 60% passing mark. Please review the lessons and retake the assessment.</span>
+                </div>
+              )}
             </div>
           ) : (
             /* Interactive Assessment Questions */
@@ -1628,17 +1894,33 @@ const EmployeeTraining = () => {
               >
                 Close
               </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                style={{ backgroundColor: colors.primary, borderColor: colors.primary, fontWeight: 600 }}
-                onClick={() => {
-                  setShowTestModal(false);
-                  setActiveView('certificates');
-                }}
-              >
-                <FaAward className="me-1.5" /> View Certificates Tab
-              </Button>
+              {testScore >= 60 ? (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  style={{ backgroundColor: colors.primary, borderColor: colors.primary, fontWeight: 600 }}
+                  onClick={() => {
+                    setShowTestModal(false);
+                    setActiveView('certificates');
+                  }}
+                >
+                  <FaAward className="me-1.5" /> View Certificates Tab
+                </Button>
+              ) : (
+                <Button
+                  variant="warning"
+                  size="sm"
+                  style={{ fontWeight: 600 }}
+                  onClick={() => {
+                    setTestSubmitted(false);
+                    setSelectedAnswers({});
+                    setCurrentQuestionIndex(0);
+                    setTestScore(0);
+                  }}
+                >
+                  <FaRedo className="me-1.5" /> Retake Assessment
+                </Button>
+              )}
             </div>
           ) : (
             <Button variant="outline-secondary" size="sm" onClick={() => setShowTestModal(false)}>

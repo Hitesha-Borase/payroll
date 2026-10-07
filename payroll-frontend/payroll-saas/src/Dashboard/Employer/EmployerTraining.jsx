@@ -82,10 +82,110 @@ const EmployerTraining = () => {
     return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  // Fetch data on mount
+  // Fetch data on mount & listen to storage sync events
   useEffect(() => {
     fetchData();
+
+    const handleStorageChange = (e) => {
+      if (!e.key || e.key.includes('training') || e.key.includes('test') || e.key.includes('payroll')) {
+        fetchData();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // Helper to read synchronized employee progress from localStorage/sessionStorage
+  const getSyncedTrainingInfo = (assignment, training) => {
+    try {
+      const empName = String(assignment.employee?.user?.name || assignment.employee?.name || assignment.employeeName || '').toLowerCase().trim();
+      const courseTitle = String(training?.title || assignment.courseTitle || '').toLowerCase().trim();
+      const empId = String(assignment.employee_id || assignment.employeeId || '');
+      const courseId = String(training?.id || assignment.courseId || '');
+
+      // 1. Check payroll_training_sync across localStorage and sessionStorage
+      const syncRaw = localStorage.getItem('payroll_training_sync') || sessionStorage.getItem('payroll_training_sync');
+      if (syncRaw) {
+        const syncMap = JSON.parse(syncRaw);
+        const candidates = [
+          syncMap[`${empId}_${courseId}`],
+          syncMap[`${empName}_${courseTitle}`],
+          syncMap[`${empName}_${courseId}`],
+          syncMap[`${empId}_${courseTitle}`],
+          syncMap[`course_${courseId}`],
+          syncMap[`title_${courseTitle}`],
+          syncMap[courseId],
+          syncMap[courseTitle]
+        ];
+        for (const c of candidates) {
+          if (c && (c.status === 'Completed' || c.completion === 100)) return c;
+        }
+
+        for (const item of Object.values(syncMap)) {
+          if (!item || typeof item !== 'object') continue;
+          const iTitle = String(item.courseTitle || item.courseId || '').toLowerCase().trim();
+          const iName = String(item.employeeName || item.employeeId || '').toLowerCase().trim();
+          const iEmpId = String(item.employeeId || '').trim();
+          const iCourseId = String(item.courseId || '').trim();
+
+          const courseMatches = (courseId && iCourseId === courseId) ||
+            (courseTitle && iTitle && (courseTitle === iTitle || courseTitle.includes(iTitle) || iTitle.includes(courseTitle)));
+
+          const empMatches = (empId && iEmpId === empId) ||
+            (empName && iName && (empName === iName || empName.includes(iName) || iName.includes(empName)));
+
+          if (courseMatches && empMatches) {
+            return item;
+          }
+        }
+      }
+
+      // 2. Scan all emp_trainings_progress_* keys in localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('emp_trainings_progress_')) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const prog = JSON.parse(raw);
+            for (const [key, val] of Object.entries(prog)) {
+              if (val && (val.status === 'Completed' || val.completion === 100)) {
+                const valTitle = String(val.courseTitle || '').toLowerCase().trim();
+                const keyMatches = String(key) === courseId;
+                const titleMatches = courseTitle && valTitle && (courseTitle === valTitle || courseTitle.includes(valTitle) || valTitle.includes(courseTitle));
+                if (keyMatches || titleMatches) {
+                  return val;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Scan all emp_tests_results_* keys in localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('emp_tests_results_')) {
+          const raw = localStorage.getItem(k);
+          if (raw) {
+            const tests = JSON.parse(raw);
+            for (const [key, val] of Object.entries(tests)) {
+              if (val && (val.status === 'Completed' || (val.score && val.score >= 60))) {
+                const valTitle = String(val.courseTitle || '').toLowerCase().trim();
+                const keyMatches = String(key) === courseId;
+                const titleMatches = courseTitle && valTitle && (courseTitle === valTitle || courseTitle.includes(valTitle) || valTitle.includes(courseTitle));
+                if (keyMatches || titleMatches) {
+                  return { status: 'Completed', completion: 100, score: val.score };
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse sync progress:', e);
+    }
+    return null;
+  };
 
   const fetchData = async () => {
     try {
@@ -122,20 +222,35 @@ const EmployerTraining = () => {
         trainings.forEach(training => {
           if (training.assignments && training.assignments.length > 0) {
             training.assignments.forEach(assignment => {
+              const empName = assignment.employee?.user?.name || assignment.employee?.name || 'Employee';
+              const synced = getSyncedTrainingInfo(assignment, training);
+
+              const isCompleted = synced?.status === 'Completed' || synced?.completion === 100 ||
+                String(assignment.status || '').toLowerCase() === 'completed' ||
+                Number(assignment.completion_percentage) >= 100 ||
+                Number(assignment.score) >= 60 ||
+                Number(assignment.test_score) >= 60;
+
+              const finalStatus = isCompleted ? 'Completed' :
+                (synced?.status || (assignment.status === 'in_progress' || assignment.status === 'In Progress' ? 'In Progress' :
+                 (assignment.status === 'assigned' || assignment.status === 'Assigned' ? 'Assigned' : 'Not Started')));
+
+              const finalCompletion = isCompleted ? 100 :
+                (synced?.completion !== undefined ? synced.completion :
+                 (assignment.completion_percentage !== undefined && assignment.completion_percentage !== null
+                  ? assignment.completion_percentage : 0));
+
               assignments.push({
                 id: assignment.id,
                 courseId: training.id,
                 courseTitle: training.title,
                 employeeId: assignment.employee_id,
-                employeeName: assignment.employee?.user?.name || assignment.employee?.name || 'Employee',
+                employeeName: empName,
                 assignDate: assignment.assigned_date || assignment.created_at || training.start_date,
                 dueDate: assignment.due_date || training.due_date || training.end_date,
-                status: (assignment.status === 'completed' || assignment.status === 'Completed') ? 'Completed' :
-                  (assignment.status === 'in_progress' || assignment.status === 'In Progress') ? 'In Progress' :
-                  (assignment.status === 'assigned' || assignment.status === 'Assigned') ? 'Assigned' : 'Not Started',
-                completion: assignment.completion_percentage !== undefined && assignment.completion_percentage !== null
-                  ? assignment.completion_percentage
-                  : (assignment.status === 'completed' ? 100 : 0)
+                status: finalStatus,
+                completion: finalCompletion,
+                score: synced?.score || assignment.score || assignment.test_score || assignment.assessment_score || (isCompleted ? 100 : null)
               });
             });
           }

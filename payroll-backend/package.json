@@ -1,0 +1,9 @@
+{
+  "name": "payroll-backend-root",
+  "version": "1.0.0",
+  "description": "Forwarding scripts to inner payroll-backend directory",
+  "scripts": {
+    "dev": "npm --prefix payroll-backend run dev",
+    "start": "npm --prefix payroll-backend start"
+  }
+}

@@ -95,7 +95,7 @@ const ManagementSystem = () => {
               email: emp.user?.email || emp.email,
               phone: emp.user?.phone || '',
               address: emp.company_address || '',
-              username: emp.user?.email || '',
+              username: emp.user?.username || emp.username || (emp.user?.email ? emp.user.email.split('@')[0] : (emp.email ? emp.email.split('@')[0] : '')),
               password: '***',
               balance: emp.credit?.balance !== undefined ? emp.credit.balance : 0,
               level: emp.subscription_plan || 'Basic',
@@ -185,7 +185,7 @@ const ManagementSystem = () => {
               email: emp.user?.email || emp.email,
               phone: emp.user?.phone || '',
               address: emp.company_address || '',
-              username: emp.user?.email || '',
+              username: emp.user?.username || emp.username || (emp.user?.email ? emp.user.email.split('@')[0] : (emp.email ? emp.email.split('@')[0] : '')),
               password: '***',
               balance: emp.credit?.balance !== undefined ? emp.credit.balance : 0,
               level: emp.subscription_plan || 'Basic',
@@ -267,7 +267,7 @@ const ManagementSystem = () => {
               email: emp.user?.email || emp.email,
               phone: emp.user?.phone || '',
               address: emp.company_address || '',
-              username: emp.user?.email || '',
+              username: emp.user?.username || emp.username || (emp.user?.email ? emp.user.email.split('@')[0] : (emp.email ? emp.email.split('@')[0] : '')),
               password: '***',
               balance: emp.credit?.balance !== undefined ? emp.credit.balance : 0,
               level: emp.subscription_plan || 'Basic',
@@ -331,7 +331,7 @@ const ManagementSystem = () => {
           email: emp.user?.email || emp.email,
           phone: emp.user?.phone || '',
           address: emp.company_address || '',
-          username: emp.user?.email || '',
+          username: emp.user?.username || emp.username || (emp.user?.email ? emp.user.email.split('@')[0] : (emp.email ? emp.email.split('@')[0] : '')),
           password: '***',
           balance: emp.balance !== undefined ? emp.balance : (emp.credit?.balance !== undefined ? emp.credit.balance : 0),
           level: emp.subscription_plan || 'Basic',
@@ -361,12 +361,31 @@ const ManagementSystem = () => {
   };
   const updateItem = async () => {
     try {
+      // Sync balance if changed
+      if (itemToEdit.balance !== undefined && !isNaN(Number(itemToEdit.balance))) {
+        const origEmp = employers.find(e => e.id === itemToEdit.id);
+        const oldBal = origEmp ? parseFloat(origEmp.balance || 0) : 0;
+        const newBal = parseFloat(itemToEdit.balance);
+        if (newBal > oldBal) {
+          try {
+            await adminAPI.addCredit(itemToEdit.id, {
+              amount: newBal - oldBal,
+              reference: 'Admin balance edit',
+              payment_method: 'CASH'
+            });
+          } catch (e) {
+            console.warn('addCredit sync warning:', e);
+          }
+        }
+      }
+
       const response = await adminAPI.updateEmployer(itemToEdit.id, {
         name: itemToEdit.name,
         email: itemToEdit.email,
         company_name: itemToEdit.name,
         company_address: itemToEdit.address || '',
         phone: itemToEdit.phone || '',
+        balance: itemToEdit.balance !== undefined ? parseFloat(itemToEdit.balance) : undefined,
         pan_number: itemToEdit.panNumber || '',
         gst_number: itemToEdit.gstNumber || '',
         bank_name: itemToEdit.bankName || '',
@@ -400,7 +419,7 @@ const ManagementSystem = () => {
               email: emp.user?.email || emp.email,
               phone: emp.user?.phone || '',
               address: emp.company_address || '',
-              username: emp.user?.email || '',
+              username: emp.user?.username || emp.username || (emp.user?.email ? emp.user.email.split('@')[0] : (emp.email ? emp.email.split('@')[0] : '')),
               password: '***',
               balance: emp.credit?.balance !== undefined ? emp.credit.balance : 0,
               level: emp.subscription_plan || 'Basic',
@@ -450,7 +469,7 @@ const ManagementSystem = () => {
                 email: emp.user?.email || emp.email,
                 phone: emp.user?.phone || '',
                 address: emp.company_address || '',
-                username: emp.user?.email || '',
+                username: emp.user?.username || emp.username || (emp.user?.email ? emp.user.email.split('@')[0] : (emp.email ? emp.email.split('@')[0] : '')),
                 password: '***',
                 balance: emp.credit?.balance !== undefined ? emp.credit.balance : 0,
                 level: emp.subscription_plan || 'Basic',
