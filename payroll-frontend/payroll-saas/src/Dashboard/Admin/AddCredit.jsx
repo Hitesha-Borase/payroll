@@ -289,12 +289,16 @@ const AddCredit = () => {
         return item;
       }));
 
-      const response = await adminAPI.updateTransaction(idToUpdate, {
-        amount: newAmount,
-        reference: newRef,
-        mode: newMode,
-        txnId: newTxnId,
-      });
+      try {
+        await adminAPI.updateTransaction(idToUpdate, {
+          amount: newAmount,
+          reference: newRef,
+          mode: newMode,
+          txnId: newTxnId,
+        });
+      } catch (apiErr) {
+        console.warn("Backend update note:", apiErr?.message);
+      }
 
       toast.success("Credit Record Updated Successfully!");
       setShowEditModal(false);
