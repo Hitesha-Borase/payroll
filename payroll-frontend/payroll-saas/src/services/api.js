@@ -1,10 +1,14 @@
 import axios from 'axios';
 
 // API Base Configuration
-let API_BASE_URL = import.meta.env.VITE_API_URL || '/api/';
+const rawApiUrl = import.meta.env.VITE_API_URL;
+let API_BASE_URL = rawApiUrl || '/api/';
 
-// When running on localhost dev server, use relative /api/ to route through Vite proxy
-if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '5173') {
+// If a direct absolute URL is configured (e.g. https://api.payroll.kiaantechnology.com/api or http://localhost:5000/api),
+// use it directly so requests hit that live backend rather than local proxy
+if (rawApiUrl && (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://'))) {
+    API_BASE_URL = rawApiUrl.endsWith('/') ? rawApiUrl : rawApiUrl + '/';
+} else if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '5173') {
     API_BASE_URL = '/api/';
 } else if (API_BASE_URL.startsWith('/')) {
     API_BASE_URL = API_BASE_URL.endsWith('/') ? API_BASE_URL : API_BASE_URL + '/';
