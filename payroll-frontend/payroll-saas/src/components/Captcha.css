@@ -1,35 +1,44 @@
-/* Premium SaaS Security CAPTCHA Styles */
+/* ==========================================================
+   PREMIUM SAAS SECURITY CAPTCHA - 100% RESPONSIVE STYLES
+   ========================================================== */
+
 .saas-captcha-box {
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
   border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 1.25rem;
+  padding: 12px 14px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 1rem;
   transition: all 0.2s ease-in-out;
+  container-type: inline-size;
 }
 
 .saas-captcha-box:focus-within {
   border-color: #cbd5e1;
   background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
 
+/* Header Row */
 .saas-captcha-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .saas-captcha-tag {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  color: #334155;
+  color: #1e293b;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 
 .saas-captcha-pill {
@@ -37,7 +46,7 @@
   color: #4f46e5;
   font-size: 0.68rem;
   font-weight: 600;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid #e0e7ff;
 }
@@ -50,11 +59,11 @@
 
 .saas-captcha-icon-btn {
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1.5px solid #cbd5e1;
   color: #475569;
-  border-radius: 6px;
-  width: 32px;
-  height: 32px;
+  border-radius: 7px;
+  width: 30px;
+  height: 30px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -69,17 +78,21 @@
   transform: translateY(-1px);
 }
 
-.saas-captcha-badge-row {
-  display: flex;
-  align-items: center;
+/* Interactive Row: Responsive Grid */
+.saas-captcha-interactive-row {
+  display: grid;
+  grid-template-columns: minmax(105px, 1fr) auto minmax(115px, 1.2fr);
   gap: 8px;
-  margin-bottom: 10px;
+  align-items: center;
+  width: 100%;
 }
 
+/* Canvas Card */
 .saas-captcha-canvas-card {
-  flex: 1;
-  height: 48px;
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
   border: 1.5px solid #cbd5e1;
   border-radius: 8px;
   overflow: hidden;
@@ -87,8 +100,14 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
   user-select: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.saas-captcha-canvas-card:hover {
+  border-color: #94a3b8;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), 0 0 0 2px rgba(198, 40, 40, 0.08);
 }
 
 .saas-captcha-canvas-element {
@@ -97,39 +116,47 @@
   display: block;
 }
 
+/* Reload Button */
 .saas-captcha-reload-btn {
   background: #ffffff;
   border: 1.5px solid #cbd5e1;
   color: #C62828;
   border-radius: 8px;
-  height: 48px;
-  padding: 0 12px;
+  height: 46px;
+  padding: 0 11px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .saas-captcha-reload-btn:hover {
   background: #C62828;
   color: #ffffff;
   border-color: #C62828;
+  box-shadow: 0 2px 8px rgba(198, 40, 40, 0.25);
 }
 
+/* Input Field Block */
 .saas-captcha-input-block {
   position: relative;
+  width: 100%;
+  min-width: 0;
 }
 
 .saas-captcha-input-field {
   width: 100%;
-  height: 44px;
-  padding: 8px 36px 8px 12px;
-  font-size: 0.95rem;
-  font-weight: 600;
+  height: 46px;
+  padding: 8px 34px 8px 10px;
+  font-size: 0.92rem;
+  font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: #0f172a;
@@ -137,6 +164,7 @@
   border: 1.5px solid #cbd5e1;
   border-radius: 8px;
   outline: none;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
@@ -144,28 +172,30 @@
   letter-spacing: normal;
   text-transform: none;
   font-weight: 400;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: #94a3b8;
 }
 
 .saas-captcha-input-field:focus {
   border-color: #C62828;
   box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.12);
+  background: #ffffff;
 }
 
 .saas-captcha-input-field.is-valid {
-  border-color: #22c55e !important;
+  border-color: #16a34a !important;
   background: #f0fdf4 !important;
 }
 
 .saas-captcha-input-field.is-invalid {
-  border-color: #ef4444 !important;
+  border-color: #dc2626 !important;
   background: #fef2f2 !important;
 }
 
+/* Status Check Indicator */
 .saas-captcha-status-indicator {
   position: absolute;
-  right: 12px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
@@ -173,13 +203,14 @@
   pointer-events: none;
 }
 
+/* Alert Feedback */
 .saas-captcha-alert {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  margin-top: 6px;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 8px;
 }
 
 .saas-captcha-alert.error {
@@ -190,6 +221,7 @@
   color: #16a34a;
 }
 
+/* Spin Animation */
 .rotate-spin {
   animation: rotateIcon 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -197,4 +229,64 @@
 @keyframes rotateIcon {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* ==========================================================
+   CONTAINER QUERIES (Fluid adapting to parent box width)
+   ========================================================== */
+
+@container (max-width: 370px) {
+  .saas-captcha-interactive-row {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+  .saas-captcha-input-block {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (max-width: 280px) {
+  .saas-captcha-box {
+    padding: 10px 8px;
+  }
+  .saas-captcha-reload-btn span {
+    display: none;
+  }
+  .saas-captcha-reload-btn {
+    padding: 0 10px;
+    width: 44px;
+  }
+}
+
+/* ==========================================================
+   MEDIA QUERY FALLBACKS (Standard screen width)
+   ========================================================== */
+
+/* Stack row on screen widths <= 540px */
+@media (max-width: 540px) {
+  .saas-captcha-interactive-row {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+  .saas-captcha-input-block {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile Screens (Smartphones <= 400px) */
+@media (max-width: 400px) {
+  .saas-captcha-box {
+    padding: 10px 10px;
+  }
+  .saas-captcha-reload-btn span {
+    display: none;
+  }
+  .saas-captcha-reload-btn {
+    padding: 0 10px;
+    width: 44px;
+  }
+  .saas-captcha-input-field {
+    font-size: 0.9rem;
+    letter-spacing: 1.5px;
+  }
 }

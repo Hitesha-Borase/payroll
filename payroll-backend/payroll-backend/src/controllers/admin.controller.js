@@ -1948,12 +1948,31 @@ const uploadTrainingMaterial = async (req, res, next) => {
     const fileSize = req.file ? `${Math.round(req.file.size / 1024)} KB` : (req.body.fileSize && req.body.fileSize !== '0' && req.body.fileSize !== 'N/A' ? req.body.fileSize : '36 KB');
     const fileType = req.file ? (req.file.mimetype.includes('pdf') ? 'PDF' : req.file.mimetype.includes('image') ? 'Image' : 'Document') : 'Document';
 
-    await db.query(
+    const [insertResult] = await db.query(
       'INSERT INTO course_materials (training_id, file_name, file_url, file_type, file_size, uploaded_at) VALUES (?, ?, ?, ?, ?, NOW())',
       [parseInt(targetTrainingId), finalFileName, fileUrl, fileType, fileSize]
     );
 
-    res.json({ success: true, message: 'Material uploaded successfully.' });
+    const [newRow] = await db.query(`
+      SELECT tm.*, t.title as course_title 
+      FROM course_materials tm
+      LEFT JOIN training_courses t ON tm.training_id = t.id
+      WHERE tm.id = ?
+    `, [insertResult.insertId]);
+
+    res.json({
+      success: true,
+      message: 'Material uploaded successfully.',
+      data: newRow && newRow[0] ? newRow[0] : {
+        id: insertResult.insertId,
+        training_id: parseInt(targetTrainingId),
+        file_name: finalFileName,
+        file_url: fileUrl,
+        file_type: fileType,
+        file_size: fileSize,
+        uploaded_at: new Date()
+      }
+    });
   } catch (error) {
     next(error);
   }

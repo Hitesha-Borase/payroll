@@ -61,11 +61,25 @@ const register = async (req, res, next) => {
 
     // Create role-specific records
     if (userRole === 'employer') {
-      await connection.query(
+      const [empResult] = await connection.query(
         `INSERT INTO employers (user_id, company_name, status, created_at, updated_at)
          VALUES (?, ?, 'active', NOW(), NOW())`,
-        [userId, `${name}'s Company`]
+        [userId, (req.body.company_name && req.body.company_name.trim()) || `${name}'s Company`]
       );
+      const employerId = empResult.insertId;
+
+      // Automatically assign 7-Day Free Trial Subscription
+      const startDate = new Date();
+      const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      try {
+        await connection.query(
+          `INSERT INTO subscriptions (employer_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at)
+           VALUES (?, 1, ?, ?, 'active', 0, NOW(), NOW())`,
+          [employerId, startDate, endDate]
+        );
+      } catch (subErr) {
+        console.warn('Subscription auto-assign skipped:', subErr.message);
+      }
     } else if (userRole === 'employee') {
       await connection.query(
         `INSERT INTO employees (user_id, status, created_at, updated_at)

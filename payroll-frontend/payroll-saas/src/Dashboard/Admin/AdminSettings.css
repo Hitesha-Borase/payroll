@@ -72,7 +72,7 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
-  padding: 0.6rem;
+  padding: 0.75rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
@@ -80,8 +80,8 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
+  gap: 12px;
+  padding: 11px 14px;
   border: none;
   background: transparent;
   color: #475569;
@@ -1176,31 +1176,49 @@
 }
 
 .admin-settings-provider-pills {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  background: #f1f5f9;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: #f8fafc;
   padding: 6px;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .admin-settings-provider-pills {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 12px;
+  }
 }
 
 .admin-settings-provider-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 9px 18px;
+  padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
-  color: #475569;
+  color: #64748b;
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.3px;
   cursor: pointer;
   transition: all 0.2s ease;
+  width: 100%;
   white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .admin-settings-provider-pill {
+    font-size: 0.78rem;
+    padding: 9px 10px;
+  }
 }
 
 .admin-settings-provider-pill:hover {
@@ -1211,7 +1229,7 @@
 .admin-settings-provider-pill.active {
   background: #ffffff;
   color: #0f172a;
-  border-color: #cbd5e1;
+  border-color: #10b981;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
@@ -1220,6 +1238,7 @@
   height: 9px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .admin-settings-dot.gmail {
@@ -1256,6 +1275,186 @@
   background-color: #e11d48;
   margin-top: 4px;
   flex-shrink: 0;
+}
+
+/* WhatsApp QR Scanner Container */
+.wa-qr-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2px solid #dc2626;
+  border-radius: 16px;
+  padding: 1.15rem;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.08);
+  margin-bottom: 0.85rem;
+  max-width: 100%;
+}
+
+.wa-qr-img {
+  width: 210px;
+  height: 210px;
+  max-width: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Mobile Responsive Refinements */
+@media (max-width: 576px) {
+  .admin-settings-wrapper {
+    padding: 1rem 0.75rem;
+  }
+  .admin-settings-content-card {
+    padding: 1.15rem 0.85rem;
+    border-radius: 14px;
+  }
+  .admin-settings-test-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .admin-settings-action-btns {
+    flex-direction: column;
+    width: 100%;
+  }
+  .admin-settings-remove-btn,
+  .admin-settings-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .admin-settings-top-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .wa-card,
+  .wa-card-right {
+    padding: 1rem 0.85rem;
+    border-radius: 14px;
+  }
+  .wa-qr-container {
+    padding: 0.75rem;
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  .wa-qr-img {
+    width: 175px;
+    height: 175px;
+  }
+
+  /* Announcements & Messaging Mobile Fixes */
+  .announcement-top-header {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.85rem;
+  }
+  .announcement-subtab-group {
+    display: flex;
+    width: 100%;
+    padding: 3px;
+    gap: 3px;
+    border-radius: 9px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .announcement-subtab-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: center;
+    padding: 7px 6px;
+    font-size: 0.73rem;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .announcement-subtab-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .announcement-channel-grid {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .announcement-channel-card {
+    padding: 12px 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .announcement-channel-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 10px;
+  }
+  .announcement-channel-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  .announcement-channel-name {
+    font-size: 0.86rem;
+  }
+  .announcement-channel-desc {
+    font-size: 0.72rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .announcement-channel-badge {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .announcement-mode-grid {
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .announcement-mode-card {
+    padding: 12px;
+    gap: 10px;
+    border-radius: 12px;
+  }
+  .announcement-mode-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  .announcement-mode-heading {
+    font-size: 0.88rem;
+  }
+  .announcement-mode-desc {
+    font-size: 0.74rem;
+  }
+  .announcement-scope-container {
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .announcement-step-title {
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+  }
+  .announcement-channels-group {
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+  .announcement-channel-toggle {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+  }
+  .announcement-target-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .wa-qr-img {
+    width: 155px;
+    height: 155px;
+  }
 }
 
 

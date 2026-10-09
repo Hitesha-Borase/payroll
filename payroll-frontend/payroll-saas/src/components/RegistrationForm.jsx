@@ -1,447 +1,521 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Container, Form, Button, Card, Alert } from 'react-bootstrap';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { 
+  Building2, 
+  User, 
+  Mail, 
+  Phone, 
+  Lock, 
+  Eye, 
+  EyeOff, 
+  ArrowLeft, 
+  CheckCircle2, 
+  AlertCircle,
+  Loader2
+} from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import Captcha from './Captcha';
-import '../../LandingPage.css';
-import { publicAPI } from '../services/api';
+import { publicAPI, authAPI } from '../services/api';
 import { useRegional } from '../context/RegionalContext';
+import './RegistrationForm.css';
 
 // ========== EMAIL NOTIFICATION CONFIGURATION ==========
-// Set to true to send email notifications, false to disable
 const SEND_EMAIL_NOTIFICATION = true;
 // ======================================================
 
 const RegistrationForm = () => {
-    const navigate = useNavigate();
-    const { type } = useParams();
-    const currentType = type || 'employers';
-    const { convertAmount, currencyCode } = useRegional();
-    
-    // Check if we are in plan checkout mode
-    const searchParams = new URLSearchParams(window.location.search);
-    const planParam = searchParams.get('plan');
-    const isPlanCheckout = !!planParam;
+  const navigate = useNavigate();
+  const { type } = useParams();
+  const { convertAmount, currencyCode } = useRegional();
 
-    const [formData, setFormData] = useState({
-        name: '',
-        address: '',
-        city: '',
-        state: '',
-        country: '',
-        mobile: '',
-        // For plan checkout
-        email: '',
-        password: '',
-        company_name: ''
-    });
-    const [submitted, setSubmitted] = useState(false);
-    const [plans, setPlans] = useState([]);
-    const [activePlan, setActivePlan] = useState(null);
-    const captchaRef = useRef(null);
+  // URL search params for plan selection
+  const searchParams = new URLSearchParams(window.location.search);
+  const planParam = searchParams.get('plan');
+  const isPlanCheckout = !!planParam;
 
-    React.useEffect(() => {
-        if (isPlanCheckout) {
-            fetchPlans();
-        }
-    }, [isPlanCheckout]);
+  const [formData, setFormData] = useState({
+    company_name: '',
+    name: '',
+    email: '',
+    mobile: '',
+    password: '',
+    confirmPassword: '',
+  });
 
-    const fetchPlans = async () => {
-        try {
-            const res = await publicAPI.getActivePlans();
-            if (res?.data?.success) {
-                const fetchedPlans = res.data.data;
-                setPlans(fetchedPlans);
-                // Map string plan param to actual plan
-                let matchedPlan = null;
-                if (planParam === 'starter') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('starter'));
-                else if (planParam === 'pro') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('pro'));
-                else if (planParam === 'premium') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('premium'));
-                else if (planParam === 'trial') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('trial') || p.price == 0);
-                
-                if (matchedPlan) setActivePlan(matchedPlan);
-                else setActivePlan(fetchedPlans[0]); // fallback
-            }
-        } catch (error) {
-            console.error("Failed to fetch plans", error);
-        }
-    };
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [activePlan, setActivePlan] = useState(null);
 
-    // Security Check: Block Admin Registration
-    if (currentType === 'admin') {
-        return (
-            <Container className="py-5 text-center" style={{ marginTop: '100px' }}>
-                <Alert variant="danger" className="d-inline-block shadow-sm">
-                    <Alert.Heading>Access Denied</Alert.Heading>
-                    <p>Public registration for Admin is restricted. Please contact the system administrator.</p>
-                    <Button variant="outline-danger" onClick={() => navigate('/')}>Return Home</Button>
-                </Alert>
-            </Container>
-        );
+  const captchaRef = useRef(null);
+
+  useEffect(() => {
+    if (isPlanCheckout) {
+      fetchPlans();
+    }
+  }, [isPlanCheckout]);
+
+  const fetchPlans = async () => {
+    try {
+      const res = await publicAPI.getActivePlans();
+      if (res?.data?.success) {
+        const fetchedPlans = res.data.data;
+        setPlans(fetchedPlans);
+        let matchedPlan = null;
+        if (planParam === 'starter') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('starter'));
+        else if (planParam === 'pro') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('pro'));
+        else if (planParam === 'premium') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('premium'));
+        else if (planParam === 'trial') matchedPlan = fetchedPlans.find(p => p.name.toLowerCase().includes('trial') || p.price == 0);
+
+        if (matchedPlan) setActivePlan(matchedPlan);
+        else setActivePlan(fetchedPlans[0]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch plans', err);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleBackToHome = () => {
+    navigate('/');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validation
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
     }
 
-    const typeLabels = {
-        'jobseekers': 'Job Seeker',
-        'vendor': 'Vendor',
-        'employers': 'Employer',
-        // 'admin': 'Admin', // Removed for security
-        'job-search': 'Job Search',
-        'employees': 'Employee',
-        'e-pay': 'E-Pay',
-        'ngo': 'NGO',
-        'elderly-support': 'Elderly Support',
-        'rural-support': 'Rural Support',
-        'water-support': 'Water Support',
-        'mortgage': 'Mortgage',
-        'auto-loan': 'Auto Loan',
-        'payroll': 'Payroll',
-        'insurance': 'Insurance',
-        '2000-companies': '2000 Companies'
-    };
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match. Please re-enter.');
+      return;
+    }
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+    if (captchaRef.current && !captchaRef.current.validate()) {
+      return;
+    }
 
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(false);
+    setLoading(true);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError(null);
+    // 1. PLAN CHECKOUT WITH PAYMENT
+    if (isPlanCheckout) {
+      if (!activePlan) {
+        setError('No valid subscription plan selected.');
+        setLoading(false);
+        return;
+      }
 
-        if (captchaRef.current && !captchaRef.current.validate()) {
-            return;
-        }
+      try {
+        const convertedAmount = convertAmount(activePlan.price, 'INR', currencyCode);
+        const orderRes = await publicAPI.createRazorpayOrder({
+          plan_id: activePlan.id,
+          amount: convertedAmount,
+          currency: currencyCode,
+        });
 
-        setLoading(true);
+        if (!orderRes?.data?.success) throw new Error('Failed to create payment order');
 
-        if (isPlanCheckout) {
-            if (!activePlan) {
-                setError("No valid plan selected.");
-                setLoading(false);
-                return;
-            }
+        const { order_id, key_id, amount, currency, plan_name } = orderRes.data.data;
 
+        const options = {
+          key: key_id,
+          amount: amount,
+          currency: currency,
+          name: 'Kiaan Technology',
+          description: `${plan_name} SaaS Subscription`,
+          image: '/kt_logo_transparent.png',
+          order_id: order_id,
+          handler: async function (response) {
             try {
-                // 1. Create Order
-                const convertedAmount = convertAmount(activePlan.price, 'INR', currencyCode);
-                const orderRes = await publicAPI.createRazorpayOrder({ 
-                    plan_id: activePlan.id,
-                    amount: convertedAmount,
-                    currency: currencyCode 
-                });
-                if (!orderRes?.data?.success) throw new Error("Failed to create order");
-                
-                const { order_id, key_id, amount, currency, plan_name } = orderRes.data.data;
-                
-                const options = {
-                    key: key_id,
-                    amount: amount,
-                    currency: currency,
-                    name: 'Payroll',
-                    description: `${plan_name} SaaS Subscription`,
-                    image: '/kiaan_logo.png',
-                    order_id: order_id,
-                    handler: async function (response) {
-                        try {
-                            setLoading(true);
-                            const verifyRes = await publicAPI.verifyAndRegister({
-                                name: formData.name,
-                                email: formData.email,
-                                password: formData.password,
-                                company_name: formData.company_name,
-                                phone: formData.mobile,
-                                plan_id: activePlan.id,
-                                razorpay_order_id: response.razorpay_order_id,
-                                razorpay_payment_id: response.razorpay_payment_id
-                            });
-                            
-                            if (verifyRes?.data?.success) {
-                                setSubmitted(true);
-                            } else {
-                                setError(verifyRes?.data?.message || 'Payment verification failed.');
-                            }
-                        } catch (err) {
-                            setError(err.response?.data?.message || 'Verification failed.');
-                        } finally {
-                            setLoading(false);
-                        }
-                    },
-                    prefill: {
-                        name: formData.name,
-                        email: formData.email,
-                        contact: formData.mobile
-                    },
-                    theme: { color: '#C62828' }
-                };
+              setLoading(true);
+              const verifyRes = await publicAPI.verifyAndRegister({
+                name: formData.name,
+                email: formData.email,
+                password: formData.password,
+                company_name: formData.company_name,
+                phone: formData.mobile,
+                plan_id: activePlan.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+              });
 
-                if (window.Razorpay) {
-                    const rzp = new window.Razorpay(options);
-                    rzp.on('payment.failed', function (response){
-                        setError("Payment failed: " + response.error.description);
-                    });
-                    rzp.open();
-                } else {
-                    // Fallback test
-                    const verifyRes = await publicAPI.verifyAndRegister({
-                        name: formData.name,
-                        email: formData.email,
-                        password: formData.password,
-                        company_name: formData.company_name,
-                        phone: formData.mobile,
-                        plan_id: activePlan.id,
-                        razorpay_order_id: order_id,
-                        razorpay_payment_id: `pay_${Date.now()}_test`
-                    });
-                    if (verifyRes?.data?.success) {
-                        setSubmitted(true);
-                    }
-                }
-            } catch (err) {
-                console.error(err);
-                setError(err.response?.data?.message || err.message || 'Payment initiation failed.');
-            } finally {
-                setLoading(false);
-            }
-
-        } else {
-            // STANDARD REGISTRATION
-            try {
-                await publicAPI.createRequest({
-                    ...formData,
-                    request_type: currentType
-                });
-
-                if (SEND_EMAIL_NOTIFICATION) {
-                    try {
-                        const SERVICE_ID = 'service_ebslx2i';
-                        const TEMPLATE_ID = 'template_y5xlrd7';
-                        const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
-
-                        const templateParams = {
-                            to_email: 'info@kiaantechnology.com',
-                            user_name: formData.name,
-                            user_email: formData.mobile,
-                            message: `New ${typeLabels[currentType] || 'Registration'} registration request received.\n\nDetails:\nAddress: ${formData.address}\nCity: ${formData.city}\nState: ${formData.state}\nCountry: ${formData.country}\nMobile: ${formData.mobile}`,
-                            source: `${typeLabels[currentType] || 'Registration'} Registration Form`
-                        };
-
-                        await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-                    } catch (emailError) {
-                        console.error('Email notification failed:', emailError);
-                    }
-                }
-
+              if (verifyRes?.data?.success) {
                 setSubmitted(true);
+              } else {
+                setError(verifyRes?.data?.message || 'Payment verification failed.');
+              }
             } catch (err) {
-                console.error(err);
-                setError(err.response?.data?.message || 'Something went wrong. Please try again.');
+              setError(err.response?.data?.message || 'Payment verification failed.');
             } finally {
-                setLoading(false);
+              setLoading(false);
             }
+          },
+          prefill: {
+            name: formData.name,
+            email: formData.email,
+            contact: formData.mobile,
+          },
+          theme: { color: '#C62828' },
+        };
+
+        if (window.Razorpay) {
+          const rzp = new window.Razorpay(options);
+          rzp.on('payment.failed', function (response) {
+            setError('Payment failed: ' + response.error.description);
+          });
+          rzp.open();
+        } else {
+          // Fallback test
+          const verifyRes = await publicAPI.verifyAndRegister({
+            name: formData.name,
+            email: formData.email,
+            password: formData.password,
+            company_name: formData.company_name,
+            phone: formData.mobile,
+            plan_id: activePlan.id,
+            razorpay_order_id: order_id,
+            razorpay_payment_id: `pay_${Date.now()}_test`,
+          });
+          if (verifyRes?.data?.success) {
+            setSubmitted(true);
+          }
         }
-    };
+      } catch (err) {
+        console.error(err);
+        setError(err.response?.data?.message || err.message || 'Payment initiation failed.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // 2. STANDARD COMPANY ACCOUNT REGISTRATION (FREE TRIAL / ONBOARDING)
+      try {
+        const payload = {
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+          role: 'employer',
+          phone: formData.mobile.trim(),
+          company_name: formData.company_name.trim(),
+        };
 
-    const handleBackToHome = () => {
-        navigate('/');
-    };
+        const response = await authAPI.register(payload);
 
-    return (
-        <div className="registration-page" style={{
-            minHeight: '100vh',
-            background: 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)',
-            paddingTop: '80px',
-            paddingBottom: '80px'
-        }}>
-            <Container>
-                <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                >
-                    <Card className="shadow-lg border-0" style={{ maxWidth: '600px', margin: '0 auto' }}>
-                        <Card.Header className="bg-primary text-white text-center py-4">
-                            <h2 className="mb-0">
-                                {isPlanCheckout 
-                                    ? `Subscribe to ${activePlan ? activePlan.name : 'Plan'}` 
-                                    : `${typeLabels[currentType] || 'Registration'} Form`}
-                            </h2>
-                        </Card.Header>
-                        <Card.Body className="p-5">
-                            {submitted ? (
-                                <motion.div
-                                    initial={{ scale: 0.8, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ duration: 0.5 }}
-                                    className="text-center"
-                                >
-                                    <div className="mb-4 text-success">
-                                        <i className="bi bi-check-circle-fill" style={{ fontSize: '4rem' }}></i>
-                                    </div>
-                                    <h3 className="mb-3">Registration Successful!</h3>
-                                    <p className="text-muted mb-4">
-                                        Thank you for registering as {typeLabels[currentType] || 'Member'}. We will contact you shortly.
-                                    </p>
-                                    <Button
-                                        variant="primary"
-                                        size="lg"
-                                        onClick={handleBackToHome}
-                                    >
-                                        Back to Home
-                                    </Button>
-                                </motion.div>
-                            ) : (
-                                <Form onSubmit={handleSubmit}>
-                                    {error && (
-                                        <Alert variant="danger" className="mb-4">
-                                            {error}
-                                        </Alert>
-                                    )}
+        if (response?.data?.success) {
+          const authData = response.data.data;
+          if (authData?.accessToken) {
+            localStorage.setItem('authToken', authData.accessToken);
+            localStorage.setItem('refreshToken', authData.refreshToken);
+            localStorage.setItem('user', JSON.stringify(authData.user));
+            localStorage.setItem('userRole', authData.user?.role || 'employer');
+            localStorage.setItem('userEmail', authData.user?.email || formData.email);
+            localStorage.setItem('userId', authData.user?.id);
+          }
 
-                                    {isPlanCheckout && activePlan && (
-                                        <Alert variant="info" className="mb-4 text-center">
-                                            <h5>{activePlan.name} Plan</h5>
-                                            <p className="mb-0 fw-bold fs-5">₹ {activePlan.price} <span className="fs-6 fw-normal">/ {activePlan.duration_months} Month(s)</span></p>
-                                        </Alert>
-                                    )}
+          // Email notification
+          if (SEND_EMAIL_NOTIFICATION) {
+            try {
+              const SERVICE_ID = 'service_ebslx2i';
+              const TEMPLATE_ID = 'template_y5xlrd7';
+              const PUBLIC_KEY = 'pRZwgHFV3aMU8kXab';
 
-                                    {isPlanCheckout ? (
-                                        <>
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Company Name <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control type="text" name="company_name" value={formData.company_name} onChange={handleChange} required placeholder="Enter Company Name" size="lg" />
-                                            </Form.Group>
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Contact Person Name <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control type="text" name="name" value={formData.name} onChange={handleChange} required placeholder="Enter your full name" size="lg" />
-                                            </Form.Group>
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Email Address <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="name@company.com" size="lg" />
-                                            </Form.Group>
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Password <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="Create a password" size="lg" minLength="6" />
-                                            </Form.Group>
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Mobile No <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control type="tel" name="mobile" value={formData.mobile} onChange={handleChange} required placeholder="Enter your mobile number" size="lg" />
-                                            </Form.Group>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Name <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control
-                                                    type="text"
-                                                    name="name"
-                                                    value={formData.name}
-                                                    onChange={handleChange}
-                                                    required
-                                                    placeholder="Enter your full name"
-                                                    size="lg"
-                                                />
-                                            </Form.Group>
+              const templateParams = {
+                to_email: 'info@kiaantechnology.com',
+                user_name: formData.name,
+                user_email: formData.email,
+                message: `New Company Account Registered:\nCompany: ${formData.company_name}\nAdmin: ${formData.name}\nEmail: ${formData.email}\nPhone: ${formData.mobile}`,
+                source: 'Corporate Registration Form',
+              };
 
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Address <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control
-                                                    as="textarea"
-                                                    rows={3}
-                                                    name="address"
-                                                    value={formData.address}
-                                                    onChange={handleChange}
-                                                    required
-                                                    placeholder="Enter your address"
-                                                />
-                                            </Form.Group>
+              await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
+            } catch (emailError) {
+              console.warn('Email notification skipped:', emailError);
+            }
+          }
 
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">City <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control
-                                                    type="text"
-                                                    name="city"
-                                                    value={formData.city}
-                                                    onChange={handleChange}
-                                                    required
-                                                    placeholder="Enter your city"
-                                                    size="lg"
-                                                />
-                                            </Form.Group>
+          setSubmitted(true);
+        } else {
+          setError(response?.data?.message || 'Registration failed. Please try again.');
+        }
+      } catch (err) {
+        console.error('Registration error:', err);
+        setError(err.response?.data?.message || 'Registration failed. Please check your details and try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">State <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control
-                                                    type="text"
-                                                    name="state"
-                                                    value={formData.state}
-                                                    onChange={handleChange}
-                                                    required
-                                                    placeholder="Enter your state"
-                                                    size="lg"
-                                                />
-                                            </Form.Group>
-
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Country <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control
-                                                    type="text"
-                                                    name="country"
-                                                    value={formData.country}
-                                                    onChange={handleChange}
-                                                    required
-                                                    placeholder="Enter your country"
-                                                    size="lg"
-                                                />
-                                            </Form.Group>
-
-                                            <Form.Group className="mb-4">
-                                                <Form.Label className="fw-semibold">Mobile No <span className="text-danger">*</span></Form.Label>
-                                                <Form.Control
-                                                    type="tel"
-                                                    name="mobile"
-                                                    value={formData.mobile}
-                                                    onChange={handleChange}
-                                                    required
-                                                    placeholder="Enter your mobile number"
-                                                    size="lg"
-                                                />
-                                            </Form.Group>
-                                        </>
-                                    )}
-
-                                    {/* Security Verification CAPTCHA */}
-                                    <Captcha ref={captchaRef} className="mb-4" />
-
-                                    <div className="d-grid gap-2">
-                                        <Button
-                                            variant="primary"
-                                            type="submit"
-                                            size="lg"
-                                            className="fw-semibold"
-                                            disabled={loading}
-                                        >
-                                            {loading ? 'Processing...' : (isPlanCheckout ? 'Proceed to Payment' : 'Submit Registration')}
-                                        </Button>
-                                        <Button
-                                            variant="outline-secondary"
-                                            onClick={handleBackToHome}
-                                            size="lg"
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </div>
-                                </Form>
-                            )}
-                        </Card.Body>
-                    </Card>
-                </motion.div>
-            </Container>
+  return (
+    <div className="reg-page-wrapper">
+      <motion.div
+        className="reg-card"
+        initial={{ opacity: 0, y: 25 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+      >
+        {/* Top Header Bar */}
+        <div className="reg-top-bar">
+          <div className="reg-trial-badge">
+            FREE TRIAL — $0 7 DAYS FREE
+          </div>
+          <button type="button" onClick={handleBackToHome} className="reg-back-link">
+            <ArrowLeft size={16} />
+            <span>Back to Home</span>
+          </button>
         </div>
-    );
+
+        {/* Success State */}
+        {submitted ? (
+          <motion.div
+            className="reg-success-card"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="reg-success-icon">
+              <CheckCircle2 size={44} />
+            </div>
+            <h2 className="reg-title" style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>
+              Account Created Successfully!
+            </h2>
+            <p className="reg-subtitle" style={{ maxWidth: '480px', margin: '0 auto 1.75rem auto' }}>
+              Welcome to Kiaan Technology. Your company account for <strong>{formData.company_name || 'your organization'}</strong> is now ready.
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="reg-submit-btn"
+                style={{ maxWidth: '240px', marginTop: 0 }}
+                onClick={() => navigate('/employer/dashboard')}
+              >
+                Go to Dashboard
+              </button>
+              <button
+                type="button"
+                className="reg-back-link"
+                style={{ padding: '0.75rem 1.25rem', border: '1px solid #E2E8F0', borderRadius: '12px' }}
+                onClick={handleBackToHome}
+              >
+                Home
+              </button>
+            </div>
+          </motion.div>
+        ) : (
+          <>
+            {/* Header Title & Subtitle */}
+            <div className="reg-header">
+              <h1 className="reg-title">Create Your Company Account</h1>
+              <p className="reg-subtitle">
+                Quick 2-minute setup. Start managing your workforce &amp; payroll instantly.
+              </p>
+            </div>
+
+            {/* Plan Checkout Banner */}
+            {isPlanCheckout && activePlan && (
+              <div className="reg-alert-plan" style={{ marginBottom: '1.25rem' }}>
+                <div>
+                  <strong>{activePlan.name} Plan:</strong> ₹{activePlan.price} / {activePlan.duration_months} Month(s)
+                </div>
+                <span style={{ fontSize: '0.8rem', opacity: 0.85 }}>Selected Plan</span>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="reg-alert-error" style={{ marginBottom: '1.25rem' }}>
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Main 2-Column Form */}
+            <form onSubmit={handleSubmit}>
+              <div className="reg-form-grid">
+                {/* 1. Company / Business Name */}
+                <div className="reg-field-group">
+                  <label className="reg-label" htmlFor="company_name">
+                    Company / Business Name <span className="reg-required">*</span>
+                  </label>
+                  <div className="reg-input-box">
+                    <Building2 size={18} className="reg-input-icon" />
+                    <input
+                      id="company_name"
+                      type="text"
+                      name="company_name"
+                      className="reg-input"
+                      placeholder="Company name"
+                      value={formData.company_name}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Admin Full Name */}
+                <div className="reg-field-group">
+                  <label className="reg-label" htmlFor="name">
+                    Admin Full Name <span className="reg-required">*</span>
+                  </label>
+                  <div className="reg-input-box">
+                    <User size={18} className="reg-input-icon" />
+                    <input
+                      id="name"
+                      type="text"
+                      name="name"
+                      className="reg-input"
+                      placeholder="Admin full name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Work Email */}
+                <div className="reg-field-group">
+                  <label className="reg-label" htmlFor="email">
+                    Work Email <span className="reg-required">*</span>
+                  </label>
+                  <div className="reg-input-box">
+                    <Mail size={18} className="reg-input-icon" />
+                    <input
+                      id="email"
+                      type="email"
+                      name="email"
+                      className="reg-input"
+                      placeholder="admin@yourcompany.com"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Mobile Number */}
+                <div className="reg-field-group">
+                  <label className="reg-label" htmlFor="mobile">
+                    Mobile Number <span className="reg-required">*</span>
+                  </label>
+                  <div className="reg-input-box">
+                    <Phone size={18} className="reg-input-icon" />
+                    <input
+                      id="mobile"
+                      type="tel"
+                      name="mobile"
+                      className="reg-input"
+                      placeholder="98765 43210"
+                      value={formData.mobile}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Password */}
+                <div className="reg-field-group">
+                  <label className="reg-label" htmlFor="password">
+                    Password <span className="reg-required">*</span>
+                  </label>
+                  <div className="reg-input-box">
+                    <Lock size={18} className="reg-input-icon" />
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      className="reg-input reg-input-password"
+                      placeholder="Create password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      className="reg-eye-btn"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label="Toggle password visibility"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 6. Confirm Password */}
+                <div className="reg-field-group">
+                  <label className="reg-label" htmlFor="confirmPassword">
+                    Confirm Password <span className="reg-required">*</span>
+                  </label>
+                  <div className="reg-input-box">
+                    <Lock size={18} className="reg-input-icon" />
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      className="reg-input reg-input-password"
+                      placeholder="Confirm password"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      className="reg-eye-btn"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      aria-label="Toggle confirm password visibility"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 7. Security Verification CAPTCHA */}
+                <div className="reg-captcha-box">
+                  <Captcha ref={captchaRef} />
+                </div>
+
+                {/* 8. Submit Button */}
+                <button
+                  type="submit"
+                  className="reg-submit-btn"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>{isPlanCheckout ? 'Processing Payment...' : 'Creating Account...'}</span>
+                    </>
+                  ) : (
+                    <span>{isPlanCheckout ? 'Proceed to Payment' : 'Create Company Account'}</span>
+                  )}
+                </button>
+
+                {/* 9. Footer Login Link */}
+                <div className="reg-footer">
+                  <span>Already have an account?</span>
+                  <Link to="/login" className="reg-login-link">
+                    Log in
+                  </Link>
+                </div>
+              </div>
+            </form>
+          </>
+        )}
+      </motion.div>
+    </div>
+  );
 };
 
 export default RegistrationForm;

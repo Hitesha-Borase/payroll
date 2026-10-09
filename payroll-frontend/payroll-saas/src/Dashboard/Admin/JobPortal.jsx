@@ -26,59 +26,60 @@ export default function JobPortal() {
   const [error, setError] = useState(null);
 
   // Fetch data from API
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const fetchData = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      setError(null);
 
-        // Fetch employers
-        const empResponse = await adminAPI.getEmployers();
-        if (empResponse?.data?.success) {
-          const employersData = empResponse.data.data || [];
-          setEmployers(employersData.map(emp => ({
-            id: emp.id,
-            name: emp.user?.name || 'N/A',
-            company: emp.company_name || 'N/A',
-            email: emp.user?.email || 'N/A',
-            phone: emp.user?.phone || '',
-          })));
-        }
-
-        // Fetch jobs (from Internal Admin API)
-        const jobsResponse = await adminAPI.getJobVacancies();
-        if (jobsResponse?.data?.success) {
-          const jobsData = jobsResponse.data.data || [];
-          setVacancies(jobsData.map(job => ({
-            id: job.id,
-            title: job.title,
-            department: job.department || 'N/A',
-            location: job.location,
-            description: job.description,
-            status: job.status,
-            postedDate: job.created_at ? job.created_at.substring(0, 10) : '',
-            salary: job.salary || (job.salary_min && job.salary_max ? `${parseFloat(job.salary_min)} - ${parseFloat(job.salary_max)}` : (job.salary_min ? `${parseFloat(job.salary_min)}` : '')),
-            employer: job.employer_name || 'N/A',
-            level: job.level || 'N/A',
-            employmentType: job.job_type,
-            experienceRequired: job.experience_required || 'N/A',
-            expiryDate: job.expiry_date ? job.expiry_date.substring(0, 10) : '',
-            requirements: job.skills || '',
-          })));
-        }
-
-        // Fetch Job Seekers
-        const seekersResponse = await adminAPI.getJobSeekers();
-        if (seekersResponse?.data?.success) {
-          setJobSeekers(seekersResponse.data.data);
-        }
-
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch data');
-      } finally {
-        setLoading(false);
+      // Fetch employers
+      const empResponse = await adminAPI.getEmployers();
+      if (empResponse?.data?.success) {
+        const employersData = empResponse.data.data || [];
+        setEmployers(employersData.map(emp => ({
+          id: emp.id,
+          name: emp.user?.name || 'N/A',
+          company: emp.company_name || 'N/A',
+          email: emp.user?.email || 'N/A',
+          phone: emp.user?.phone || '',
+        })));
       }
-    };
+
+      // Fetch jobs (from Internal Admin API)
+      const jobsResponse = await adminAPI.getJobVacancies();
+      if (jobsResponse?.data?.success) {
+        const jobsData = jobsResponse.data.data || [];
+        setVacancies(jobsData.map(job => ({
+          id: job.id,
+          title: job.title,
+          department: job.department || 'N/A',
+          location: job.location,
+          description: job.description,
+          status: job.status,
+          postedDate: job.created_at ? job.created_at.substring(0, 10) : '',
+          salary: job.salary || (job.salary_min && job.salary_max ? `${parseFloat(job.salary_min)} - ${parseFloat(job.salary_max)}` : (job.salary_min ? `${parseFloat(job.salary_min)}` : '')),
+          employer: job.employer_name || 'N/A',
+          level: job.level || 'N/A',
+          employmentType: job.job_type,
+          experienceRequired: job.experience_required || 'N/A',
+          expiryDate: job.expiry_date ? job.expiry_date.substring(0, 10) : '',
+          requirements: job.skills || '',
+        })));
+      }
+
+      // Fetch Job Seekers
+      const seekersResponse = await adminAPI.getJobSeekers();
+      if (seekersResponse?.data?.success) {
+        setJobSeekers(seekersResponse.data.data);
+      }
+
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch data');
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -200,9 +201,8 @@ export default function JobPortal() {
       };
       await adminAPI.createJobVacancy(newVacancy);
       toast.success('Vacancy created successfully');
-      setLoading(true); // Trigger refresh indirectly or call fetch
-      // Re-fetch logic or simple reload
-      window.location.reload();
+      closeModal();
+      fetchData(false);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create vacancy');
     }
@@ -227,7 +227,8 @@ export default function JobPortal() {
       };
       await adminAPI.updateJobVacancy(selectedVacancy.id, updatedVacancy);
       toast.success('Vacancy updated successfully');
-      window.location.reload();
+      closeModal();
+      fetchData(false);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update vacancy');
     }
@@ -238,7 +239,7 @@ export default function JobPortal() {
       try {
         await adminAPI.deleteJobVacancy(vacancyId);
         toast.success('Vacancy deleted successfully');
-        window.location.reload();
+        setVacancies(prev => prev.filter(v => v.id !== vacancyId));
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to delete vacancy');
       }
@@ -260,7 +261,8 @@ export default function JobPortal() {
       };
       await adminAPI.createJobSeeker(newJobSeeker);
       toast.success('Job seeker added successfully');
-      window.location.reload();
+      closeModal();
+      fetchData(false);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to add job seeker');
     }
@@ -271,7 +273,7 @@ export default function JobPortal() {
       try {
         await adminAPI.deleteJobSeeker(jobSeekerId);
         toast.success('Job seeker deleted successfully');
-        window.location.reload();
+        setJobSeekers(prev => prev.filter(s => s.id !== jobSeekerId && s.user_id !== jobSeekerId));
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to delete job seeker');
       }
@@ -333,7 +335,7 @@ export default function JobPortal() {
         const response = await adminAPI.toggleUserStatus(user.id, newStatus);
         if (response?.data?.success) {
           toast.success(response.data.message);
-          window.location.reload();
+          setJobSeekers(prev => prev.map(s => (s.id === user.id || s.user_id === user.id ? { ...s, status: newStatus } : s)));
         }
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to update user status');
@@ -480,7 +482,6 @@ export default function JobPortal() {
         ) : (
           <div>
             <button onClick={() => openModal('addVacancy')} style={styles.button(colors.primary, colors.white, 'small')}>+ Add Vacancy</button>
-            <button onClick={() => openModal('addJobSeeker')} style={{ ...styles.button(colors.primary, colors.white, 'small'), marginLeft: '10px' }}>+ Add Job Seeker</button>
           </div>
         )}
       </header>
@@ -495,7 +496,6 @@ export default function JobPortal() {
           gap: '10px'
         }}>
           <button onClick={() => { openModal('addVacancy'); setShowMobileMenu(false); }} style={styles.button(colors.primary, colors.white, 'small')}>+ Add Vacancy</button>
-          <button onClick={() => { openModal('addJobSeeker'); setShowMobileMenu(false); }} style={styles.button(colors.secondary, colors.white, 'small')}>+ Add Job Seeker</button>
         </div>
       )}
 

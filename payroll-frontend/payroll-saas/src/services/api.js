@@ -441,10 +441,10 @@ export const adminAPI = {
     getTrainingMaterials: () => axiosInstance.get('/admin/trainings/materials'),
     uploadTrainingMaterial: (data, params = {}) => {
         const isFormData = typeof FormData !== 'undefined' && data instanceof FormData;
-        const config = { params };
-        if (isFormData) {
-            config.headers = { 'Content-Type': undefined };
-        }
+        const config = { 
+            params,
+            headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+        };
         return axiosInstance.post('/admin/trainings/material', data, config);
     },
     markTrainingCompletion: (data) => axiosInstance.post('/admin/trainings/completion', data),

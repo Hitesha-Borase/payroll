@@ -391,7 +391,7 @@ const LandingPage = () => {
             scrollToSection('testimonials');
         } else if (path === '/pricing') {
             setActiveTab('pricing');
-            scrollToSection('pricing');
+            setTimeout(() => scrollToSection('pricing'), 80);
         } else if (path === '/contact' || path === '/contact-us') {
             setActiveTab('contact');
             scrollToSection('contact');
@@ -409,6 +409,11 @@ const LandingPage = () => {
         const element = document.getElementById(id);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            setTimeout(() => {
+                const el = document.getElementById(id);
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }, 150);
         }
     };
 
@@ -671,7 +676,7 @@ const LandingPage = () => {
                                 <button 
                                     type="button"
                                     onClick={() => handleSignupClick('trial')}
-                                    className="btn btn-lg text-white px-4 py-3 fw-bold rounded-pill shadow-sm d-inline-flex align-items-center gap-2"
+                                    className="btn btn-lg text-white px-4 py-3 fw-bold rounded-pill shadow-sm d-inline-flex align-items-center justify-content-center gap-2 w-100 w-sm-auto"
                                     style={{ background: 'linear-gradient(135deg, #C62828 0%, #B71C1C 100%)', border: 'none', fontSize: '0.98rem' }}
                                 >
                                     <span>Start 7-Day Free Trial</span>
@@ -681,7 +686,7 @@ const LandingPage = () => {
                                 <button 
                                     type="button"
                                     onClick={() => scrollToSection('pricing')}
-                                    className="btn btn-lg btn-outline-dark px-4 py-3 fw-semibold rounded-pill"
+                                    className="btn btn-lg btn-outline-dark px-4 py-3 fw-semibold rounded-pill d-inline-flex align-items-center justify-content-center w-100 w-sm-auto"
                                     style={{ fontSize: '0.98rem' }}
                                 >
                                     Explore Plans &amp; Pricing
@@ -701,7 +706,7 @@ const LandingPage = () => {
                                     href="/kiaan-payroll.apk" 
                                     download="kiaan-payroll.apk"
                                     onClick={() => toast.success("📱 Downloading Kiaan Payroll Android APK...", { icon: '⬇️' })}
-                                    className="btn d-inline-flex align-items-center text-decoration-none shadow-sm"
+                                    className="btn d-inline-flex align-items-center text-decoration-none shadow-sm flex-fill"
                                     style={{ 
                                         backgroundColor: '#FFFFFF', 
                                         color: '#0F172A', 
@@ -710,8 +715,8 @@ const LandingPage = () => {
                                         padding: '10px 20px',
                                         gap: '14px',
                                         boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
-                                        flex: '0 1 auto',
-                                        minWidth: '190px',
+                                        flex: '1 1 180px',
+                                        maxWidth: '100%',
                                         transition: 'all 0.25s ease'
                                     }}
                                     onMouseEnter={(e) => { 
@@ -750,7 +755,7 @@ const LandingPage = () => {
                                     href="/kiaan-payroll.apk" 
                                     download="kiaan-payroll-ios.apk"
                                     onClick={() => toast.success("🍎 Downloading Kiaan Payroll for iOS...", { icon: '⬇️' })}
-                                    className="btn d-inline-flex align-items-center text-decoration-none shadow-sm"
+                                    className="btn d-inline-flex align-items-center text-decoration-none shadow-sm flex-fill"
                                     style={{ 
                                         backgroundColor: '#FFFFFF', 
                                         color: '#0F172A', 
@@ -759,8 +764,8 @@ const LandingPage = () => {
                                         padding: '10px 20px',
                                         gap: '14px',
                                         boxShadow: '0 4px 14px rgba(0, 0, 0, 0.04)',
-                                        flex: '0 1 auto',
-                                        minWidth: '190px',
+                                        flex: '1 1 180px',
+                                        maxWidth: '100%',
                                         transition: 'all 0.25s ease'
                                     }}
                                     onMouseEnter={(e) => { 

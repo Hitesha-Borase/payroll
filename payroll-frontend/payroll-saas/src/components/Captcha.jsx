@@ -12,7 +12,7 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
 
   // Generate 5 distinct, high-readability alphanumeric characters
   const generateCode = useCallback(() => {
-    // Clear uppercase characters and numbers (omitting 0, O, 1, I)
+    // Clear uppercase characters and numbers (omitting confusing 0, O, 1, I)
     const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
     let code = '';
     for (let i = 0; i < 5; i++) {
@@ -21,18 +21,27 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
     return code;
   }, []);
 
-  // Draw high-resolution canvas with sharp, bold, legible characters
+  // Draw high-resolution canvas dynamically fitted to its container
   const drawCaptcha = useCallback((text) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // High DPI Canvas scaling
-    const width = 280;
-    const height = 50;
-    canvas.width = width;
-    canvas.height = height;
+    // Dynamically calculate container dimensions for 100% responsiveness
+    const container = canvas.parentElement;
+    const rect = container ? container.getBoundingClientRect() : null;
+    const displayWidth = rect && rect.width > 40 ? Math.floor(rect.width) : 220;
+    const displayHeight = rect && rect.height > 20 ? Math.floor(rect.height) : 46;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+
+    // Set pixel resolution buffer
+    canvas.width = Math.floor(displayWidth * dpr);
+    canvas.height = Math.floor(displayHeight * dpr);
+    ctx.scale(dpr, dpr);
+
+    const width = displayWidth;
+    const height = displayHeight;
 
     // Background Gradient (soft clean tint)
     const gradient = ctx.createLinearGradient(0, 0, width, height);
@@ -42,7 +51,7 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Subtle wavy background security lines (thin & light so text is 100% visible)
+    // Subtle wavy background security lines
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
       ctx.moveTo(0, Math.random() * height);
@@ -51,7 +60,7 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
         width * 0.7, Math.random() * height,
         width, Math.random() * height
       );
-      ctx.strokeStyle = `rgba(${Math.floor(Math.random() * 100 + 100)}, ${Math.floor(Math.random() * 100 + 100)}, ${Math.floor(Math.random() * 100 + 100)}, 0.35)`;
+      ctx.strokeStyle = `rgba(${Math.floor(Math.random() * 80 + 120)}, ${Math.floor(Math.random() * 80 + 120)}, ${Math.floor(Math.random() * 80 + 120)}, 0.4)`;
       ctx.lineWidth = 1.2;
       ctx.stroke();
     }
@@ -65,24 +74,25 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
     }
 
     // High contrast distinct colors for each letter
-    const colors = ['#991B1B', '#1E40AF', '#065F46', '#6B21A8', '#9A3412'];
+    const colors = ['#B91C1C', '#1D4ED8', '#047857', '#7C3AED', '#C2410C'];
     const fontFamilies = ['Arial', 'Verdana', 'Trebuchet MS', 'Impact'];
 
-    // Render each character clearly spaced
+    // Proportional character spacing based on container width
     const charSpacing = width / (text.length + 1);
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       ctx.save();
-      const x = (i + 0.85) * charSpacing;
+      const x = (i + 0.95) * charSpacing;
       const y = height / 2 + 1;
-      const angle = (Math.random() * 16 - 8) * (Math.PI / 180); // gentle tilt (-8 to +8 deg)
+      const angle = (Math.random() * 14 - 7) * (Math.PI / 180); // gentle tilt
 
       ctx.translate(x, y);
       ctx.rotate(angle);
 
-      // Bold legible font
+      // Scale font size proportionally to height and width
       const fontName = fontFamilies[i % fontFamilies.length];
-      ctx.font = `900 25px ${fontName}, sans-serif`;
+      const fontSize = Math.min(24, Math.max(17, Math.floor(height * 0.52)));
+      ctx.font = `900 ${fontSize}px ${fontName}, sans-serif`;
       ctx.fillStyle = colors[i % colors.length];
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
@@ -110,13 +120,35 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
 
     const newCode = generateCode();
     setCaptchaCode(newCode);
-    setTimeout(() => drawCaptcha(newCode), 10);
+    setTimeout(() => drawCaptcha(newCode), 15);
   }, [generateCode, drawCaptcha, onValidate]);
 
   // Initial load
   useEffect(() => {
     refreshCaptcha();
   }, []);
+
+  // ResizeObserver: auto-redraw canvas whenever container resizes (e.g., responsive changes)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !canvas.parentElement || typeof ResizeObserver === 'undefined') return;
+
+    let resizeTimer;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (captchaCode) {
+          drawCaptcha(captchaCode);
+        }
+      }, 60);
+    });
+
+    observer.observe(canvas.parentElement);
+    return () => {
+      observer.disconnect();
+      clearTimeout(resizeTimer);
+    };
+  }, [captchaCode, drawCaptcha]);
 
   // Text-to-speech accessibility
   const speakCaptcha = () => {
@@ -182,14 +214,16 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
             className="saas-captcha-icon-btn"
             title="Listen to CAPTCHA code"
             onClick={speakCaptcha}
+            aria-label="Listen to code"
           >
             <Volume2 size={16} />
           </button>
         </div>
       </div>
 
-      {/* CAPTCHA Visual Code Canvas & Reload */}
-      <div className="saas-captcha-badge-row">
+      {/* Main Interactive Row: Canvas + Reload + Input Block */}
+      <div className="saas-captcha-interactive-row">
+        {/* Canvas Visual Card */}
         <div
           className="saas-captcha-canvas-card"
           onClick={refreshCaptcha}
@@ -200,35 +234,38 @@ const Captcha = forwardRef(({ onValidate, className = '' }, ref) => {
             className="saas-captcha-canvas-element"
           />
         </div>
+
+        {/* Reload Button */}
         <button
           type="button"
           className="saas-captcha-reload-btn"
           onClick={refreshCaptcha}
           title="Reload CAPTCHA"
+          aria-label="Reload CAPTCHA"
         >
           <RefreshCw size={15} className={isRotating ? 'rotate-spin' : ''} />
           <span>Reload</span>
         </button>
-      </div>
 
-      {/* User Input Field */}
-      <div className="saas-captcha-input-block">
-        <input
-          type="text"
-          className={`saas-captcha-input-field ${status === 'valid' ? 'is-valid' : ''} ${status === 'invalid' ? 'is-invalid' : ''}`}
-          placeholder="Enter the 5 characters above"
-          value={userInput}
-          onChange={handleInputChange}
-          maxLength={8}
-          required
-          autoComplete="off"
-          spellCheck="false"
-        />
-        {status === 'valid' && (
-          <div className="saas-captcha-status-indicator text-success">
-            <Check size={18} />
-          </div>
-        )}
+        {/* User Input Field */}
+        <div className="saas-captcha-input-block">
+          <input
+            type="text"
+            className={`saas-captcha-input-field ${status === 'valid' ? 'is-valid' : ''} ${status === 'invalid' ? 'is-invalid' : ''}`}
+            placeholder="Enter 5 characters"
+            value={userInput}
+            onChange={handleInputChange}
+            maxLength={8}
+            required
+            autoComplete="off"
+            spellCheck="false"
+          />
+          {status === 'valid' && (
+            <div className="saas-captcha-status-indicator text-success">
+              <Check size={18} />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Error & Success Feedback */}

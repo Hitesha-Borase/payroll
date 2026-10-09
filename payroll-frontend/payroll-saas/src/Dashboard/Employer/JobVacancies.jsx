@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaBriefcase, FaMapMarkerAlt, FaMoneyBillWave, FaPlus, FaTimes, FaEye, FaSearch, FaFilter, FaUser, FaCalendarAlt, FaEdit, FaTrash, FaCheck, FaClock, FaUserCheck, FaStar } from 'react-icons/fa';
 import "bootstrap/dist/css/bootstrap.min.css";
 import { employerAPI } from '../../services/api';
@@ -6,6 +7,7 @@ import { Spinner, Alert } from 'react-bootstrap';
 import toast from 'react-hot-toast';
 
 const JobVacancies = () => {
+  const navigate = useNavigate();
   // State for managing job postings
   const [jobPostings, setJobPostings] = useState([]);
 
@@ -680,10 +682,20 @@ const JobVacancies = () => {
       {/* Tabs for navigation */}
       <div className="card shadow-sm mb-3 mb-md-4" style={{ borderRadius: "14px", border: "1px solid #E2E2E2" }}>
         <div className="card-body p-0">
-          <ul className="nav nav-tabs nav-fill" id="jobTabs" role="tablist">
-            <li className="nav-item" role="presentation">
+          <ul 
+            className="nav nav-tabs nav-fill flex-nowrap" 
+            id="jobTabs" 
+            role="tablist"
+            style={{
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}
+          >
+            <li className="nav-item flex-shrink-0" role="presentation">
               <button
-                className={`nav-link ${activeTab === "postings" ? "active" : ""}`}
+                className={`nav-link text-nowrap ${activeTab === "postings" ? "active" : ""}`}
                 id="postings-tab"
                 data-bs-toggle="tab"
                 data-bs-target="#postings"
@@ -693,15 +705,16 @@ const JobVacancies = () => {
                 style={{
                   color: activeTab === "postings" ? "#C62828" : "#4A4A4A",
                   fontWeight: "500",
-                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem"
+                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem",
+                  whiteSpace: "nowrap"
                 }}
               >
                 Job Postings
               </button>
             </li>
-            <li className="nav-item" role="presentation">
+            <li className="nav-item flex-shrink-0" role="presentation">
               <button
-                className={`nav-link ${activeTab === "applications" ? "active" : ""}`}
+                className={`nav-link text-nowrap ${activeTab === "applications" ? "active" : ""}`}
                 id="applications-tab"
                 data-bs-toggle="tab"
                 data-bs-target="#applications"
@@ -711,15 +724,16 @@ const JobVacancies = () => {
                 style={{
                   color: activeTab === "applications" ? "#C62828" : "#4A4A4A",
                   fontWeight: "500",
-                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem"
+                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem",
+                  whiteSpace: "nowrap"
                 }}
               >
                 Vacancy Applications
               </button>
             </li>
-            <li className="nav-item" role="presentation">
+            <li className="nav-item flex-shrink-0" role="presentation">
               <button
-                className={`nav-link ${activeTab === "shortlisted" ? "active" : ""}`}
+                className={`nav-link text-nowrap ${activeTab === "shortlisted" ? "active" : ""}`}
                 id="shortlisted-tab"
                 data-bs-toggle="tab"
                 data-bs-target="#shortlisted"
@@ -729,7 +743,8 @@ const JobVacancies = () => {
                 style={{
                   color: activeTab === "shortlisted" ? "#C62828" : "#4A4A4A",
                   fontWeight: "500",
-                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem"
+                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem",
+                  whiteSpace: "nowrap"
                 }}
               >
                 Shortlisted Job Seekers
@@ -809,7 +824,7 @@ const JobVacancies = () => {
               </div>
             </div>
           ) : (
-            <div className={`row g-3 g-md-4 ${screenSize.isMobile ? 'g-2' : ''}`}>
+            <div className="row g-3 g-md-4">
               {filteredJobs.map((job) => (
                 <div className={
                   screenSize.isMobile ? "col-12" :
@@ -848,10 +863,16 @@ const JobVacancies = () => {
                           }}>{job.experience} • {job.type}</span>
                         </div>
                         <div className="d-flex align-items-center mb-2">
-                          <FaEye size={screenSize.isMobile ? 12 : 14} className="me-2 text-primary" />
+                          <FaEye size={screenSize.isMobile ? 12 : 14} className="me-2" style={{ color: '#C62828' }} />
                           <button
-                            className="btn btn-link p-0 text-primary small"
-                            style={{ fontSize: screenSize.isMobile ? "0.75rem" : "0.85rem", textDecoration: 'none' }}
+                            type="button"
+                            className="btn btn-link p-0 small fw-semibold"
+                            style={{
+                              fontSize: screenSize.isMobile ? "0.78rem" : "0.85rem",
+                              textDecoration: 'none',
+                              color: '#C62828',
+                              cursor: 'pointer'
+                            }}
                             onClick={() => navigate('/job-portal/dashboard')}
                           >
                             View on Job Portal
@@ -859,9 +880,13 @@ const JobVacancies = () => {
                         </div>
                       </div>
                       <p className="card-text text-muted small mb-3" style={{
-                        height: screenSize.isMobile ? "80px" : "60px",
+                        minHeight: screenSize.isMobile ? "36px" : "48px",
+                        maxHeight: "75px",
                         overflow: "hidden",
-                        fontSize: screenSize.isMobile ? "0.75rem" : "0.85rem"
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                        fontSize: screenSize.isMobile ? "0.78rem" : "0.85rem"
                       }}>
                         {job.description}
                       </p>

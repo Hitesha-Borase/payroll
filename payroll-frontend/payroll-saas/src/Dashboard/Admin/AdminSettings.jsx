@@ -248,6 +248,18 @@ const AdminSettings = () => {
     }
   };
 
+  const handleTabClick = (tabKey) => {
+    setActiveTab(tabKey);
+    if (typeof window !== 'undefined' && window.innerWidth <= 991) {
+      setTimeout(() => {
+        const contentEl = document.querySelector('.admin-settings-content-card');
+        if (contentEl) {
+          contentEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 60);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'whatsapp') {
       fetchWhatsAppStatus();
@@ -875,7 +887,7 @@ const AdminSettings = () => {
           <div className="admin-settings-tabs-card">
             <button 
               className={`admin-settings-tab-btn ${activeTab === 'payroll' ? 'active' : ''}`}
-              onClick={() => setActiveTab('payroll')}
+              onClick={() => handleTabClick('payroll')}
             >
               <Calendar size={16} />
               <span>Payroll &amp; Rules</span>
@@ -883,7 +895,7 @@ const AdminSettings = () => {
 
             <button 
               className={`admin-settings-tab-btn ${activeTab === 'business' ? 'active' : ''}`}
-              onClick={() => setActiveTab('business')}
+              onClick={() => handleTabClick('business')}
             >
               <Globe size={16} />
               <span>Business Profile</span>
@@ -891,7 +903,7 @@ const AdminSettings = () => {
 
             <button 
               className={`admin-settings-tab-btn ${activeTab === 'smtp' ? 'active' : ''}`}
-              onClick={() => setActiveTab('smtp')}
+              onClick={() => handleTabClick('smtp')}
             >
               <Mail size={16} />
               <span>Email SMTP Settings</span>
@@ -899,7 +911,7 @@ const AdminSettings = () => {
 
             <button 
               className={`admin-settings-tab-btn ${activeTab === 'whatsapp' ? 'active' : ''}`}
-              onClick={() => setActiveTab('whatsapp')}
+              onClick={() => handleTabClick('whatsapp')}
             >
               <MessageSquare size={16} />
               <span>WhatsApp Connectivity</span>
@@ -907,7 +919,7 @@ const AdminSettings = () => {
 
             <button 
               className={`admin-settings-tab-btn ${activeTab === 'announcements' ? 'active' : ''}`}
-              onClick={() => setActiveTab('announcements')}
+              onClick={() => handleTabClick('announcements')}
             >
               <Megaphone size={16} />
               <span>Announcements &amp; Messaging</span>
@@ -915,7 +927,7 @@ const AdminSettings = () => {
 
             <button 
               className={`admin-settings-tab-btn ${activeTab === 'notifications' ? 'active' : ''}`}
-              onClick={() => setActiveTab('notifications')}
+              onClick={() => handleTabClick('notifications')}
             >
               <Bell size={16} />
               <span>Notifications &amp; Alerts</span>
@@ -923,7 +935,7 @@ const AdminSettings = () => {
 
             <button 
               className={`admin-settings-tab-btn ${activeTab === 'billing' ? 'active' : ''}`}
-              onClick={() => setActiveTab('billing')}
+              onClick={() => handleTabClick('billing')}
             >
               <CreditCard size={16} />
               <span>Subscription &amp; Billing</span>
@@ -968,61 +980,61 @@ const AdminSettings = () => {
                 </div>
 
                 {/* EMAIL SERVICE PROVIDER SELECTION */}
-                <div className="mb-4 mt-4">
-                  <label className="admin-settings-label text-uppercase mb-2">Select Email Service Provider</label>
-                  <div className="d-flex w-100 rounded-pill p-1" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                <div className="admin-settings-provider-container mb-4 mt-4">
+                  <label className="admin-settings-provider-label">Select Email Service Provider</label>
+                  <div className="admin-settings-provider-pills">
                     <button 
+                      type="button"
                       onClick={() => {
                         setSmtpProvider('gmail');
                         setSmtpForm(prev => ({ ...prev, host: 'smtp.gmail.com', port: '587' }));
                       }}
-                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
-                      style={{ backgroundColor: smtpProvider === 'gmail' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'gmail' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'gmail' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'gmail' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                      className={`admin-settings-provider-pill ${smtpProvider === 'gmail' ? 'active' : ''}`}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444' }}></div>
-                      GMAIL / WORKSPACE
+                      <div className="admin-settings-dot gmail"></div>
+                      <span>GMAIL / WORKSPACE</span>
                     </button>
                     <button 
+                      type="button"
                       onClick={() => {
                         setSmtpProvider('brevo');
                         setSmtpForm(prev => ({ ...prev, host: 'smtp-relay.brevo.com', port: '587' }));
                       }}
-                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
-                      style={{ backgroundColor: smtpProvider === 'brevo' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'brevo' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'brevo' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'brevo' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                      className={`admin-settings-provider-pill ${smtpProvider === 'brevo' ? 'active' : ''}`}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3B82F6' }}></div>
-                      BREVO (SENDINBLUE)
+                      <div className="admin-settings-dot brevo"></div>
+                      <span>BREVO (SENDINBLUE)</span>
                     </button>
                     <button 
+                      type="button"
                       onClick={() => {
                         setSmtpProvider('resend');
                         setSmtpForm(prev => ({ ...prev, host: 'smtp.resend.com', port: '587', username: 'resend' }));
                       }}
-                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
-                      style={{ backgroundColor: smtpProvider === 'resend' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'resend' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'resend' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'resend' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                      className={`admin-settings-provider-pill ${smtpProvider === 'resend' ? 'active' : ''}`}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#8B5CF6' }}></div>
-                      RESEND (API & SMTP)
+                      <div className="admin-settings-dot resend"></div>
+                      <span>RESEND (API &amp; SMTP)</span>
                     </button>
                   </div>
                 </div>
 
                 {/* DYNAMIC ALERT MESSAGE */}
                 {smtpProvider === 'gmail' && (
-                  <div className="alert d-flex align-items-center gap-2 mb-4" style={{ backgroundColor: '#FEF2F2', border: 'none', color: '#991B1B', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
-                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EF4444', flexShrink: 0 }}></div>
+                  <div className="alert d-flex align-items-start gap-2 mb-4" style={{ backgroundColor: '#FEF2F2', border: 'none', color: '#991B1B', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EF4444', flexShrink: 0, marginTop: '4px' }}></div>
                     <div><strong>Gmail Setup:</strong> Use your standard Gmail address and generate a 16-character Google App Password (myaccount.google.com → Security → 2-Step Verification → App Passwords). Standard password will not work.</div>
                   </div>
                 )}
                 {smtpProvider === 'brevo' && (
-                  <div className="alert d-flex align-items-center gap-2 mb-4" style={{ backgroundColor: '#EFF6FF', border: 'none', color: '#1E40AF', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
-                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#3B82F6', flexShrink: 0 }}></div>
-                    <div><strong>Brevo (Sendinblue) Setup:</strong> Host (<code>smtp-relay.brevo.com</code>) is pre-filled. Enter your Brevo Login Email in Username and your Brevo SMTP Master Key in Password/Key. (Brevo Dashboard → SMTP & API → Generate a new SMTP key).</div>
+                  <div className="alert d-flex align-items-start gap-2 mb-4" style={{ backgroundColor: '#EFF6FF', border: 'none', color: '#1E40AF', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#3B82F6', flexShrink: 0, marginTop: '4px' }}></div>
+                    <div><strong>Brevo (Sendinblue) Setup:</strong> Host (<code>smtp-relay.brevo.com</code>) is pre-filled. Enter your Brevo Login Email in Username and your Brevo SMTP Master Key in Password/Key. (Brevo Dashboard → SMTP &amp; API → Generate a new SMTP key).</div>
                   </div>
                 )}
                 {smtpProvider === 'resend' && (
-                  <div className="alert d-flex align-items-center gap-2 mb-4" style={{ backgroundColor: '#F5F3FF', border: 'none', color: '#5B21B6', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
-                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#8B5CF6', flexShrink: 0 }}></div>
+                  <div className="alert d-flex align-items-start gap-2 mb-4" style={{ backgroundColor: '#F5F3FF', border: 'none', color: '#5B21B6', borderRadius: '8px', padding: '12px 16px', fontSize: '0.85rem' }}>
+                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#8B5CF6', flexShrink: 0, marginTop: '4px' }}></div>
                     <div><strong>Resend Setup:</strong> Host (<code>smtp.resend.com:587</code>) and Username (<code>resend</code>) are pre-configured. Enter your Resend API Key starting with <code>re_...</code> in the Password/Key field and your verified domain email as Sender Email.</div>
                   </div>
                 )}
@@ -1584,35 +1596,29 @@ const AdminSettings = () => {
 
                       {/* State B: QR READY / SCANNING */}
                       {waData.status !== 'CONNECTED' && waData.qrCodeUrl && (
-                        <div className="text-center py-2">
-                          <p className="text-muted small mb-3">
+                        <div className="text-center py-1 py-sm-2">
+                          <p className="text-muted small mb-2 mb-sm-3" style={{ fontSize: '0.82rem', lineHeight: '1.45' }}>
                             Scan this live QR code using <strong>WhatsApp → Linked Devices → Link a Device</strong>
                           </p>
 
-                          <div className="d-inline-block p-4 bg-white border border-2 border-danger rounded-4 shadow-sm mb-3">
+                          <div className="wa-qr-container">
                             <img
                               src={waData.qrCodeUrl}
                               alt="WhatsApp Linked Devices QR"
-                              style={{ 
-                                width: '240px', 
-                                height: '240px', 
-                                objectFit: 'contain',
-                                imageRendering: 'pixelated',
-                                display: 'block',
-                                margin: '0 auto'
-                              }}
+                              className="wa-qr-img"
                             />
                           </div>
 
-                          <div className="d-flex align-items-center justify-content-center gap-1 text-muted small mb-3">
-                            <span className="spinner-grow spinner-grow-sm text-success" style={{ width: '8px', height: '8px' }}></span>
-                            <span>Waiting for mobile scan (auto-detects)...</span>
+                          <div className="d-flex align-items-center justify-content-center gap-2 text-muted small mb-3 flex-wrap">
+                            <span className="spinner-grow spinner-grow-sm text-success" style={{ width: '8px', height: '8px', flexShrink: 0 }}></span>
+                            <span style={{ fontSize: '0.8rem' }}>Waiting for mobile scan (auto-detects)...</span>
                           </div>
 
-                          <div className="d-flex justify-content-center gap-2">
+                          <div className="d-flex justify-content-center gap-2 flex-wrap">
                             <button
                               type="button"
                               className="btn btn-outline-secondary btn-sm px-3"
+                              style={{ fontSize: '0.82rem', borderRadius: '8px' }}
                               onClick={handleDisconnectWhatsApp}
                             >
                               Cancel
@@ -1620,9 +1626,10 @@ const AdminSettings = () => {
                             <button
                               type="button"
                               className="btn btn-outline-danger btn-sm px-3 d-flex align-items-center gap-1"
+                              style={{ fontSize: '0.82rem', borderRadius: '8px' }}
                               onClick={handleConnectWhatsApp}
                             >
-                              <RefreshCw size={12} /> Regenerate QR
+                              <RefreshCw size={13} /> Regenerate QR
                             </button>
                           </div>
                         </div>
@@ -1863,11 +1870,11 @@ const AdminSettings = () => {
                 <div className="announcement-channel-grid">
                   {/* WhatsApp Channel Card */}
                   <div className={`announcement-channel-card whatsapp ${waData.status === 'CONNECTED' ? 'connected' : ''}`}>
-                    <div className="announcement-channel-info">
+                    <div className="announcement-channel-info" style={{ minWidth: 0, flex: '1 1 auto' }}>
                       <div className="announcement-channel-icon">
                         <MessageSquare size={20} />
                       </div>
-                      <div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
                         <div className="announcement-channel-name">WhatsApp Channel</div>
                         <div className="announcement-channel-desc">
                           {waData.status === 'CONNECTED' 
@@ -1876,7 +1883,7 @@ const AdminSettings = () => {
                         </div>
                       </div>
                     </div>
-                    <div>
+                    <div className="flex-shrink-0 ms-auto">
                       {waData.status === 'CONNECTED' ? (
                         <span className="announcement-channel-badge online">ONLINE</span>
                       ) : (
@@ -1887,11 +1894,11 @@ const AdminSettings = () => {
 
                   {/* Email Channel Card */}
                   <div className="announcement-channel-card email">
-                    <div className="announcement-channel-info">
+                    <div className="announcement-channel-info" style={{ minWidth: 0, flex: '1 1 auto' }}>
                       <div className="announcement-channel-icon">
                         <Mail size={20} />
                       </div>
-                      <div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
                         <div className="announcement-channel-name">Email Channel</div>
                         <div className="announcement-channel-desc">
                           {smtpForm.username 
@@ -1900,7 +1907,7 @@ const AdminSettings = () => {
                         </div>
                       </div>
                     </div>
-                    <div>
+                    <div className="flex-shrink-0 ms-auto">
                       <span className="announcement-channel-badge active-red">SYSTEM ACTIVE</span>
                     </div>
                   </div>

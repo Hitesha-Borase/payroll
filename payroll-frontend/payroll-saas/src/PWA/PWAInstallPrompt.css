@@ -203,6 +203,17 @@
   }
 }
 
+@media (max-width: 420px) {
+  .pwa-install-banner-content {
+    flex-wrap: wrap;
+  }
+  .pwa-install-banner-actions {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+}
+
 .pwa-install-banner-content {
   display: flex;
   align-items: center;

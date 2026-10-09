@@ -74,6 +74,20 @@ const JobCard = ({ job, onViewClick }) => {
 const JobDetailsView = ({ job, onBackClick, onApplyClick }) => {
   if (!job) return null;
 
+  const userRole = (() => {
+    let r = (localStorage.getItem('userRole') || '').toLowerCase();
+    if (!r) {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        r = (u.role || '').toLowerCase();
+      } catch (e) {}
+    }
+    return r;
+  })();
+
+  const isEmployerOrAdmin = userRole === 'employer' || userRole === 'admin' || userRole === 'superadmin';
+  const showApplyButton = !isEmployerOrAdmin && userRole === 'jobseeker';
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -90,7 +104,7 @@ const JobDetailsView = ({ job, onBackClick, onApplyClick }) => {
       <Card className="shadow-sm">
         <Card.Body className="p-4">
           <Row className="mb-4">
-            <Col md={8}>
+            <Col md={showApplyButton ? 8 : 12}>
               <div className="d-flex align-items-center mb-3">
                 <div className="me-3" style={{ width: '60px', height: '60px', borderRadius: '8px', backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <FaBuilding size={24} />
@@ -101,9 +115,11 @@ const JobDetailsView = ({ job, onBackClick, onApplyClick }) => {
                 </div>
               </div>
             </Col>
-            <Col md={4} className="text-md-end mt-3 mt-md-0">
-              <Button variant="primary" size="lg" onClick={onApplyClick}>Apply Now</Button>
-            </Col>
+            {showApplyButton && (
+              <Col md={4} className="text-md-end mt-3 mt-md-0">
+                <Button variant="primary" size="lg" onClick={onApplyClick}>Apply Now</Button>
+              </Col>
+            )}
           </Row>
 
           <Row className="mb-4 text-muted">

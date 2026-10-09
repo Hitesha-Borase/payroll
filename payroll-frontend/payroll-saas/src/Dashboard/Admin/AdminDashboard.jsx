@@ -8,6 +8,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { useFetchAdminProfile } from "../../hooks/useAPI";
 import { adminAPI } from "../../services/api";
 import { useRegional } from "../../context/RegionalContext";
+import TrialExpiryModal from "../../components/TrialExpiryModal";
+import { ShieldAlert, ArrowRight } from "lucide-react";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, ArcElement);
 
@@ -31,6 +33,92 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showEmployerDetails, setShowEmployerDetails] = useState(false);
+
+  // 7-Day Free Trial Banner & Modal States
+  const [showTrialModal, setShowTrialModal] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(0);
+  const [isTrialExpired, setIsTrialExpired] = useState(false);
+  const [is7DayTrialUser, setIs7DayTrialUser] = useState(false);
+  const [trialBannerInfo, setTrialBannerInfo] = useState({
+    registeredDate: '',
+    expiryDate: '',
+    dayOfTrial: 1,
+    daysLeft: 7,
+  });
+
+  // Fetch and check 7-Day Free Trial status
+  useEffect(() => {
+    const checkTrialSubscription = async () => {
+      try {
+        const subRes = await adminAPI.getMySubscription?.();
+        if (subRes?.data?.success && subRes.data.data) {
+          const sub = subRes.data.data;
+          const planName = (sub.plan?.name || sub.plan_name || '').toUpperCase();
+          const is7DayTrial = planName.includes('FREE TRIAL') || planName.includes('TRIAL') || sub.plan_id === 1;
+
+          // Only apply trial logic if on 7-Day Free Trial
+          if (is7DayTrial) {
+            setIs7DayTrialUser(true);
+            const startDate = new Date(sub.start_date || sub.created_at || Date.now());
+
+            let endDate;
+            if (sub.end_date) {
+              const customEnd = new Date(sub.end_date);
+              const diffFromStart = (customEnd.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+              if (diffFromStart <= 8 && diffFromStart > 0) {
+                endDate = customEnd;
+              } else {
+                endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+              }
+            } else {
+              endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            }
+
+            const now = new Date();
+            const diffMs = endDate.getTime() - now.getTime();
+            const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+            const expired = daysRemaining <= 0 || sub.status === 'expired';
+
+            // Calculate current Day X of 7 dynamically
+            const msFromStart = Math.max(0, now.getTime() - startDate.getTime());
+            const daysFromStart = Math.floor(msFromStart / (1000 * 60 * 60 * 24));
+            const currentDayNumber = Math.min(7, Math.max(1, daysFromStart + 1));
+
+            const formatDate = (d) => {
+              try {
+                return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+              } catch {
+                return '';
+              }
+            };
+
+            setTrialDaysLeft(daysRemaining);
+            setIsTrialExpired(expired);
+            setTrialBannerInfo({
+              registeredDate: formatDate(startDate),
+              expiryDate: formatDate(endDate),
+              dayOfTrial: currentDayNumber,
+              daysLeft: daysRemaining,
+            });
+
+            // If expired, access is blocked immediately (cannot be dismissed)
+            if (expired) {
+              return;
+            }
+
+            // If active trial, show popup (unless user dismissed it in this browser session)
+            if (sessionStorage.getItem('trial_modal_dismissed') !== 'true') {
+              setShowTrialModal(true);
+            }
+          }
+        }
+      } catch (err) {
+        // Silently catch error
+      }
+    };
+
+    checkTrialSubscription();
+  }, []);
 
   // Data from API
   const [summary, setSummary] = useState({
@@ -229,6 +317,111 @@ const AdminDashboard = () => {
   // Main Dashboard View
   const DashboardView = () => (
     <Container fluid className="px-3 px-md-4 py-4">
+      {/* 7-Day Free Trial Dynamic Banner matching software theme */}
+      {is7DayTrialUser && !isTrialExpired && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #FFFFFF 0%, #FFF7F7 100%)',
+            border: '1px solid rgba(198, 40, 40, 0.28)',
+            boxShadow: '0 4px 16px rgba(198, 40, 40, 0.08), 0 2px 6px rgba(0, 0, 0, 0.03)',
+            borderRadius: '16px',
+            padding: '16px 22px',
+            marginBottom: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          }}
+        >
+          {/* Top Line: Badge + Dynamic Details */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            {/* Kiaan Red 7-Day Free Trial Badge */}
+            <span
+              style={{
+                background: 'linear-gradient(135deg, #C62828 0%, #B71C1C 100%)',
+                color: '#FFFFFF',
+                fontWeight: '750',
+                fontSize: '11.5px',
+                padding: '4px 14px',
+                borderRadius: '20px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                letterSpacing: '0.4px',
+                textTransform: 'uppercase',
+                boxShadow: '0 2px 8px rgba(198, 40, 40, 0.3)',
+              }}
+            >
+              ✨ 7-DAY FREE TRIAL
+            </span>
+
+            {/* Dynamic Status Text */}
+            <div
+              style={{
+                color: '#0F172A',
+                fontSize: '14.5px',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '8px',
+              }}
+            >
+              <span>
+                Registered on <strong style={{ color: '#0F172A' }}>{trialBannerInfo.registeredDate}</strong> • Day{' '}
+                <strong style={{ color: '#0F172A' }}>{trialBannerInfo.dayOfTrial}</strong> of 7
+              </span>
+              <span style={{ color: '#CBD5E1' }}>|</span>
+              <span style={{ color: '#C62828', fontWeight: '800' }}>
+                ⏳ {trialBannerInfo.daysLeft} {trialBannerInfo.daysLeft === 1 ? 'Day' : 'Days'} Remaining
+              </span>
+              <span style={{ color: '#64748B', fontSize: '13.5px' }}>
+                (Expires {trialBannerInfo.expiryDate})
+              </span>
+            </div>
+          </div>
+
+          {/* Bottom Line: Upgrade Button */}
+          <div>
+            <button
+              onClick={() => navigate('/pricing')}
+              style={{
+                background: 'linear-gradient(135deg, #C62828 0%, #B71C1C 100%)',
+                color: '#FFFFFF',
+                fontWeight: '700',
+                fontSize: '13px',
+                padding: '7px 20px',
+                borderRadius: '20px',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 14px rgba(198, 40, 40, 0.35)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(198, 40, 40, 0.55)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(198, 40, 40, 0.35)';
+              }}
+            >
+              Upgrade Plan / Buy Now <ArrowRight size={15} />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 style={{ color: colors.black }}>Admin Dashboard</h2>
       </div>
@@ -413,9 +606,164 @@ const AdminDashboard = () => {
     </Container>
   );
 
+  // When 7-Day Free Trial is expired, completely block access to dashboard and sidebar
+  if (isTrialExpired) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 999999,
+          background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF2F6 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          fontFamily: "'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '24px',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.08), 0 4px 20px rgba(198, 40, 40, 0.06)',
+            padding: '42px 36px 36px 36px',
+            textAlign: 'center',
+            color: '#0F172A',
+            maxWidth: '500px',
+            width: '100%',
+          }}
+        >
+          {/* Lock / Access Denied Icon Badge */}
+          <div
+            style={{
+              width: '76px',
+              height: '76px',
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '2px solid rgba(239, 68, 68, 0.25)',
+              boxShadow: '0 0 25px rgba(239, 68, 68, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 22px auto',
+            }}
+          >
+            <ShieldAlert size={38} style={{ color: '#DC2626' }} />
+          </div>
+
+          {/* Heading */}
+          <h3
+            style={{
+              fontSize: '24px',
+              fontWeight: '800',
+              color: '#0F172A',
+              marginBottom: '14px',
+              letterSpacing: '-0.3px',
+            }}
+          >
+            Access Denied: Free Trial Expired!
+          </h3>
+
+          {/* Description */}
+          <p
+            style={{
+              color: '#64748B',
+              fontSize: '15px',
+              lineHeight: '1.6',
+              marginBottom: '28px',
+            }}
+          >
+            Your <strong style={{ color: '#DC2626' }}>7-Day Free Trial</strong> period has ended. Access to your company payroll dashboard, employee records, and workforce management is locked. Please upgrade your subscription plan now to regain full access.
+          </p>
+
+          {/* Upgrade Plan Button */}
+          <button
+            onClick={() => navigate('/pricing')}
+            style={{
+              width: '100%',
+              padding: '14px 24px',
+              background: 'linear-gradient(135deg, #C62828 0%, #B71C1C 100%)',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '12px',
+              fontWeight: '700',
+              fontSize: '15px',
+              letterSpacing: '0.5px',
+              boxShadow: '0 8px 24px rgba(198, 40, 40, 0.35)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginBottom: '16px',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 12px 28px rgba(198, 40, 40, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(198, 40, 40, 0.35)';
+            }}
+          >
+            UPGRADE PLAN NOW <ArrowRight size={18} />
+          </button>
+
+          {/* Logout Button */}
+          <div>
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#64748B',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#0F172A';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#64748B';
+              }}
+            >
+              <FaSignOutAlt size={14} /> Logout from Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: colors.lightBg }}>
       {showEmployerDetails ? <EmployerDetailsView /> : <DashboardView />}
+      <TrialExpiryModal
+        show={showTrialModal}
+        onHide={() => {
+          sessionStorage.setItem('trial_modal_dismissed', 'true');
+          setShowTrialModal(false);
+        }}
+        daysRemaining={trialDaysLeft}
+        isExpired={isTrialExpired}
+        onUpgradeClick={() => {
+          sessionStorage.setItem('trial_modal_dismissed', 'true');
+          setShowTrialModal(false);
+          navigate('/pricing');
+        }}
+      />
     </div>
   );
 };

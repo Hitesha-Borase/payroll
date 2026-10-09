@@ -16,6 +16,7 @@ const registerSchema = Joi.object({
   }),
   role: Joi.string().valid('superadmin', 'admin', 'employer', 'employee', 'vendor', 'jobseeker').optional(),
   phone: Joi.string().optional().allow('', null),
+  company_name: Joi.string().optional().allow('', null),
 });
 
 const loginSchema = Joi.object({

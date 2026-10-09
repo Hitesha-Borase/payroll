@@ -507,10 +507,10 @@ const EmployerTraining = () => {
       {!loading && (
         <>
           {/* Quick Stats Grid */}
-          <div className="row g-2 g-md-3 mb-3 mb-md-4">
+          <div className="row g-3 gx-3 gy-3 g-md-3 mb-3 mb-md-4">
             <div className="col-6 col-md-3">
               <div className="card shadow-sm h-100" style={{ border: `1px solid ${colors.border}`, borderRadius: '12px' }}>
-                <div className="card-body p-2.5 p-sm-3">
+                <div className="card-body p-3">
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
                       <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.72rem' : '0.82rem', fontWeight: 500 }}>Employees</p>
@@ -536,7 +536,7 @@ const EmployerTraining = () => {
                 onClick={() => setActiveView('courses')}
                 title="Click to view all courses"
               >
-                <div className="card-body p-2.5 p-sm-3">
+                <div className="card-body p-3">
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
                       <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.72rem' : '0.82rem', fontWeight: 500 }}>Courses</p>
@@ -557,7 +557,7 @@ const EmployerTraining = () => {
 
             <div className="col-6 col-md-3">
               <div className="card shadow-sm h-100" style={{ border: `1px solid ${colors.border}`, borderRadius: '12px' }}>
-                <div className="card-body p-2.5 p-sm-3">
+                <div className="card-body p-3">
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
                       <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.72rem' : '0.82rem', fontWeight: 500 }}>Completed</p>
@@ -578,7 +578,7 @@ const EmployerTraining = () => {
 
             <div className="col-6 col-md-3">
               <div className="card shadow-sm h-100" style={{ border: `1px solid ${colors.border}`, borderRadius: '12px' }}>
-                <div className="card-body p-2.5 p-sm-3">
+                <div className="card-body p-3">
                   <div className="d-flex align-items-center justify-content-between">
                     <div>
                       <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.72rem' : '0.82rem', fontWeight: 500 }}>Avg. Completion</p>
@@ -846,14 +846,14 @@ const EmployerTraining = () => {
                   </div>
                 ) : isMobile ? (
                   /* Mobile Card View for Assigned Trainings */
-                  <div className="p-2.5 d-flex flex-column gap-2.5" style={{ backgroundColor: '#F8FAFC' }}>
+                  <div className="p-3 d-flex flex-column gap-3" style={{ backgroundColor: '#F8FAFC', gap: '12px' }}>
                     {filteredAssignedTrainings.map((training) => (
                       <div
                         key={training.id}
                         className="card shadow-sm border-0"
                         style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff', border: `1px solid ${colors.border}` }}
                       >
-                        <div className="p-3 pb-2.5">
+                        <div className="p-3">
                           <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <div>
                               <h6 className="fw-bold mb-1" style={{ color: colors.darkText, fontSize: '0.92rem' }}>
@@ -971,14 +971,14 @@ const EmployerTraining = () => {
                   </div>
                 ) : isMobile ? (
                   /* Mobile Card View for Completion */
-                  <div className="p-2.5 d-flex flex-column gap-2.5" style={{ backgroundColor: '#F8FAFC' }}>
+                  <div className="p-3 d-flex flex-column gap-3" style={{ backgroundColor: '#F8FAFC', gap: '12px' }}>
                     {filteredAssignedTrainings.map((training) => (
                       <div
                         key={training.id}
                         className="card shadow-sm border-0"
                         style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff', border: `1px solid ${colors.border}` }}
                       >
-                        <div className="p-3 pb-2.5">
+                        <div className="p-3">
                           <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <div>
                               <h6 className="fw-bold mb-1" style={{ color: colors.darkText, fontSize: '0.92rem' }}>
@@ -1082,14 +1082,14 @@ const EmployerTraining = () => {
                   </div>
                 ) : isMobile ? (
                   /* Mobile Card View for Assessment */
-                  <div className="p-2.5 d-flex flex-column gap-2.5" style={{ backgroundColor: '#F8FAFC' }}>
+                  <div className="p-3 d-flex flex-column gap-3" style={{ backgroundColor: '#F8FAFC', gap: '12px' }}>
                     {filteredAssessmentResults.map((result) => (
                       <div
                         key={result.id}
                         className="card shadow-sm border-0"
                         style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff', border: `1px solid ${colors.border}` }}
                       >
-                        <div className="p-3 pb-2.5">
+                        <div className="p-3">
                           <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
                             <div>
                               <h6 className="fw-bold mb-1" style={{ color: colors.darkText, fontSize: '0.92rem' }}>

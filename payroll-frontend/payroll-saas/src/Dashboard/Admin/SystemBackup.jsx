@@ -532,7 +532,7 @@ SET FOREIGN_KEY_CHECKS = 1;
           onChange={handleFileChange}
         />
 
-        <div className="row align-items-center">
+        <div className="row align-items-center g-3">
           <div className="col-md-9">
             <div 
               className={`backup-dropzone mb-0 ${selectedFile ? 'has-file' : ''}`}
@@ -592,7 +592,7 @@ SET FOREIGN_KEY_CHECKS = 1;
             <div className="backup-clock-icon-box">
               <Clock size={22} />
             </div>
-            <div>
+            <div className="backup-recurring-title-wrap">
               <div className="backup-recurring-title">
                 <span>Automated Recurring Backup</span>
                 {autoBackupEnabled && <span className="backup-active-badge">ACTIVE • AUTO-RUNNING</span>}
@@ -604,7 +604,7 @@ SET FOREIGN_KEY_CHECKS = 1;
           </div>
 
           {/* Toggle Switch */}
-          <div className="d-flex align-items-center gap-2">
+          <div className="backup-recurring-toggle-wrap">
             <Form.Check 
               type="switch"
               id="autoBackupToggleSwitch"

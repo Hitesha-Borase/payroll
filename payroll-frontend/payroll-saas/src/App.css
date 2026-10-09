@@ -15,16 +15,30 @@ html {
   overflow-y: auto;
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
   .sidebar-container.collapsed {
     width: 0px !important;
   }
 }
 
-@media (min-width: 577px) {
+@media (min-width: 769px) {
   .sidebar-container.collapsed {
     width: 80px !important;
   }
+}
+
+.sidebar-mobile-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 998;
+  animation: fadeInBackdrop 0.2s ease-out;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .right-side-content {
@@ -39,7 +53,6 @@ html {
 }
 
 @media (max-width: 768px) {
-
   .right-side-content,
   .right-side-content.collapsed {
     margin-left: 0px;
@@ -70,15 +83,21 @@ html {
   }
 
   .table-responsive,
+  .table-container,
   div[style*="overflowX: auto"],
   div[style*="overflow-x: auto"] {
     -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    overflow-x: auto !important;
+  }
+
+  table {
     max-width: 100%;
   }
 
   .modal-dialog {
     margin: 12px auto !important;
-    max-width: 95vw !important;
+    max-width: calc(100vw - 24px) !important;
   }
 
   .card {
@@ -90,3 +109,15 @@ html {
     touch-action: manipulation;
   }
 }
+
+/* Global Fractional Spacing Utilities (Support for Tailwind-style fractional tokens in Bootstrap) */
+.gap-1\.5 { gap: 0.375rem !important; }
+.gap-2\.5 { gap: 0.75rem !important; }
+.gap-3\.5 { gap: 1rem !important; }
+.p-1\.5 { padding: 0.375rem !important; }
+.p-2\.5 { padding: 0.75rem !important; }
+.p-3\.5 { padding: 1rem !important; }
+.py-1\.5 { padding-top: 0.375rem !important; padding-bottom: 0.375rem !important; }
+.py-2\.5 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+.px-2\.5 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.mb-2\.5 { margin-bottom: 0.75rem !important; }

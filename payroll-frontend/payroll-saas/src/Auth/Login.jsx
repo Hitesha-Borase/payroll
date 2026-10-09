@@ -75,6 +75,7 @@ const Login = () => {
         : await login(email, password);
 
       if (result.success) {
+        sessionStorage.removeItem('trial_modal_dismissed');
         const userRole = result.data?.role?.toLowerCase();
         const redirectPath = roleRedirectMap[userRole] || "/";
         navigate(redirectPath);
@@ -97,7 +98,7 @@ const Login = () => {
       }}
     >
       {/* Back to Website Button */}
-      <div className="w-100 d-flex justify-content-start mb-2 mb-md-3" style={{ maxWidth: "950px" }}>
+      <div className="w-100 d-flex justify-content-start auth-back-wrapper">
         <Link
           to="/"
           className="d-inline-flex align-items-center gap-2 text-decoration-none px-3 py-2 rounded-pill shadow-sm"
@@ -127,12 +128,14 @@ const Login = () => {
           <span>Back to Website</span>
         </Link>
       </div>
-      <div className="card shadow w-100 auth-card" style={{
-        maxWidth: "950px",
-        borderRadius: "1.5rem",
-        backgroundColor: colors.white,
-        border: isAdminMode ? `2px solid ${colors.adminGold}` : 'none' // Subtle indicator for admin
-      }}>
+
+      <div
+        className="card shadow w-100 auth-card"
+        style={{
+          backgroundColor: colors.white,
+          border: isAdminMode ? `2px solid ${colors.adminGold}` : 'none'
+        }}
+      >
         <div className="row g-0 align-items-stretch">
           <div className="col-md-6 d-none d-md-block auth-image-col" style={{ borderRadius: '1.5rem 0 0 1.5rem' }}>
             <div
@@ -175,11 +178,15 @@ const Login = () => {
           >
             <div className="w-100">
               <div className="text-center mb-3">
-                <img src="/kiaan_logo.png" alt="Kiaan Technology Logo" style={{ height: "60px", width: "auto", objectFit: "contain" }} />
+                <img
+                  src="/kiaan_logo.png"
+                  alt="Kiaan Technology Logo"
+                  className="auth-logo-img"
+                />
               </div>
               {/* HIDDEN TRIGGER: Double clicking "Welcome Back!" toggles Admin Mode */}
               <h2
-                className="fw-bold mb-3 text-center"
+                className="fw-bold mb-2 text-center auth-title"
                 onDoubleClick={toggleAdminMode}
                 style={{
                   color: isAdminMode ? colors.primaryRed : colors.black,
@@ -191,7 +198,7 @@ const Login = () => {
                 {isAdminMode ? "Admin Workspace" : "Welcome Back!"}
               </h2>
 
-              <p className="text-center mb-4" style={{ color: colors.darkGray, fontFamily: 'inherit' }}>
+              <p className="text-center mb-4 auth-subtitle" style={{ color: colors.darkGray, fontFamily: 'inherit' }}>
                 {isAdminMode ? "Secure administrative access only" : "Please login to your account"}
               </p>
 
@@ -203,27 +210,25 @@ const Login = () => {
 
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label className="form-label" style={{ fontFamily: 'inherit', fontWeight: '500' }}>
+                  <label className="form-label auth-label" style={{ fontFamily: 'inherit', fontWeight: '500' }}>
                     {isAdminMode ? "Admin Email" : "Email address"}
                   </label>
                   <input
                     type="email"
-                    className="form-control"
+                    className="form-control auth-input"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     style={{
                       fontFamily: 'inherit',
-                      padding: '10px 14px',
                       border: '1px solid #E2E2E2',
-                      borderRadius: '8px',
                     }}
                   />
                 </div>
 
                 <div className="mb-3">
                   <div className="d-flex justify-content-between align-items-center mb-1">
-                    <label className="form-label mb-0" style={{ fontFamily: 'inherit', fontWeight: '500' }}>Password</label>
+                    <label className="form-label mb-0 auth-label" style={{ fontFamily: 'inherit', fontWeight: '500' }}>Password</label>
                     <Link
                       to="/forgot-password"
                       style={{
@@ -240,19 +245,18 @@ const Login = () => {
                   <div className="input-group">
                     <input
                       type={showPassword ? "text" : "password"}
-                      className="form-control"
+                      className="form-control auth-input"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       style={{
                         fontFamily: 'inherit',
-                        padding: '10px 14px',
                         border: '1px solid #E2E2E2',
                         borderRadius: '8px 0 0 8px',
                       }}
                     />
                     <button
-                      className="btn btn-outline-secondary"
+                      className="btn btn-outline-secondary auth-eye-btn"
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                     >
@@ -266,7 +270,7 @@ const Login = () => {
 
                 <button
                   type="submit"
-                  className="btn w-100 py-2"
+                  className="btn w-100 py-2 auth-submit-btn"
                   style={{
                     ...buttonStyles,
                     backgroundColor: isAdminMode ? '#333' : colors.primaryRed,
@@ -278,7 +282,7 @@ const Login = () => {
                 </button>
 
                 {!isAdminMode && (
-                  <div className="mt-3 text-center">
+                  <div className="mt-3 text-center auth-signup-prompt">
                     <span style={{ color: colors.darkGray, fontFamily: 'inherit' }}>Don't have an account? </span>
                     <span
                       onClick={() => navigate('/signup')}

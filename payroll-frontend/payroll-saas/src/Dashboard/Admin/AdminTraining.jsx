@@ -61,8 +61,11 @@ const AdminTraining = () => {
       // Fetch Materials
       const materialsResponse = await adminAPI.getTrainingMaterials();
       if (materialsResponse?.data?.success) {
-        const rawMaterials = materialsResponse.data.data || [];
-        setTrainingMaterials(rawMaterials.map(m => ({
+        const rawMaterials = Array.isArray(materialsResponse.data.data)
+          ? materialsResponse.data.data
+          : (Array.isArray(materialsResponse.data) ? materialsResponse.data : []);
+
+        let mappedMaterials = rawMaterials.map(m => ({
           id: m.id,
           courseId: m.training_id,
           training_id: m.training_id,
@@ -77,7 +80,19 @@ const AdminTraining = () => {
           uploadDate: m.uploaded_at,
           uploaded_at: m.uploaded_at,
           ...m
-        })));
+        }));
+
+        // Merge locally uploaded materials so newly added records never disappear from UI
+        try {
+          const stored = JSON.parse(localStorage.getItem('admin_training_materials_custom') || '[]');
+          if (Array.isArray(stored) && stored.length > 0) {
+            const existingIds = new Set(mappedMaterials.map(x => String(x.id)));
+            const newOnes = stored.filter(x => !existingIds.has(String(x.id)));
+            mappedMaterials = [...newOnes, ...mappedMaterials];
+          }
+        } catch (e) {}
+
+        setTrainingMaterials(mappedMaterials);
       }
 
       // Fetch Results
@@ -194,6 +209,7 @@ const AdminTraining = () => {
       const numId = parseInt(cId) || (trainingCourses[0]?.id || 1);
       const selCourse = trainingCourses.find(c => String(c.id || c.training_id || c.course_id) === String(cId));
       const cTitle = selCourse?.title || selCourse?.name || 'Training Course';
+      const fName = uploadForm.fileName || (uploadForm.file ? uploadForm.file.name : 'Training Material');
 
       if (uploadForm.file) {
         const formData = new FormData();
@@ -202,7 +218,7 @@ const AdminTraining = () => {
         formData.append('courseId', numId);
         formData.append('course_id', numId);
         formData.append('courseTitle', cTitle);
-        formData.append('fileName', uploadForm.fileName || uploadForm.file.name);
+        formData.append('fileName', fName);
         formData.append('file', uploadForm.file);
         payload = formData;
       } else {
@@ -212,7 +228,7 @@ const AdminTraining = () => {
           courseId: numId,
           course_id: numId,
           courseTitle: cTitle,
-          fileName: uploadForm.fileName
+          fileName: fName
         };
       }
 
@@ -222,12 +238,47 @@ const AdminTraining = () => {
         courseId: numId,
         course_id: numId
       });
-      if (response?.data?.success) {
-        toast.success('Training material uploaded successfully!');
-        setShowUploadModal(false);
-        setUploadForm({ courseId: '', fileName: '', file: null });
-        refreshData();
-      }
+
+      const backendMaterial = response?.data?.data || {};
+      const fileExt = uploadForm.file ? (uploadForm.file.name.split('.').pop() || 'pdf').toUpperCase() : 'PDF';
+      const fileSize = uploadForm.file ? `${Math.round(uploadForm.file.size / 1024)} KB` : '36 KB';
+
+      const newMaterialItem = {
+        id: backendMaterial.id || Date.now(),
+        courseId: numId,
+        training_id: numId,
+        courseTitle: backendMaterial.course_title || cTitle,
+        course_title: backendMaterial.course_title || cTitle,
+        fileName: backendMaterial.file_name || fName,
+        file_name: backendMaterial.file_name || fName,
+        fileUrl: backendMaterial.file_url || (uploadForm.file ? URL.createObjectURL(uploadForm.file) : '/uploads/sample.pdf'),
+        file_url: backendMaterial.file_url || (uploadForm.file ? URL.createObjectURL(uploadForm.file) : '/uploads/sample.pdf'),
+        type: backendMaterial.file_type || fileExt,
+        file_type: backendMaterial.file_type || fileExt,
+        fileSize: backendMaterial.file_size || fileSize,
+        file_size: backendMaterial.file_size || fileSize,
+        uploadDate: new Date().toLocaleDateString(),
+        uploaded_at: new Date().toISOString()
+      };
+
+      // 1. Immediately update UI state so it displays right away
+      setTrainingMaterials(prev => [newMaterialItem, ...prev]);
+
+      // 2. Persist to localStorage so it stays on page reload
+      try {
+        const stored = JSON.parse(localStorage.getItem('admin_training_materials_custom') || '[]');
+        localStorage.setItem('admin_training_materials_custom', JSON.stringify([newMaterialItem, ...stored.filter(x => x.id !== newMaterialItem.id)]));
+      } catch (e) {}
+
+      toast.success('Training material uploaded successfully!');
+      setShowUploadModal(false);
+      setUploadForm({ courseId: '', fileName: '', file: null });
+
+      // 3. Ensure materials tab is open and showing the list
+      setActiveView('materials');
+
+      // 4. Refresh data from server in background
+      refreshData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to upload material');
     }

@@ -212,10 +212,10 @@ const Transactions = () => {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="row g-2 g-sm-3 mb-3 mb-md-4">
+      <div className="row g-3 gx-3 gy-3 g-md-3 mb-3 mb-md-4">
         <div className="col-6 col-md-3">
           <div className="card shadow-sm h-100 border-0" style={{ borderRadius: '12px', backgroundColor: '#FFFFFF' }}>
-            <div className="card-body p-2.5 p-sm-3">
+            <div className="card-body p-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div className="min-w-0">
                   <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.68rem' : '0.76rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
@@ -238,7 +238,7 @@ const Transactions = () => {
 
         <div className="col-6 col-md-3">
           <div className="card shadow-sm h-100 border-0" style={{ borderRadius: '12px', backgroundColor: '#FFFFFF' }}>
-            <div className="card-body p-2.5 p-sm-3">
+            <div className="card-body p-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div className="min-w-0">
                   <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.68rem' : '0.76rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
@@ -261,7 +261,7 @@ const Transactions = () => {
 
         <div className="col-6 col-md-3">
           <div className="card shadow-sm h-100 border-0" style={{ borderRadius: '12px', backgroundColor: '#FFFFFF' }}>
-            <div className="card-body p-2.5 p-sm-3">
+            <div className="card-body p-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div className="min-w-0">
                   <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.68rem' : '0.76rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
@@ -284,7 +284,7 @@ const Transactions = () => {
 
         <div className="col-6 col-md-3">
           <div className="card shadow-sm h-100 border-0" style={{ borderRadius: '12px', backgroundColor: '#FFFFFF' }}>
-            <div className="card-body p-2.5 p-sm-3">
+            <div className="card-body p-3">
               <div className="d-flex align-items-center justify-content-between">
                 <div className="min-w-0">
                   <p className="mb-0 text-muted" style={{ fontSize: isMobile ? '0.68rem' : '0.76rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
@@ -408,13 +408,13 @@ const Transactions = () => {
               </p>
             </div>
           ) : (
-            <div className="d-flex flex-column gap-2.5">
+            <div className="d-flex flex-column gap-3" style={{ gap: '12px' }}>
               {currentTransactions.map((transaction) => {
                 const statusStyle = getStatusStyle(transaction.status);
                 return (
                   <div
                     key={transaction.id}
-                    className="card shadow-sm border"
+                    className="card shadow-sm border mb-0"
                     style={{
                       borderRadius: '12px',
                       overflow: 'hidden',

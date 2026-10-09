@@ -259,6 +259,16 @@ const Navbar = ({ toggleSidebar }) => {
               font-size: 0.78rem;
             }
           }
+
+          @media (max-width: 440px) {
+            .navbar-how-to-use-btn span {
+              display: none;
+            }
+            .navbar-how-to-use-btn {
+              padding: 6px 9px;
+              border-radius: 8px;
+            }
+          }
         `}
       </style>
 

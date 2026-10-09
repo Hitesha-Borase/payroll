@@ -90,12 +90,12 @@ function App() {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const location = useLocation();
 
-    // Auto-hide sidebar on mobile
+    // Auto-hide sidebar on mobile and on route changes
     useEffect(() => {
         if (window.innerWidth <= 768) {
             setIsSidebarCollapsed(true);
         }
-    }, []);
+    }, [location.pathname]);
 
     const toggleSidebar = () => {
         setIsSidebarCollapsed((prev) => !prev);
@@ -161,6 +161,15 @@ function App() {
                     <Navbar toggleSidebar={toggleSidebar} />
 
                     <div className="main-content">
+                        {/* Mobile Sidebar Backdrop Overlay */}
+                        {!isSidebarCollapsed && (
+                            <div 
+                                className="sidebar-mobile-backdrop d-md-none" 
+                                onClick={() => setIsSidebarCollapsed(true)}
+                                aria-label="Close sidebar"
+                            />
+                        )}
+
                         {/* Sidebar */}
                         <Sidebar
                             collapsed={isSidebarCollapsed}

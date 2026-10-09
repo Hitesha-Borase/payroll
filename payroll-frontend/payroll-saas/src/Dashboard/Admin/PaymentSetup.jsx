@@ -64,14 +64,29 @@ const PaymentSetup = () => {
       setLoading(true);
       setError(null);
       const response = await adminAPI.getPaymentGateways();
-      if (response?.data?.success) {
-        setPaymentGateways(response.data.data.map(g => ({
-          ...g,
-          supportedMethods: typeof g.supported_methods === 'string' ? JSON.parse(g.supported_methods) : g.supported_methods,
-          apiKey: g.api_key,
-          webhookUrl: g.webhook_url,
-          transactionFee: g.transaction_fee
-        })));
+      if (response?.data?.success && Array.isArray(response.data.data)) {
+        setPaymentGateways(response.data.data.map(g => {
+          let methods = [];
+          if (Array.isArray(g.supported_methods)) {
+            methods = g.supported_methods;
+          } else if (typeof g.supported_methods === 'string') {
+            try {
+              const parsed = JSON.parse(g.supported_methods);
+              methods = Array.isArray(parsed) ? parsed : (parsed ? [parsed] : []);
+            } catch (e) {
+              methods = g.supported_methods.split(',').map(m => m.trim()).filter(Boolean);
+            }
+          } else if (Array.isArray(g.supportedMethods)) {
+            methods = g.supportedMethods;
+          }
+          return {
+            ...g,
+            supportedMethods: Array.isArray(methods) ? methods : [],
+            apiKey: g.api_key || g.apiKey || '',
+            webhookUrl: g.webhook_url || g.webhookUrl || '',
+            transactionFee: g.transaction_fee || g.transactionFee || ''
+          };
+        }));
       }
     } catch (err) {
       console.error(err);
@@ -89,15 +104,15 @@ const PaymentSetup = () => {
   const fetchBankAccounts = async () => {
     try {
       const response = await adminAPI.getBankAccounts();
-      if (response?.data?.success) {
+      if (response?.data?.success && Array.isArray(response.data.data)) {
         setBankAccounts(response.data.data.map(b => ({
           ...b,
-          bankName: b.bank_name,
-          accountHolder: b.account_holder,
-          accountNumber: b.account_number,
-          ifscCode: b.ifsc_code,
-          transactionLimit: b.transaction_limit,
-          processingTime: b.processing_time
+          bankName: b.bank_name || b.bankName || '',
+          accountHolder: b.account_holder || b.accountHolder || '',
+          accountNumber: b.account_number || b.accountNumber || '',
+          ifscCode: b.ifsc_code || b.ifscCode || '',
+          transactionLimit: b.transaction_limit || b.transactionLimit || 'N/A',
+          processingTime: b.processing_time || b.processingTime || 'N/A'
         })));
       }
     } catch (err) {
@@ -232,8 +247,12 @@ const PaymentSetup = () => {
     setCurrentBank({ ...currentBank, [name]: value });
   };
 
-  const toggleGatewayStatus = async (gateway) => {
+  const toggleGatewayStatus = async (gatewayOrId) => {
     try {
+      const gateway = typeof gatewayOrId === 'object' && gatewayOrId !== null
+        ? gatewayOrId
+        : paymentGateways.find(g => g.id === gatewayOrId);
+      if (!gateway) return;
       const newStatus = gateway.status === "Active" ? "Inactive" : "Active";
       await adminAPI.updatePaymentGateway(gateway.id, { ...gateway, status: newStatus });
       fetchGateways();
@@ -242,8 +261,12 @@ const PaymentSetup = () => {
     }
   };
 
-  const toggleBankStatus = async (bank) => {
+  const toggleBankStatus = async (bankOrId) => {
     try {
+      const bank = typeof bankOrId === 'object' && bankOrId !== null
+        ? bankOrId
+        : bankAccounts.find(b => b.id === bankOrId);
+      if (!bank) return;
       const newStatus = bank.status === "Verified" ? "Inactive" : "Verified";
       await adminAPI.updateBankAccount(bank.id, { ...bank, status: newStatus });
       fetchBankAccounts();
@@ -355,7 +378,7 @@ const PaymentSetup = () => {
             {isMobile ? (
               // Mobile Card View
               <div className="p-3">
-                {paymentGateways.map((gateway) => (
+                {(paymentGateways || []).map((gateway) => (
                   <div key={gateway.id} className="card mb-3 border" style={{ borderRadius: "10px" }}>
                     <div className="card-body p-3">
                       <div className="d-flex justify-content-between align-items-start mb-2">
@@ -387,20 +410,24 @@ const PaymentSetup = () => {
                       <div className="row g-2 mb-2">
                         <div className="col-6">
                           <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>API Key</small>
-                          <span style={{ fontSize: '0.8rem' }}>{gateway.apiKey.substring(0, 10)}...</span>
+                          <span style={{ fontSize: '0.8rem' }}>{gateway.apiKey ? `${gateway.apiKey.substring(0, 10)}...` : 'N/A'}</span>
                         </div>
                         <div className="col-6">
                           <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Transaction Fee</small>
-                          <span style={{ fontSize: '0.8rem' }}>{gateway.transactionFee}</span>
+                          <span style={{ fontSize: '0.8rem' }}>{gateway.transactionFee || 'N/A'}</span>
                         </div>
                         <div className="col-12">
                           <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>Supported Methods</small>
                           <div style={{ fontSize: '0.8rem' }}>
-                            {gateway.supportedMethods.map((method, index) => (
-                              <span key={index} className="badge bg-light text-dark me-1 mb-1" style={{ fontSize: '0.7rem' }}>
-                                {method}
-                              </span>
-                            ))}
+                            {Array.isArray(gateway.supportedMethods) && gateway.supportedMethods.length > 0 ? (
+                              gateway.supportedMethods.map((method, index) => (
+                                <span key={index} className="badge bg-light text-dark me-1 mb-1" style={{ fontSize: '0.7rem' }}>
+                                  {method}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-muted" style={{ fontSize: '0.75rem' }}>None</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -469,7 +496,7 @@ const PaymentSetup = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {paymentGateways.map((gateway) => (
+                    {(paymentGateways || []).map((gateway) => (
                       <tr key={gateway.id}>
                         <td className="py-3">
                           <div className="d-flex align-items-center">
@@ -494,9 +521,9 @@ const PaymentSetup = () => {
                             <span style={{ color: colors.blackText }}>{gateway.name}</span>
                           </div>
                         </td>
-                        <td className="py-3" style={{ color: colors.blackText }}>{gateway.apiKey.substring(0, 10)}...</td>
-                        <td className="py-3" style={{ color: colors.blackText }}>{gateway.webhookUrl}</td>
-                        <td className="py-3" style={{ color: colors.blackText }}>{gateway.transactionFee}</td>
+                        <td className="py-3" style={{ color: colors.blackText }}>{gateway.apiKey ? `${gateway.apiKey.substring(0, 10)}...` : 'N/A'}</td>
+                        <td className="py-3" style={{ color: colors.blackText }}>{gateway.webhookUrl || 'N/A'}</td>
+                        <td className="py-3" style={{ color: colors.blackText }}>{gateway.transactionFee || 'N/A'}</td>
                         <td className="py-3">
                           <span className={`badge px-2 py-1 ${gateway.status === "Active" ? "bg-success" : "bg-secondary"}`}>
                             {gateway.status}
@@ -573,7 +600,7 @@ const PaymentSetup = () => {
             {isMobile ? (
               // Mobile Card View
               <div className="p-3">
-                {bankAccounts.map((bank) => (
+                {(bankAccounts || []).map((bank) => (
                   <div key={bank.id} className="card mb-3 border" style={{ borderRadius: "10px" }}>
                     <div className="card-body p-3">
                       <div className="d-flex justify-content-between align-items-start mb-2">
@@ -673,7 +700,7 @@ const PaymentSetup = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {bankAccounts.map((bank) => (
+                    {(bankAccounts || []).map((bank) => (
                       <tr key={bank.id}>
                         <td className="py-3" style={{ color: colors.blackText }}>{bank.bankName}</td>
                         <td className="py-3" style={{ color: colors.blackText }}>{bank.accountHolder}</td>
