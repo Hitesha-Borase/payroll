@@ -7,6 +7,9 @@ node_modules/
 **/.env.*
 **/*.env
 **/- Copy.env
+**/env
+env
+**/*.backup
 !.env.example
 
 # Build & Output directories (all levels)

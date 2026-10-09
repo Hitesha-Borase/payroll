@@ -1014,7 +1014,7 @@ const AdminSettings = () => {
                       className={`admin-settings-provider-pill ${smtpProvider === 'resend' ? 'active' : ''}`}
                     >
                       <div className="admin-settings-dot resend"></div>
-                      <span>RESEND (API &amp; SMTP)</span>
+                      <span>RESEND (API & SMTP)</span>
                     </button>
                   </div>
                 </div>

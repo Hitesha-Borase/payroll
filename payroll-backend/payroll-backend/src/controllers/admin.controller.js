@@ -721,26 +721,6 @@ const updateEmployer = async (req, res, next) => {
       }
     }
 
-    // Update Employer Credit Balance if provided
-    const balance = req.body.balance;
-    if (balance !== undefined && balance !== '' && !isNaN(Number(balance))) {
-      const numBal = parseFloat(balance);
-      const [credRows] = await connection.query('SELECT id, balance, total_added FROM credits WHERE employer_id = ?', [id]);
-      if (credRows.length > 0) {
-        const oldBal = parseFloat(credRows[0].balance || 0);
-        const diff = numBal - oldBal;
-        await connection.query(
-          'UPDATE credits SET balance = ?, total_added = total_added + ?, updated_at = NOW() WHERE employer_id = ?',
-          [numBal, diff > 0 ? diff : 0, id]
-        );
-      } else {
-        await connection.query(
-          'INSERT INTO credits (employer_id, balance, total_added, total_used, created_at, updated_at) VALUES (?, ?, ?, 0, NOW(), NOW())',
-          [id, numBal, numBal]
-        );
-      }
-    }
-
     await connection.commit();
 
     auditService.log({
@@ -1919,30 +1899,7 @@ const assignTraining = async (req, res, next) => {
 const uploadTrainingMaterial = async (req, res, next) => {
   try {
     const { courseId, fileName } = req.body;
-    let targetTrainingId = req.body.training_id || req.body.trainingId || req.body.courseId || req.body.course_id || courseId;
-
-    if (!targetTrainingId || targetTrainingId === 'undefined' || isNaN(parseInt(targetTrainingId))) {
-      const searchTitle = req.body.courseTitle || req.body.title || req.body.courseName || (typeof targetTrainingId === 'string' ? targetTrainingId : '') || '';
-      if (searchTitle && searchTitle !== 'undefined') {
-        const [found] = await db.query(
-          'SELECT id FROM training_courses WHERE id = ? OR LOWER(title) LIKE LOWER(?) LIMIT 1',
-          [parseInt(targetTrainingId) || 0, `%${searchTitle}%`]
-        );
-        if (found && found.length > 0) {
-          targetTrainingId = found[0].id;
-        }
-      }
-    }
-
-    if (!targetTrainingId || targetTrainingId === 'undefined' || isNaN(parseInt(targetTrainingId))) {
-      const [anyCourse] = await db.query('SELECT id FROM training_courses ORDER BY id ASC LIMIT 1');
-      if (anyCourse && anyCourse.length > 0) {
-        targetTrainingId = anyCourse[0].id;
-      } else {
-        targetTrainingId = 1;
-      }
-    }
-
+    const finalCourseId = courseId || req.body.trainingId || req.body.training_id;
     const finalFileName = fileName || (req.file ? req.file.originalname : 'Material File');
     const fileUrl = req.file ? `/uploads/${req.file.filename}` : (req.body.fileUrl && req.body.fileUrl !== 'mock_url_placeholder' ? req.body.fileUrl : '/uploads/file-1791198551202-417965961.pdf');
     const fileSize = req.file ? `${Math.round(req.file.size / 1024)} KB` : (req.body.fileSize && req.body.fileSize !== '0' && req.body.fileSize !== 'N/A' ? req.body.fileSize : '36 KB');
@@ -1950,7 +1907,7 @@ const uploadTrainingMaterial = async (req, res, next) => {
 
     const [insertResult] = await db.query(
       'INSERT INTO course_materials (training_id, file_name, file_url, file_type, file_size, uploaded_at) VALUES (?, ?, ?, ?, ?, NOW())',
-      [parseInt(targetTrainingId), finalFileName, fileUrl, fileType, fileSize]
+      [finalCourseId, finalFileName, fileUrl, fileType, fileSize]
     );
 
     const [newRow] = await db.query(`

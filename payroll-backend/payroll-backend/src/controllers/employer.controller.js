@@ -1539,48 +1539,20 @@ const getAllTrainings = async (req, res, next) => {
         WHERE ta.training_id = ?
       `, [t.id]);
 
-      let caMap = {};
-      try {
-        const [caRows] = await db.query(
-          'SELECT employee_id, status, score, completion_date FROM course_assignments WHERE training_id = ?',
-          [t.id]
-        );
-        (caRows || []).forEach(ca => {
-          caMap[ca.employee_id] = ca;
-        });
-      } catch (eCa) {}
-
       return {
         ...t,
         instructor: t.trainer_name || t.instructor || 'N/A',
-        assignments: assignments.map(a => {
-          const ca = caMap[a.employee_id];
-          const isCompleted = (a.status && a.status.toLowerCase() === 'completed') ||
-            (ca && ca.status && ca.status.toLowerCase() === 'completed') ||
-            Number(a.completion_percentage) >= 100 ||
-            Number(a.test_score) >= 60 ||
-            (ca && Number(ca.score) >= 60);
-
-          const finalStatus = isCompleted ? 'Completed' : (a.status || 'assigned');
-          const finalCompletion = isCompleted ? 100 : (a.completion_percentage !== undefined && a.completion_percentage !== null ? a.completion_percentage : 0);
-          const finalScore = a.test_score !== undefined && a.test_score !== null ? a.test_score : (ca?.score !== undefined ? ca.score : (isCompleted ? 100 : null));
-
-          return {
-            ...a,
-            status: finalStatus,
-            completion_percentage: finalCompletion,
-            test_score: finalScore,
-            score: finalScore,
-            due_date: a.due_date || t.due_date || t.end_date,
-            assigned_date: a.assigned_date || a.created_at || t.start_date,
-            employee: {
-              id: a.emp_id,
-              name: a.emp_name,
-              user: { name: a.emp_name, email: a.emp_email }
-            },
-            emp_id: undefined, emp_name: undefined, emp_email: undefined
-          };
-        })
+        assignments: assignments.map(a => ({
+          ...a,
+          due_date: a.due_date || t.due_date || t.end_date,
+          assigned_date: a.assigned_date || a.created_at || t.start_date,
+          employee: {
+            id: a.emp_id,
+            name: a.emp_name,
+            user: { name: a.emp_name, email: a.emp_email }
+          },
+          emp_id: undefined, emp_name: undefined, emp_email: undefined
+        }))
       };
     }));
 

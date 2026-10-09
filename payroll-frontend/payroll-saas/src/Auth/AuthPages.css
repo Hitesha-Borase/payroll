@@ -279,3 +279,67 @@
         font-size: 1.25rem;
     }
 }
+
+/* Unified Signup Account Type Switcher */
+.auth-type-switch-container {
+    background-color: #F1F5F9;
+    padding: 4px;
+    border-radius: 12px;
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1.25rem;
+    border: 1px solid #E2E8F0;
+}
+
+.auth-type-tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748B;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    transition: all 0.25s ease;
+    cursor: pointer;
+}
+
+.auth-type-tab:hover:not(.active) {
+    color: #1E293B;
+    background-color: rgba(255, 255, 255, 0.5);
+}
+
+.auth-type-tab.active {
+    background-color: #FFFFFF;
+    color: #C62828;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.auth-type-badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.auth-type-tab.active .auth-type-badge.trial-badge {
+    background-color: #FEE2E2;
+    color: #B91C1C;
+}
+
+.auth-type-tab.active .auth-type-badge.free-badge {
+    background-color: #DCFCE7;
+    color: #15803D;
+}
+
+.auth-type-tab:not(.active) .auth-type-badge {
+    background-color: #E2E8F0;
+    color: #64748B;
+}

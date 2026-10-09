@@ -9,6 +9,8 @@ const auditService = require('../services/audit.service');
 
 /**
  * Register a new user
+ * Note: Public registration is strictly restricted to jobseeker accounts only.
+ * Corporate / Admin accounts are created via authenticated admin portals or subscription checkout (/payment/razorpay/verify-and-register).
  */
 const register = async (req, res, next) => {
   const connection = await db.getConnection();
@@ -23,6 +25,20 @@ const register = async (req, res, next) => {
         success: false,
         message: 'Name, email, and password are required.',
       });
+    }
+
+    // Role Security Enforcement:
+    // Reject any explicit attempt to register privileged roles (admin, superadmin) via public registration.
+    if (role !== undefined && role !== null && String(role).trim() !== '') {
+      const normalizedRole = String(role).trim().toLowerCase();
+      const forbiddenRoles = ['admin', 'superadmin'];
+      if (forbiddenRoles.includes(normalizedRole)) {
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Public registration cannot create administrative roles.',
+        });
+      }
     }
 
     // Normalize email
@@ -96,7 +112,7 @@ const register = async (req, res, next) => {
       await connection.query(
         `INSERT INTO job_seekers (user_id, name, email, phone, status, created_at, updated_at)
          VALUES (?, ?, ?, ?, 'active', NOW(), NOW())`,
-        [userId, name, email, phone || null]
+        [userId, name.trim(), normalizedEmail, phone ? String(phone).trim() : null]
       );
     }
 

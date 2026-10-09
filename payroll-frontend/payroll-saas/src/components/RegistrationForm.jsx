@@ -34,6 +34,8 @@ const RegistrationForm = () => {
   const planParam = searchParams.get('plan');
   const isPlanCheckout = !!planParam;
 
+  const currentType = type ? type.toLowerCase() : '';
+
   const [formData, setFormData] = useState({
     company_name: '',
     name: '',
@@ -42,6 +44,27 @@ const RegistrationForm = () => {
     password: '',
     confirmPassword: '',
   });
+
+  useEffect(() => {
+    if (!isPlanCheckout) {
+      // Legacy registration routes - safely redirect to unified signup flow
+      if (currentType === 'jobseekers' || currentType === 'job-search') {
+        navigate('/signup?type=jobseeker', { replace: true });
+      } else {
+        navigate('/signup?type=company', { replace: true });
+      }
+      return;
+    }
+
+    if (planParam === 'trial') {
+      // Free trial plan - route directly to unified company trial signup
+      navigate('/signup?type=company', { replace: true });
+      return;
+    }
+
+    // Paid plan checkout (Starter, Pro, Premium) - preserved
+    fetchPlans();
+  }, [isPlanCheckout, currentType, planParam, navigate]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
