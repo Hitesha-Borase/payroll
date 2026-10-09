@@ -970,38 +970,62 @@ const AdminSettings = () => {
                 {/* EMAIL SERVICE PROVIDER SELECTION */}
                 <div className="mb-4 mt-4">
                   <label className="admin-settings-label text-uppercase mb-2">Select Email Service Provider</label>
-                  <div className="d-flex w-100 rounded-pill p-1" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
+                  <div className="d-flex flex-column flex-md-row w-100 rounded-3 p-1 gap-1" style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0' }}>
                     <button 
+                      type="button"
                       onClick={() => {
                         setSmtpProvider('gmail');
                         setSmtpForm(prev => ({ ...prev, host: 'smtp.gmail.com', port: '587' }));
                       }}
-                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
-                      style={{ backgroundColor: smtpProvider === 'gmail' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'gmail' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'gmail' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'gmail' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                      className="flex-grow-1 rounded-2 border-0 py-2 px-3 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all"
+                      style={{
+                        backgroundColor: smtpProvider === 'gmail' ? '#FFFFFF' : 'transparent',
+                        color: smtpProvider === 'gmail' ? '#0F172A' : '#64748B',
+                        boxShadow: smtpProvider === 'gmail' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                        border: smtpProvider === 'gmail' ? '1px solid #10B981' : '1px solid transparent',
+                        fontSize: '0.82rem',
+                        minHeight: '40px'
+                      }}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444' }}></div>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444', flexShrink: 0 }}></div>
                       GMAIL / WORKSPACE
                     </button>
                     <button 
+                      type="button"
                       onClick={() => {
                         setSmtpProvider('brevo');
                         setSmtpForm(prev => ({ ...prev, host: 'smtp-relay.brevo.com', port: '587' }));
                       }}
-                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
-                      style={{ backgroundColor: smtpProvider === 'brevo' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'brevo' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'brevo' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'brevo' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                      className="flex-grow-1 rounded-2 border-0 py-2 px-3 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all"
+                      style={{
+                        backgroundColor: smtpProvider === 'brevo' ? '#FFFFFF' : 'transparent',
+                        color: smtpProvider === 'brevo' ? '#0F172A' : '#64748B',
+                        boxShadow: smtpProvider === 'brevo' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                        border: smtpProvider === 'brevo' ? '1px solid #10B981' : '1px solid transparent',
+                        fontSize: '0.82rem',
+                        minHeight: '40px'
+                      }}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3B82F6' }}></div>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3B82F6', flexShrink: 0 }}></div>
                       BREVO (SENDINBLUE)
                     </button>
                     <button 
+                      type="button"
                       onClick={() => {
                         setSmtpProvider('resend');
                         setSmtpForm(prev => ({ ...prev, host: 'smtp.resend.com', port: '587', username: 'resend' }));
                       }}
-                      className={`flex-grow-1 rounded-pill border-0 py-2 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all`}
-                      style={{ backgroundColor: smtpProvider === 'resend' ? '#FFFFFF' : 'transparent', color: smtpProvider === 'resend' ? '#0F172A' : '#64748B', boxShadow: smtpProvider === 'resend' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none', border: smtpProvider === 'resend' ? '1px solid #10B981' : 'none', fontSize: '0.85rem' }}
+                      className="flex-grow-1 rounded-2 border-0 py-2 px-3 fw-bold d-flex align-items-center justify-content-center gap-2 transition-all"
+                      style={{
+                        backgroundColor: smtpProvider === 'resend' ? '#FFFFFF' : 'transparent',
+                        color: smtpProvider === 'resend' ? '#0F172A' : '#64748B',
+                        boxShadow: smtpProvider === 'resend' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+                        border: smtpProvider === 'resend' ? '1px solid #10B981' : '1px solid transparent',
+                        fontSize: '0.82rem',
+                        minHeight: '40px'
+                      }}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#8B5CF6' }}></div>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#8B5CF6', flexShrink: 0 }}></div>
                       RESEND (API & SMTP)
                     </button>
                   </div>

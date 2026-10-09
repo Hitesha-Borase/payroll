@@ -1,5 +1,5 @@
 import React, { createContext, useState, useCallback, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, publicAPI } from '../services/api';
 
 export const AuthContext = createContext();
 
@@ -117,6 +117,53 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const registerCompany = useCallback(async (companyData) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await publicAPI.verifyAndRegister({
+        name: companyData.name,
+        email: companyData.email,
+        password: companyData.password,
+        company_name: companyData.company_name,
+        phone: companyData.phone,
+        plan_id: 1 // 7-day Free Trial Plan
+      });
+
+      const resData = response.data?.data || {};
+      const accessToken = resData.accessToken || resData.token;
+      const refreshToken = resData.refreshToken;
+      const userData = resData.user || resData.admin || {
+        name: companyData.name,
+        email: companyData.email,
+        role: 'admin',
+        company_name: companyData.company_name
+      };
+
+      if (accessToken) {
+        localStorage.setItem('authToken', accessToken);
+        localStorage.setItem('token', accessToken);
+      }
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('userRole', userData.role || 'admin');
+      localStorage.setItem('userEmail', userData.email || companyData.email);
+      if (userData.id) localStorage.setItem('userId', userData.id);
+
+      setUser(userData);
+      setIsAuthenticated(true);
+      setLoading(false);
+      return { success: true, data: userData, message: response.data?.message };
+    } catch (err) {
+      const errorMessage = err.response?.data?.message || 'Company registration failed';
+      setError(errorMessage);
+      setLoading(false);
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     setLoading(true);
     try {
@@ -151,6 +198,7 @@ export const AuthProvider = ({ children }) => {
     login,
     adminLogin,
     register,
+    registerCompany,
     logout,
   };
 

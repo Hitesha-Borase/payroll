@@ -532,8 +532,8 @@ SET FOREIGN_KEY_CHECKS = 1;
           onChange={handleFileChange}
         />
 
-        <div className="row align-items-center">
-          <div className="col-md-9">
+        <div className="row g-2 g-md-3 align-items-center">
+          <div className="col-12 col-md-9">
             <div 
               className={`backup-dropzone mb-0 ${selectedFile ? 'has-file' : ''}`}
               onClick={() => fileInputRef.current && fileInputRef.current.click()}
@@ -562,12 +562,12 @@ SET FOREIGN_KEY_CHECKS = 1;
               )}
             </div>
           </div>
-          <div className="col-md-3">
+          <div className="col-12 col-md-3">
             <button 
-              className={`backup-action-btn restore ${selectedFile ? 'ready' : ''}`}
+              className={`backup-action-btn restore w-100 ${selectedFile ? 'ready' : ''}`}
               disabled={!selectedFile || isRestoring}
               onClick={() => setShowRestoreModal(true)}
-              style={{ height: '100%', minHeight: '68px', backgroundColor: selectedFile ? '#059669' : '#d1fae5', color: selectedFile ? '#fff' : '#065f46', borderColor: '#a7f3d0' }}
+              style={{ height: '100%', minHeight: '52px', backgroundColor: selectedFile ? '#059669' : '#d1fae5', color: selectedFile ? '#fff' : '#065f46', borderColor: '#a7f3d0' }}
             >
               {isRestoring ? (
                 <>
@@ -587,13 +587,13 @@ SET FOREIGN_KEY_CHECKS = 1;
 
       {/* 4. Automated Recurring Backup Section */}
       <div className="backup-card">
-        <div className="backup-recurring-header">
-          <div className="backup-recurring-left">
-            <div className="backup-clock-icon-box">
+        <div className="backup-recurring-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 gap-sm-3">
+          <div className="backup-recurring-left d-flex align-items-start align-items-sm-center gap-3">
+            <div className="backup-clock-icon-box flex-shrink-0">
               <Clock size={22} />
             </div>
             <div>
-              <div className="backup-recurring-title">
+              <div className="backup-recurring-title d-flex flex-wrap align-items-center gap-2">
                 <span>Automated Recurring Backup</span>
                 {autoBackupEnabled && <span className="backup-active-badge">ACTIVE • AUTO-RUNNING</span>}
               </div>
@@ -604,7 +604,7 @@ SET FOREIGN_KEY_CHECKS = 1;
           </div>
 
           {/* Toggle Switch */}
-          <div className="d-flex align-items-center gap-2">
+          <div className="d-flex align-items-center gap-2 align-self-start align-self-sm-auto pt-1 pt-sm-0">
             <Form.Check 
               type="switch"
               id="autoBackupToggleSwitch"

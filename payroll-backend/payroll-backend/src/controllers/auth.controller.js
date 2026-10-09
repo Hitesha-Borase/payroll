@@ -9,6 +9,8 @@ const auditService = require('../services/audit.service');
 
 /**
  * Register a new user
+ * Note: Public registration is strictly restricted to jobseeker accounts only.
+ * Corporate / Admin accounts are created via authenticated admin portals or subscription checkout (/payment/razorpay/verify-and-register).
  */
 const register = async (req, res, next) => {
   const connection = await db.getConnection();
@@ -23,6 +25,20 @@ const register = async (req, res, next) => {
         success: false,
         message: 'Name, email, and password are required.',
       });
+    }
+
+    // Role Security Enforcement:
+    // Reject any explicit attempt to register privileged or unpermitted roles via public registration.
+    if (role !== undefined && role !== null && String(role).trim() !== '') {
+      const normalizedRole = String(role).trim().toLowerCase();
+      const forbiddenRoles = ['admin', 'superadmin', 'employer', 'employee', 'vendor'];
+      if (forbiddenRoles.includes(normalizedRole) || normalizedRole !== 'jobseeker') {
+        await connection.rollback();
+        return res.status(400).json({
+          success: false,
+          message: 'Public registration is restricted to jobseeker accounts only. Privileged roles cannot be created via public registration.',
+        });
+      }
     }
 
     // Normalize email
@@ -42,49 +58,26 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Validate role
-    const allowedRoles = ['employer', 'employee', 'vendor', 'jobseeker', 'admin', 'superadmin'];
-    const userRole = role && allowedRoles.includes(role.toLowerCase())
-      ? role.toLowerCase()
-      : 'jobseeker';
+    // Do NOT trust client-provided roles: Hardcode role strictly to 'jobseeker'
+    const userRole = 'jobseeker';
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
+    // Create user (Strictly jobseeker role)
     const [userResult] = await connection.query(
       `INSERT INTO users (name, email, password, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'active', NOW(), NOW())`,
-      [name.trim(), normalizedEmail, hashedPassword, userRole]
+       VALUES (?, ?, ?, 'jobseeker', 'active', NOW(), NOW())`,
+      [name.trim(), normalizedEmail, hashedPassword]
     );
     const userId = userResult.insertId;
 
-    // Create role-specific records
-    if (userRole === 'employer') {
-      await connection.query(
-        `INSERT INTO employers (user_id, company_name, status, created_at, updated_at)
-         VALUES (?, ?, 'active', NOW(), NOW())`,
-        [userId, `${name}'s Company`]
-      );
-    } else if (userRole === 'employee') {
-      await connection.query(
-        `INSERT INTO employees (user_id, status, created_at, updated_at)
-         VALUES (?, 'active', NOW(), NOW())`,
-        [userId]
-      );
-    } else if (userRole === 'vendor') {
-      await connection.query(
-        `INSERT INTO vendors (user_id, company_name, payment_status, status, created_at, updated_at)
-         VALUES (?, ?, 'pending', 'active', NOW(), NOW())`,
-        [userId, `${name}'s Vendor Company`]
-      );
-    } else if (userRole === 'jobseeker') {
-      await connection.query(
-        `INSERT INTO job_seekers (user_id, name, email, phone, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'active', NOW(), NOW())`,
-        [userId, name, email, phone || null]
-      );
-    }
+    // Create job_seekers profile record
+    await connection.query(
+      `INSERT INTO job_seekers (user_id, name, email, phone, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'active', NOW(), NOW())`,
+      [userId, name.trim(), normalizedEmail, phone ? String(phone).trim() : null]
+    );
 
     await connection.commit();
 
@@ -92,7 +85,7 @@ const register = async (req, res, next) => {
       id: userId,
       name: name.trim(),
       email: normalizedEmail,
-      role: userRole,
+      role: 'jobseeker',
       status: 'active'
     };
 
@@ -104,9 +97,9 @@ const register = async (req, res, next) => {
       email: normalizedEmail,
       name: name.trim(),
       password: password,
-      role: userRole,
+      role: 'jobseeker',
       companyName: `${name.trim()}'s Workspace`,
-      planName: userRole.toUpperCase() + ' Plan',
+      planName: 'JOBSEEKER Plan',
       portalUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/login`
     }).catch(err => console.error('[BREVO] Error sending registration welcome email:', err.message));
 
@@ -114,7 +107,7 @@ const register = async (req, res, next) => {
     auditService.log({
       userId: userId,
       action: 'USER_REGISTER',
-      details: `New ${userRole.toUpperCase()} registered: ${name.trim()} (${normalizedEmail})`,
+      details: `New JOBSEEKER registered: ${name.trim()} (${normalizedEmail})`,
       ipAddress: req.ip || req.socket?.remoteAddress
     });
 

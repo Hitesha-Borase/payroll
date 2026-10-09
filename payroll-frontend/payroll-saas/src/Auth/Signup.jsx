@@ -1,11 +1,12 @@
-import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useRef, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { ArrowLeft } from "lucide-react";
 import Captcha from "../components/Captcha";
+import toast from "react-hot-toast";
 import "./AuthPages.css";
 
-// --- Color Palette (matching Login page) ---
+// --- Color Palette (Identical to Login.jsx) ---
 const colors = {
   primaryRed: '#C62828',
   darkRed: '#B71C1C',
@@ -16,49 +17,64 @@ const colors = {
   lightGray: '#E2E2E2',
 };
 
+// --- Reusable Button Styles (Identical to Login.jsx) ---
+const buttonStyles = {
+  backgroundColor: colors.primaryRed,
+  color: colors.white,
+  border: 'none',
+  transition: 'background-color 0.2s ease-in-out',
+  padding: '10px 16px',
+  borderRadius: '6px',
+  fontWeight: '500',
+  fontSize: '14px',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+};
+
 const Signup = () => {
-  const { register } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
+  const { register, registerCompany } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine initial account type from URL (default to company trial)
+  const searchParams = new URLSearchParams(location.search);
+  const initialType = searchParams.get('type') === 'jobseeker' ? 'jobseeker' : 'company';
+  const [accountType, setAccountType] = useState(initialType);
+
+  // Form Fields
+  const [companyName, setCompanyName] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("jobseeker");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Validation & UI State
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [passwordMismatch, setPasswordMismatch] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const captchaRef = useRef(null);
-  const navigate = useNavigate();
 
-  const roleRedirectMap = {
-    superadmin: "/superadmin/dashboard",
-    admin: "/admin/dashboard",
-    employer: "/employer/dashboard",
-    employee: "/employee/dashboard",
-    jobseeker: "/job-portal/dashboard",
-    vendor: "/vendor/dashboard",
-    "find-job": "/job-portal/dashboard",
-  };
+  // Sync state if URL query changes
+  useEffect(() => {
+    const typeFromQuery = searchParams.get('type');
+    if (typeFromQuery === 'jobseeker' || typeFromQuery === 'company') {
+      setAccountType(typeFromQuery);
+    }
+  }, [location.search]);
 
-  const validatePassword = (password) => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    if (password.length < minLength) {
+  const validatePassword = (pwd) => {
+    if (pwd.length < 8) {
       return 'Password must be at least 8 characters';
     }
-    if (!hasUpperCase || !hasLowerCase) {
+    if (!/[A-Z]/.test(pwd) || !/[a-z]/.test(pwd)) {
       return 'Password must contain uppercase and lowercase letters';
     }
-    if (!hasNumber) {
+    if (!/\d/.test(pwd)) {
       return 'Password must contain at least one number';
-    }
-    if (!hasSpecialChar) {
-      return 'Password must contain at least one special character';
     }
     return '';
   };
@@ -67,6 +83,17 @@ const Signup = () => {
     const newPassword = e.target.value;
     setPassword(newPassword);
     setPasswordError(validatePassword(newPassword));
+    if (confirmPassword && newPassword !== confirmPassword) {
+      setPasswordMismatch(true);
+    } else {
+      setPasswordMismatch(false);
+    }
+  };
+
+  const handleConfirmPasswordChange = (e) => {
+    const val = e.target.value;
+    setConfirmPassword(val);
+    setPasswordMismatch(password !== val);
   };
 
   const handleSignup = async (e) => {
@@ -94,22 +121,41 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      const roleToSend = role === 'find-job' ? 'jobseeker' : role;
-      const result = await register({
-        name,
-        email,
-        password,
-        role: roleToSend,
-      });
+      if (accountType === 'company') {
+        // Option 1: Company / Admin (7-Day Free Trial)
+        const result = await registerCompany({
+          company_name: companyName.trim(),
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          password,
+        });
 
-      if (result.success) {
-        const redirectPath = roleRedirectMap[role] || "/";
-        navigate(redirectPath);
+        if (result.success) {
+          toast.success("Free trial account created! Welcome to your Company Workspace.");
+          navigate("/admin/dashboard");
+        } else {
+          setError(result.error || "Company registration failed. Please try again.");
+        }
       } else {
-        setError(result.error || "Signup failed. Please try again.");
+        // Option 2: Job Seeker (Free Forever)
+        const result = await register({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          password,
+          role: "jobseeker",
+        });
+
+        if (result.success) {
+          toast.success("Account created successfully! Welcome to the Job Portal.");
+          navigate("/job-portal/dashboard");
+        } else {
+          setError(result.error || "Job seeker registration failed. Please try again.");
+        }
       }
     } catch (err) {
-      setError("An error occurred. Please try again.");
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -117,14 +163,14 @@ const Signup = () => {
 
   return (
     <div
-      className="container-fluid min-vh-100 d-flex flex-column align-items-center justify-content-center px-2 px-sm-3 py-3 py-md-4 auth-container"
+      className="container-fluid min-vh-100 d-flex flex-column align-items-center justify-content-center px-3 py-4 auth-container"
       style={{
         backgroundColor: colors.lightBeige,
         minHeight: '100vh'
       }}
     >
-      {/* Back to Website Button */}
-      <div className="w-100 d-flex justify-content-start mb-2 mb-md-3" style={{ maxWidth: "1020px" }}>
+      {/* Back to Website Button (Identical to Login) */}
+      <div className="w-100 d-flex justify-content-start mb-2 mb-md-3" style={{ maxWidth: "950px" }}>
         <Link
           to="/"
           className="d-inline-flex align-items-center gap-2 text-decoration-none px-3 py-2 rounded-pill shadow-sm"
@@ -155,10 +201,22 @@ const Signup = () => {
         </Link>
       </div>
 
-      <div className="card shadow w-100 auth-card" style={{ maxWidth: "1020px", borderRadius: "1.5rem", backgroundColor: colors.white }}>
+      {/* Main Centered Card (Identical layout & styling to Login) */}
+      <div
+        className="card shadow w-100 auth-card"
+        style={{
+          maxWidth: "950px",
+          borderRadius: "1.5rem",
+          backgroundColor: colors.white,
+          border: 'none',
+        }}
+      >
         <div className="row g-0 align-items-stretch">
-          {/* Left Image Section */}
-          <div className="col-md-5 col-lg-5 d-none d-md-block auth-image-col" style={{ borderRadius: '1.5rem 0 0 1.5rem' }}>
+          {/* Left Column: Clean Illustration (Identical to Login) */}
+          <div
+            className="col-md-6 d-none d-md-block auth-image-col"
+            style={{ borderRadius: '1.5rem 0 0 1.5rem' }}
+          >
             <div
               style={{
                 position: 'absolute',
@@ -166,53 +224,104 @@ const Signup = () => {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                background: 'linear-gradient(135deg, rgba(198, 40, 40, 0.08) 0%, rgba(183, 28, 28, 0.05) 100%)',
+                background: 'linear-gradient(135deg, rgba(198, 40, 40, 0.05) 0%, rgba(183, 28, 28, 0.05) 100%)',
                 zIndex: 1
               }}
             />
             <img
-              src="/signup_professional.png"
-              alt="Join Our Professional Team"
+              src="/login_business_dashboard.png"
+              alt="Professional Payroll Dashboard"
               className="img-fluid"
               style={{
                 height: "100%",
                 width: "100%",
+                minHeight: "100%",
                 objectFit: "cover",
                 objectPosition: 'center',
-                minHeight: '100%',
+                transition: 'transform 0.6s ease',
                 position: 'relative',
                 zIndex: 0
               }}
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1000&q=80";
+                e.target.src = "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1000&q=80";
               }}
             />
           </div>
 
-          {/* Right Form Section */}
-          <div className="col-12 col-md-7 col-lg-7 auth-form-col">
+          {/* Right Column: Clean Form */}
+          <div
+            className="col-12 col-md-6 auth-form-col"
+            style={{ animation: 'fadeInRight 0.6s ease-out' }}
+          >
             <div className="w-100">
-              {/* Logo & Header */}
-              <div className="text-center mb-2">
+              {/* Kiaan Logo (Identical to Login) */}
+              <div className="text-center mb-3">
                 <img
-                  src="/kt_logo_transparent.png"
+                  src="/kiaan_logo.png"
                   alt="Kiaan Technology Logo"
-                  style={{ height: "46px", width: "auto", objectFit: "contain" }}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/kiaan_logo.png";
-                  }}
+                  style={{ height: "60px", width: "auto", objectFit: "contain" }}
                 />
               </div>
-              <h3 className="fw-bold mb-1 text-center" style={{ color: colors.black, fontSize: '1.35rem' }}>
-                Create Your Account
-              </h3>
-              <p className="text-center text-muted mb-3" style={{ fontSize: '0.85rem' }}>
-                Join us and start managing workforce &amp; payroll efficiently
+
+              {/* Title & Subtitle */}
+              <h2 className="fw-bold mb-1 text-center" style={{ color: colors.black, fontFamily: 'inherit' }}>
+                Create Account
+              </h2>
+
+              <p className="text-center mb-3" style={{ color: colors.darkGray, fontFamily: 'inherit', fontSize: '14px' }}>
+                {accountType === 'company'
+                  ? "Start your 7-day free trial"
+                  : "Create your free candidate account"}
               </p>
 
-              {/* Error message */}
+              {/* Top Two Simple Tabs: [ Company ] [ Job Seeker ] */}
+              <div
+                className="d-flex p-1 mb-3 rounded-2"
+                style={{
+                  backgroundColor: '#F3F4F6',
+                  border: '1px solid #E5E7EB'
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn flex-fill py-2 text-center border-0 fw-semibold"
+                  style={{
+                    backgroundColor: accountType === 'company' ? colors.white : 'transparent',
+                    color: accountType === 'company' ? colors.primaryRed : colors.darkGray,
+                    boxShadow: accountType === 'company' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onClick={() => {
+                    setAccountType('company');
+                    setError("");
+                  }}
+                >
+                  Company
+                </button>
+                <button
+                  type="button"
+                  className="btn flex-fill py-2 text-center border-0 fw-semibold"
+                  style={{
+                    backgroundColor: accountType === 'jobseeker' ? colors.white : 'transparent',
+                    color: accountType === 'jobseeker' ? colors.primaryRed : colors.darkGray,
+                    boxShadow: accountType === 'jobseeker' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onClick={() => {
+                    setAccountType('jobseeker');
+                    setError("");
+                  }}
+                >
+                  Job Seeker
+                </button>
+              </div>
+
+              {/* Error Alert */}
               {error && (
                 <div className="alert alert-danger py-2 px-3 mb-3 small" role="alert">
                   {error}
@@ -220,166 +329,210 @@ const Signup = () => {
               )}
 
               <form onSubmit={handleSignup}>
-                <div className="row g-2 g-sm-3">
-                  {/* Full Name */}
-                  <div className="col-12 col-sm-6">
-                    <label className="auth-form-label">Full Name</label>
+                {/* Company Name (When Company selected) */}
+                {accountType === 'company' && (
+                  <div className="mb-2">
+                    <label className="form-label mb-1" style={{ fontFamily: 'inherit', fontWeight: '500', fontSize: '13px' }}>
+                      Company Name
+                    </label>
                     <input
                       type="text"
-                      className="auth-form-control"
-                      placeholder="e.g. Rahul Sharma"
+                      className="form-control"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="e.g. Acme Corporation"
+                      required
+                      style={{
+                        fontFamily: 'inherit',
+                        padding: '8px 12px',
+                        border: '1px solid #E2E2E2',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Full Name & Phone in compact grid */}
+                <div className="row g-2 mb-2">
+                  <div className="col-12 col-sm-6">
+                    <label className="form-label mb-1" style={{ fontFamily: 'inherit', fontWeight: '500', fontSize: '13px' }}>
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Rahul Sharma"
                       required
+                      style={{
+                        fontFamily: 'inherit',
+                        padding: '8px 12px',
+                        border: '1px solid #E2E2E2',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                      }}
                     />
                   </div>
-
-                  {/* Email */}
                   <div className="col-12 col-sm-6">
-                    <label className="auth-form-label">Email Address</label>
+                    <label className="form-label mb-1" style={{ fontFamily: 'inherit', fontWeight: '500', fontSize: '13px' }}>
+                      Phone
+                    </label>
                     <input
-                      type="email"
-                      className="auth-form-control"
-                      placeholder="name@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      type="tel"
+                      className="form-control"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g. +91 9876543210"
                       required
+                      style={{
+                        fontFamily: 'inherit',
+                        padding: '8px 12px',
+                        border: '1px solid #E2E2E2',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                      }}
                     />
                   </div>
+                </div>
 
-                  {/* Role Selection */}
-                  <div className="col-12">
-                    <label className="auth-form-label">Select Account Role</label>
-                    <select
-                      className="auth-form-control"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      required
-                    >
-                      <option value="jobseeker">Job Seeker (Candidate Portal)</option>
-                      <option value="employer">Employer / Company (HR &amp; Payroll Management)</option>
-                      <option value="employee">Employee (Workforce &amp; Payslips)</option>
-                      <option value="vendor">Vendor / Partner</option>
-                      <option value="admin">Admin</option>
-                      <option value="superadmin">Super Admin</option>
-                    </select>
-                  </div>
+                {/* Email */}
+                <div className="mb-2">
+                  <label className="form-label mb-1" style={{ fontFamily: 'inherit', fontWeight: '500', fontSize: '13px' }}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@example.com"
+                    required
+                    style={{
+                      fontFamily: 'inherit',
+                      padding: '8px 12px',
+                      border: '1px solid #E2E2E2',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                    }}
+                  />
+                </div>
 
-                  {/* Password */}
+                {/* Password & Confirm Password in compact grid */}
+                <div className="row g-2 mb-2">
                   <div className="col-12 col-sm-6">
-                    <label className="auth-form-label">Password</label>
+                    <label className="form-label mb-1" style={{ fontFamily: 'inherit', fontWeight: '500', fontSize: '13px' }}>
+                      Password
+                    </label>
                     <div className="input-group">
                       <input
                         type={showPassword ? "text" : "password"}
-                        className="form-control auth-form-control"
-                        placeholder="Min. 8 chars"
+                        className="form-control"
                         value={password}
                         onChange={handlePasswordChange}
+                        placeholder="Min. 8 chars"
                         required
-                        minLength="8"
-                        style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                        minLength={8}
+                        style={{
+                          fontFamily: 'inherit',
+                          padding: '8px 12px',
+                          border: '1px solid #E2E2E2',
+                          borderRadius: '8px 0 0 8px',
+                          fontSize: '14px',
+                        }}
                       />
                       <button
                         className="btn btn-outline-secondary"
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        style={{ borderColor: '#E2E8F0', backgroundColor: '#FAFAFA' }}
+                        style={{ border: '1px solid #E2E2E2', borderLeft: 'none' }}
                       >
-                        {showPassword ? (
-                          <i className="bi bi-eye-slash-fill"></i>
-                        ) : (
-                          <i className="bi bi-eye-fill"></i>
-                        )}
+                        {showPassword ? <i className="bi bi-eye-slash-fill"></i> : <i className="bi bi-eye-fill"></i>}
                       </button>
                     </div>
                     {passwordError && (
-                      <div className="text-danger small mt-1" style={{ fontSize: '0.75rem' }}>{passwordError}</div>
-                    )}
-                  </div>
-
-                  {/* Confirm Password */}
-                  <div className="col-12 col-sm-6">
-                    <label className="auth-form-label">Confirm Password</label>
-                    <div className="input-group">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        className="form-control auth-form-control"
-                        placeholder="Re-type password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                        style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                      />
-                      <button
-                        className="btn btn-outline-secondary"
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        style={{ borderColor: '#E2E8F0', backgroundColor: '#FAFAFA' }}
-                      >
-                        {showPassword ? (
-                          <i className="bi bi-eye-slash-fill"></i>
-                        ) : (
-                          <i className="bi bi-eye-fill"></i>
-                        )}
-                      </button>
-                    </div>
-                    {passwordMismatch && (
-                      <div className="text-danger small mt-1" style={{ fontSize: '0.75rem' }}>
-                        Passwords do not match
+                      <div className="text-danger small mt-1" style={{ fontSize: '12px' }}>
+                        {passwordError}
                       </div>
                     )}
                   </div>
 
-                  {/* Security Verification CAPTCHA */}
-                  <div className="col-12">
-                    <Captcha ref={captchaRef} className="my-1" />
+                  <div className="col-12 col-sm-6">
+                    <label className="form-label mb-1" style={{ fontFamily: 'inherit', fontWeight: '500', fontSize: '13px' }}>
+                      Confirm Password
+                    </label>
+                    <div className="input-group">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        className="form-control"
+                        value={confirmPassword}
+                        onChange={handleConfirmPasswordChange}
+                        placeholder="Re-enter"
+                        required
+                        style={{
+                          fontFamily: 'inherit',
+                          padding: '8px 12px',
+                          border: '1px solid #E2E2E2',
+                          borderRadius: '8px 0 0 8px',
+                          fontSize: '14px',
+                        }}
+                      />
+                      <button
+                        className="btn btn-outline-secondary"
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={{ border: '1px solid #E2E2E2', borderLeft: 'none' }}
+                      >
+                        {showConfirmPassword ? <i className="bi bi-eye-slash-fill"></i> : <i className="bi bi-eye-fill"></i>}
+                      </button>
+                    </div>
+                    {passwordMismatch && (
+                      <div className="text-danger small mt-1" style={{ fontSize: '12px' }}>
+                        Passwords do not match
+                      </div>
+                    )}
                   </div>
+                </div>
 
-                  {/* Sign Up Button */}
-                  <div className="col-12 mt-2">
-                    <button
-                      type="submit"
-                      className="btn w-100"
-                      style={{
-                        backgroundColor: colors.primaryRed,
-                        color: colors.white,
-                        border: 'none',
-                        transition: 'all 0.3s ease',
-                        padding: '11px 24px',
-                        borderRadius: '50px',
-                        fontWeight: '600',
-                        fontSize: '0.92rem',
-                        letterSpacing: '0.3px',
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
-                        boxShadow: '0 4px 12px rgba(198, 40, 40, 0.2)'
-                      }}
-                      disabled={isLoading}
-                      onMouseEnter={(e) => {
-                        if (!isLoading) {
-                          e.target.style.backgroundColor = colors.darkRed;
-                          e.target.style.transform = 'translateY(-1px)';
-                          e.target.style.boxShadow = '0 6px 16px rgba(198, 40, 40, 0.35)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isLoading) {
-                          e.target.style.backgroundColor = colors.primaryRed;
-                          e.target.style.transform = 'translateY(0)';
-                          e.target.style.boxShadow = '0 4px 12px rgba(198, 40, 40, 0.2)';
-                        }
-                      }}
-                    >
-                      {isLoading ? "Creating account..." : "Sign Up"}
-                    </button>
-                  </div>
+                {/* Security Verification CAPTCHA */}
+                <Captcha ref={captchaRef} className="mb-3 mt-1" />
 
-                  {/* Login Link */}
-                  <div className="col-12 text-center mt-2">
-                    <span style={{ color: colors.darkGray, fontSize: '0.85rem' }}>Already have an account? </span>
-                    <Link to="/login" className="text-decoration-none fw-semibold" style={{ color: colors.primaryRed, fontSize: '0.85rem' }}>
-                      Login
-                    </Link>
-                  </div>
+                {/* Submit Action Button */}
+                <button
+                  type="submit"
+                  className="btn w-100 py-2"
+                  style={{
+                    ...buttonStyles,
+                    opacity: isLoading ? 0.7 : 1,
+                  }}
+                  disabled={isLoading}
+                >
+                  {isLoading
+                    ? "Processing..."
+                    : accountType === 'company'
+                      ? "Start 7-Day Free Trial"
+                      : "Create Free Account"}
+                </button>
+
+                {/* Login Redirect (Identical to Login) */}
+                <div className="mt-3 text-center">
+                  <span style={{ color: colors.darkGray, fontFamily: 'inherit', fontSize: '14px' }}>
+                    Already have an account?{" "}
+                  </span>
+                  <Link
+                    to="/login"
+                    style={{
+                      color: colors.primaryRed,
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      fontFamily: 'inherit',
+                      textDecoration: 'none',
+                      fontSize: '14px'
+                    }}
+                  >
+                    Login
+                  </Link>
                 </div>
               </form>
             </div>
@@ -391,4 +544,3 @@ const Signup = () => {
 };
 
 export default Signup;
-

@@ -641,7 +641,7 @@ const AddCredit = () => {
         <div className="card-body p-0">
           {isMobile ? (
             /* Mobile Cards for Credit History */
-            <div className="p-2.5 d-flex flex-column gap-2.5" style={{ backgroundColor: '#F8FAFC' }}>
+            <div className="p-2 p-sm-3 d-flex flex-column gap-2" style={{ backgroundColor: '#F8FAFC', paddingBottom: '2.5rem' }}>
               {history.length === 0 ? (
                 <div className="text-center py-4 text-muted small">No credit records found.</div>
               ) : (
@@ -677,11 +677,11 @@ const AddCredit = () => {
                         </div>
                       )}
 
-                      <div className="d-flex justify-content-between align-items-center pt-2 border-top" style={{ borderColor: '#F1F5F9' }}>
+                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 pt-2 border-top" style={{ borderColor: '#F1F5F9' }}>
                         <span className="text-muted" style={{ fontSize: '0.74rem' }}>
                           Added by: <strong>{row.addedBy}</strong>
                         </span>
-                        <div className="d-flex gap-1.5">
+                        <div className="d-flex gap-1.5 ms-auto">
                           <button
                             className="btn btn-sm btn-light border d-flex align-items-center gap-1 py-1 px-2 text-danger"
                             style={{ borderRadius: '6px', fontSize: '0.76rem', fontWeight: 600 }}

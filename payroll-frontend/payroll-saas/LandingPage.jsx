@@ -31,21 +31,6 @@ import ktLogo from './src/assets/kt_logo_transparent.png';
 // High quality professional hero image (preserves existing software image)
 const heroImageUrl = "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=1200&h=800&fit=crop&q=80";
 
-// Real Software Module Navigation Portals
-const mainButtons = [
-    { label: 'EMPLOYER / HR PORTAL', path: '/register/employers' },
-    { label: 'EMPLOYEE SELF-SERVICE', path: '/register/employees' },
-    { label: 'ADMIN CONTROL PANEL', path: '/admin/login' },
-    { label: 'SUPER ADMIN MASTER', path: '/superadmin/dashboard' },
-    { label: 'JOB SEEKER DESK', path: '/register/jobseekers' },
-    { label: 'VENDOR MANAGEMENT', path: '/register/vendor' },
-    { label: 'AUTOMATED PAYROLL', path: '/register/payroll' },
-    { label: 'ATTENDANCE TRACKER', path: '/register/employees' },
-    { label: 'CORPORATE LMS', path: '/login' },
-    { label: 'CREDIT WALLET & BILLS', path: '/login' },
-    { label: 'BACKUP & DISASTER RECOVERY', path: '/admin/backups' },
-    { label: 'SUPPORT DESK', path: '/login' }
-];
 
 // Core 6 Real Platform Modules in Red & White Theme
 const coreModules = [
@@ -186,6 +171,10 @@ const LandingPage = () => {
 
     const handleSignupClick = (plan) => {
         const planId = typeof plan === 'object' && plan !== null ? plan.id : (plan || 'trial');
+        if (planId === 'trial') {
+            navigate('/signup?type=company');
+            return;
+        }
         const planName = typeof plan === 'object' && plan !== null && plan.name ? plan.name : (
             planId === 'starter' ? 'STARTER PLAN' :
             planId === 'pro' ? 'PROFESSIONAL' :
@@ -871,35 +860,6 @@ const LandingPage = () => {
                         </div>
                     </div>
 
-                    {/* Quick Module Grid Buttons */}
-                    <div className="mt-5 pt-3">
-                        <div className="text-center mb-3">
-                            <span className="small text-muted fw-bold" style={{ letterSpacing: '1px' }}>CORE PLATFORM PORTALS &amp; ACCESS POINTS</span>
-                        </div>
-                        <div className="row g-2 justify-content-center">
-                            {mainButtons.map((btn) => (
-                                <div key={btn.label} className="col-6 col-md-4 col-lg-auto">
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate(btn.path)}
-                                        className="btn btn-sm w-100 py-2 px-3 text-uppercase fw-semibold rounded-pill"
-                                        style={{
-                                            backgroundColor: '#FFFFFF',
-                                            border: '1px solid #CBD5E1',
-                                            color: '#334155',
-                                            fontSize: '0.78rem',
-                                            transition: 'all 0.2s ease',
-                                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
-                                        }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#C62828'; e.currentTarget.style.color = '#C62828'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.color = '#334155'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                                    >
-                                        {btn.label}
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
                 </div>
             </section>
 
@@ -1236,27 +1196,27 @@ const LandingPage = () => {
                             <h6 className="fw-bold text-white mb-3 text-uppercase" style={{ letterSpacing: '1px', fontSize: '0.82rem' }}>Core Modules</h6>
                             <ul className="list-unstyled d-flex flex-column gap-2.5 small" style={{ color: '#CBD5E1', fontSize: '0.88rem' }}>
                                 <li>
-                                    <a href="/register/payroll" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
+                                    <a href="/signup?type=company" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
                                         Automated Payroll
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="/register/employees" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
+                                    <a href="/login" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
                                         Attendance &amp; Shifts
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="/register/employees" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
+                                    <a href="/login" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
                                         Employee Self-Service (ESS)
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="/register/employers" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
+                                    <a href="/signup?type=company" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
                                         Employer &amp; HR Management
                                     </a>
                                 </li>
                                 <li>
-                                    <a href="/register/jobseekers" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
+                                    <a href="/signup?type=jobseeker" className="text-decoration-none" style={{ color: '#CBD5E1', transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#FFFFFF'} onMouseLeave={(e) => e.target.style.color = '#CBD5E1'}>
                                         Recruitment &amp; Job Portal
                                     </a>
                                 </li>

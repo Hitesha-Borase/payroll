@@ -42,10 +42,25 @@ const RegistrationForm = () => {
     const captchaRef = useRef(null);
 
     React.useEffect(() => {
-        if (isPlanCheckout) {
-            fetchPlans();
+        if (!isPlanCheckout) {
+            // Legacy registration routes - safely redirect to unified signup flow
+            if (currentType === 'jobseekers' || currentType === 'job-search') {
+                navigate('/signup?type=jobseeker', { replace: true });
+            } else {
+                navigate('/signup?type=company', { replace: true });
+            }
+            return;
         }
-    }, [isPlanCheckout]);
+
+        if (planParam === 'trial') {
+            // Free trial plan - route directly to unified company trial signup
+            navigate('/signup?type=company', { replace: true });
+            return;
+        }
+
+        // Paid plan checkout (Starter, Pro, Premium) - preserved
+        fetchPlans();
+    }, [isPlanCheckout, currentType, planParam, navigate]);
 
     const fetchPlans = async () => {
         try {

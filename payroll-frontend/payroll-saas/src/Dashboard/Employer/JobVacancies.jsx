@@ -679,9 +679,19 @@ const JobVacancies = () => {
 
       {/* Tabs for navigation */}
       <div className="card shadow-sm mb-3 mb-md-4" style={{ borderRadius: "14px", border: "1px solid #E2E2E2" }}>
-        <div className="card-body p-0">
-          <ul className="nav nav-tabs nav-fill" id="jobTabs" role="tablist">
-            <li className="nav-item" role="presentation">
+        <div className="card-body p-1 p-md-0">
+          <ul
+            className={`nav ${screenSize.isMobile ? 'flex-nowrap overflow-x-auto p-1' : 'nav-tabs nav-fill'}`}
+            id="jobTabs"
+            role="tablist"
+            style={screenSize.isMobile ? {
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              whiteSpace: 'nowrap',
+              gap: '6px'
+            } : {}}
+          >
+            <li className={`nav-item ${screenSize.isMobile ? 'flex-shrink-0' : ''}`} role="presentation">
               <button
                 className={`nav-link ${activeTab === "postings" ? "active" : ""}`}
                 id="postings-tab"
@@ -691,15 +701,20 @@ const JobVacancies = () => {
                 role="tab"
                 onClick={() => setActiveTab("postings")}
                 style={{
-                  color: activeTab === "postings" ? "#C62828" : "#4A4A4A",
-                  fontWeight: "500",
-                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem"
+                  color: activeTab === "postings" ? (screenSize.isMobile ? "#FFFFFF" : "#C62828") : "#4A4A4A",
+                  backgroundColor: screenSize.isMobile && activeTab === "postings" ? "#C62828" : "transparent",
+                  borderRadius: screenSize.isMobile ? "8px" : undefined,
+                  fontWeight: "600",
+                  fontSize: screenSize.isMobile ? "0.82rem" : "1rem",
+                  padding: screenSize.isMobile ? "8px 14px" : undefined,
+                  border: screenSize.isMobile ? "none" : undefined,
+                  whiteSpace: "nowrap"
                 }}
               >
                 Job Postings
               </button>
             </li>
-            <li className="nav-item" role="presentation">
+            <li className={`nav-item ${screenSize.isMobile ? 'flex-shrink-0' : ''}`} role="presentation">
               <button
                 className={`nav-link ${activeTab === "applications" ? "active" : ""}`}
                 id="applications-tab"
@@ -709,15 +724,20 @@ const JobVacancies = () => {
                 role="tab"
                 onClick={() => setActiveTab("applications")}
                 style={{
-                  color: activeTab === "applications" ? "#C62828" : "#4A4A4A",
-                  fontWeight: "500",
-                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem"
+                  color: activeTab === "applications" ? (screenSize.isMobile ? "#FFFFFF" : "#C62828") : "#4A4A4A",
+                  backgroundColor: screenSize.isMobile && activeTab === "applications" ? "#C62828" : "transparent",
+                  borderRadius: screenSize.isMobile ? "8px" : undefined,
+                  fontWeight: "600",
+                  fontSize: screenSize.isMobile ? "0.82rem" : "1rem",
+                  padding: screenSize.isMobile ? "8px 14px" : undefined,
+                  border: screenSize.isMobile ? "none" : undefined,
+                  whiteSpace: "nowrap"
                 }}
               >
                 Vacancy Applications
               </button>
             </li>
-            <li className="nav-item" role="presentation">
+            <li className={`nav-item ${screenSize.isMobile ? 'flex-shrink-0' : ''}`} role="presentation">
               <button
                 className={`nav-link ${activeTab === "shortlisted" ? "active" : ""}`}
                 id="shortlisted-tab"
@@ -727,9 +747,14 @@ const JobVacancies = () => {
                 role="tab"
                 onClick={() => setActiveTab("shortlisted")}
                 style={{
-                  color: activeTab === "shortlisted" ? "#C62828" : "#4A4A4A",
-                  fontWeight: "500",
-                  fontSize: screenSize.isMobile ? "0.85rem" : "1rem"
+                  color: activeTab === "shortlisted" ? (screenSize.isMobile ? "#FFFFFF" : "#C62828") : "#4A4A4A",
+                  backgroundColor: screenSize.isMobile && activeTab === "shortlisted" ? "#C62828" : "transparent",
+                  borderRadius: screenSize.isMobile ? "8px" : undefined,
+                  fontWeight: "600",
+                  fontSize: screenSize.isMobile ? "0.82rem" : "1rem",
+                  padding: screenSize.isMobile ? "8px 14px" : undefined,
+                  border: screenSize.isMobile ? "none" : undefined,
+                  whiteSpace: "nowrap"
                 }}
               >
                 Shortlisted Job Seekers
@@ -1470,16 +1495,17 @@ const JobVacancies = () => {
             maxHeight: screenSize.isMobile ? "95vh" : "90vh",
             overflowY: "auto"
           }}>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h5 className="fw-bold mb-0" style={{ color: "#C62828" }}>
+            <div className="d-flex justify-content-between align-items-center mb-3 mb-md-4 gap-2">
+              <h5 className="fw-bold mb-0 text-truncate" style={{ color: "#C62828", fontSize: screenSize.isMobile ? "1.05rem" : "1.25rem" }}>
                 Applications for {getJobById(selectedJobId)?.title}
               </h5>
               <button
-                className="btn btn-sm p-2"
+                className="btn btn-sm p-1.5 rounded-circle flex-shrink-0"
                 onClick={() => setShowApplications(false)}
                 style={{ color: "#4A4A4A" }}
+                aria-label="Close"
               >
-                <FaTimes size={20} />
+                <FaTimes size={18} />
               </button>
             </div>
 

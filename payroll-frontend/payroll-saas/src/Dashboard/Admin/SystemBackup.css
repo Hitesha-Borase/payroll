@@ -587,3 +587,60 @@
   align-items: center;
   gap: 8px;
 }
+
+/* Mobile Responsiveness Improvements */
+@media (max-width: 576px) {
+  .backup-container {
+    padding: 12px 8px !important;
+  }
+
+  .backup-card {
+    padding: 14px !important;
+    border-radius: 12px !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .backup-recurring-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .backup-recurring-left {
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .backup-recurring-title {
+    font-size: 0.96rem !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .backup-active-badge {
+    font-size: 0.65rem !important;
+    padding: 2px 6px !important;
+  }
+
+  .backup-recurring-sub {
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .backup-select-field {
+    font-size: 0.84rem !important;
+    padding: 8px 10px !important;
+    height: auto !important;
+    min-height: 44px !important;
+  }
+
+  .backup-email-input {
+    font-size: 0.85rem !important;
+  }
+
+  .backup-save-schedule-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+

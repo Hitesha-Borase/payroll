@@ -14,7 +14,15 @@ const registerSchema = Joi.object({
     'string.empty': 'Password is required',
     'string.min': 'Password must be at least 6 characters',
   }),
-  role: Joi.string().valid('superadmin', 'admin', 'employer', 'employee', 'vendor', 'jobseeker').optional(),
+  role: Joi.string()
+    .trim()
+    .lowercase()
+    .valid('jobseeker')
+    .optional()
+    .allow('', null)
+    .messages({
+      'any.only': 'Public registration is restricted to jobseeker accounts only. Privileged roles cannot be created via public registration.',
+    }),
   phone: Joi.string().optional().allow('', null),
 });
 

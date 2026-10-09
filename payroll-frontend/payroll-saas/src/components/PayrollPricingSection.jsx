@@ -186,6 +186,10 @@ const PayrollPricingSection = ({ onSelectPlan }) => {
       setShowCustomModal(true);
       return;
     }
+    if (plan.id === 'trial') {
+      window.location.href = '/signup?type=company';
+      return;
+    }
     window.location.href = `/register?plan=${plan.id}`;
   };
 
