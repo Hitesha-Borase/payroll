@@ -1002,6 +1002,15 @@ function attendanceApiPlugin() {
             });
             const json = await fetchRes.json().catch(() => null);
             if (fetchRes.ok && json && json.success) {
+              const demoCompanies = ['hitesha it industry', 'hitesha', 'madhav', "anurag's company", 'employer'];
+              const demoJobIds = [1, 3, 4, 5];
+              if (Array.isArray(json.data)) {
+                json.data = json.data.filter(app => {
+                  const comp = (app.company_name || app.company || app.job?.employer?.company_name || '').toLowerCase().trim();
+                  const jId = Number(app.job_id || app.job?.id || 0);
+                  return !demoCompanies.includes(comp) && !demoJobIds.includes(jId);
+                });
+              }
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 200;
               res.end(JSON.stringify(json));

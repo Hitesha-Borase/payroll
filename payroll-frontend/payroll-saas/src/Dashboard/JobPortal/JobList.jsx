@@ -54,13 +54,26 @@ const JobList = () => {
         console.warn("Live API getAppliedJobs notice:", apiErr?.message);
       }
 
+      const demoCompanies = ['hitesha it industry', 'hitesha', 'madhav', "anurag's company", 'employer'];
+      const demoJobIds = [1, 3, 4, 5];
+
       // Also fetch local applications submitted in this session
       let localApplications = [];
       try {
         const localStr = localStorage.getItem('my_applied_jobs');
         if (localStr) {
           const parsed = JSON.parse(localStr);
-          if (Array.isArray(parsed)) localApplications = parsed;
+          if (Array.isArray(parsed)) {
+            const cleaned = parsed.filter(app => {
+              const comp = (app.company || app.company_name || app.job?.employer?.company_name || '').toLowerCase().trim();
+              const jId = Number(app.job_id || app.jobId || app.job?.id || 0);
+              return !demoCompanies.includes(comp) && !demoJobIds.includes(jId);
+            });
+            if (cleaned.length !== parsed.length) {
+              localStorage.setItem('my_applied_jobs', JSON.stringify(cleaned));
+            }
+            localApplications = cleaned;
+          }
         }
       } catch (e) {}
 
@@ -129,6 +142,11 @@ const JobList = () => {
       // 1. Load API applications (live database data)
       apiApplications.forEach(app => {
         const item = formatApp(app, false);
+        const comp = (item.company || '').toLowerCase().trim();
+        const jId = Number(item.jobId || 0);
+        if (demoCompanies.includes(comp) || demoJobIds.includes(jId)) {
+          return;
+        }
         const key = String(item.jobId || item.id);
         const itemTitle = String(item.jobTitle || '').toLowerCase().trim();
         // Check if withdrawn
@@ -141,6 +159,11 @@ const JobList = () => {
       // 2. Load Local applications (for any applications just submitted or during sync)
       localApplications.forEach(app => {
         const item = formatApp(app, true);
+        const comp = (item.company || '').toLowerCase().trim();
+        const jId = Number(item.jobId || 0);
+        if (demoCompanies.includes(comp) || demoJobIds.includes(jId)) {
+          return;
+        }
         const key = String(item.jobId || item.id);
         const itemTitle = String(item.jobTitle || '').toLowerCase().trim();
         if (item.status === 'Withdrawn' || withdrawnIds.has(String(item.id)) || withdrawnJobIds.has(String(item.jobId)) || withdrawnTitles.has(itemTitle)) {

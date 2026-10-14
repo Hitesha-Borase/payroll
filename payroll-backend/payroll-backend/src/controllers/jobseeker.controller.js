@@ -262,7 +262,9 @@ const getAppliedJobs = async (req, res, next) => {
             FROM job_applications ja
             JOIN jobs j ON ja.job_id = j.id
             LEFT JOIN employers e ON j.employer_id = e.id
-            WHERE ja.jobseeker_id = ? OR ja.email = ?
+            WHERE (ja.jobseeker_id = ? OR ja.email = ?)
+            AND LOWER(COALESCE(e.company_name, '')) NOT IN ('hitesha it industry', 'hitesha', 'madhav', "anurag's company", 'employer')
+            AND ja.job_id NOT IN (1, 3, 4, 5)
             ORDER BY ja.applied_at DESC
         `, [req.user.id, req.user.email || '']);
 
