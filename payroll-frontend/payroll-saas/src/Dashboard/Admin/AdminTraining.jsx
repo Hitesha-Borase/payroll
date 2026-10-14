@@ -82,12 +82,16 @@ const AdminTraining = () => {
           ...m
         }));
 
-        // Merge locally uploaded materials so newly added records never disappear from UI
+        // Merge locally uploaded materials ONLY if they belong to active admin courses
         try {
           const stored = JSON.parse(localStorage.getItem('admin_training_materials_custom') || '[]');
           if (Array.isArray(stored) && stored.length > 0) {
+            const validCourseIds = new Set((trainingResponse?.data?.data || []).map(c => Number(c.id)));
             const existingIds = new Set(mappedMaterials.map(x => String(x.id)));
-            const newOnes = stored.filter(x => !existingIds.has(String(x.id)));
+            const newOnes = stored.filter(x => 
+              !existingIds.has(String(x.id)) && 
+              validCourseIds.has(Number(x.training_id || x.courseId))
+            );
             mappedMaterials = [...newOnes, ...mappedMaterials];
           }
         } catch (e) {}

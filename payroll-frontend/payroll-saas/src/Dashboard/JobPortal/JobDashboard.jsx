@@ -12,10 +12,11 @@ import {
   FaBuilding,
   FaLaptopHouse,
   FaUsers,
-  FaArrowLeft
+  FaArrowLeft,
+  FaPlus
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import { publicAPI } from '../../services/api';
+import { publicAPI, employerAPI, adminAPI } from '../../services/api';
 
 // --- Reusable JobCard Component ---
 const JobCard = ({ job, onViewClick }) => {
@@ -168,6 +169,20 @@ const JobDetailsView = ({ job, onBackClick, onApplyClick }) => {
 // --- Main Job Listing Page Component ---
 const JobDashboard = () => {
   const navigate = useNavigate();
+
+  const userRole = (() => {
+    let r = (localStorage.getItem('userRole') || '').toLowerCase();
+    if (!r) {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        r = (u.role || '').toLowerCase();
+      } catch (e) {}
+    }
+    return r;
+  })();
+
+  const isEmployerOrAdmin = userRole === 'employer' || userRole === 'admin' || userRole === 'superadmin';
+
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -187,37 +202,69 @@ const JobDashboard = () => {
   });
   const [applying, setApplying] = useState(false);
 
-  // Fetch jobs from API
+  // Fetch jobs from API based on user role
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await publicAPI.getAllJobs();
-        if (response?.data?.success) {
-          // API returns { jobs, pagination } inside data
-          const jobsData = response.data.data?.jobs || response.data.data || [];
-          setJobs(Array.isArray(jobsData) ? jobsData : []);
+        let response;
+        if (userRole === 'employer') {
+          response = await employerAPI.getAllJobs();
+        } else if (userRole === 'admin' || userRole === 'superadmin') {
+          response = await adminAPI.getAllJobs();
         } else {
-          setError(response?.data?.message || 'Failed to fetch jobs');
+          response = await publicAPI.getAllJobs();
+        }
+
+        if (response?.data?.success) {
+          // Normalize jobs data
+          const jobsData = response.data.data?.jobs || response.data.data || [];
+          const list = Array.isArray(jobsData) ? jobsData : [];
+          const formatted = list.map(job => ({
+            ...job,
+            employer: job.employer || {
+              company_name: job.emp_company_name || job.company_name || job.display_company_name || 'Organization',
+              company_logo: job.company_logo || job.display_company_logo || null
+            }
+          }));
+          setJobs(formatted);
+        } else {
+          setJobs([]);
         }
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch jobs');
+        if (err.response?.status === 404) {
+          setJobs([]);
+        } else {
+          setError(err.response?.data?.message || 'Failed to fetch jobs');
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchJobs();
-  }, []);
+  }, [userRole]);
 
   // Fetch job details when selected
   useEffect(() => {
     if (selectedJobId) {
       const fetchJobDetails = async () => {
         try {
-          const response = await publicAPI.getJobById(selectedJobId);
+          let response;
+          if (userRole === 'employer') {
+            response = await employerAPI.getJobById(selectedJobId);
+          } else {
+            response = await publicAPI.getJobById(selectedJobId);
+          }
           if (response?.data?.success) {
-            setSelectedJob(response.data.data);
+            const d = response.data.data;
+            setSelectedJob({
+              ...d,
+              employer: d.employer || {
+                company_name: d.emp_company_name || d.company_name || d.display_company_name || 'Organization',
+                company_logo: d.company_logo || d.display_company_logo || null
+              }
+            });
           }
         } catch (err) {
           setError(err.response?.data?.message || 'Failed to fetch job details');
@@ -225,7 +272,7 @@ const JobDashboard = () => {
       };
       fetchJobDetails();
     }
-  }, [selectedJobId]);
+  }, [selectedJobId, userRole]);
 
   const fetchResumes = async () => {
     try {
@@ -392,7 +439,17 @@ const JobDashboard = () => {
           {/* Header Section */}
           <header className="bg-white py-3 mb-4 shadow-sm">
             <div className="container">
-              <h1 className="h2 mb-3">Find Jobs</h1>
+              <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                <h1 className="h2 mb-0">Find Jobs</h1>
+                {isEmployerOrAdmin && (
+                  <Button 
+                    variant="primary"
+                    onClick={() => navigate(userRole === 'employer' ? '/employer/job-vacancies' : '/admin/job-portal')}
+                  >
+                    <FaPlus className="me-2" /> Post New Job
+                  </Button>
+                )}
+              </div>
               <Row className="align-items-center">
                 <Col md={6} lg={8}>
                   <InputGroup>
@@ -449,8 +506,13 @@ const JobDashboard = () => {
                 ))}
               </Row>
             ) : (
-              <Alert variant="info" className="mt-4">
-                No jobs found matching your criteria.
+              <Alert variant="info" className="mt-4 text-center py-4">
+                <h5>No Jobs Found</h5>
+                <p className="text-muted mb-0">
+                  {isEmployerOrAdmin 
+                    ? 'You have not created any job posts yet. Only jobs created by you will be listed here.' 
+                    : 'No jobs found matching your criteria.'}
+                </p>
               </Alert>
             )}
           </div>

@@ -1594,16 +1594,17 @@ const getAllJobs = async (req, res, next) => {
     // However, we can also join directly:
     // SELECT j.* FROM jobs j JOIN employers e ON j.employer_id = e.id WHERE e.company_id = ?
 
+    const adminCompanyId = req.user.company_id || null;
     const sql = `
       SELECT j.*, e.company_name as emp_company_name, u.name as posted_by_name
       FROM jobs j
       JOIN employers e ON j.employer_id = e.id
       JOIN users u ON e.user_id = u.id
-      WHERE e.company_id = ?
+      WHERE (e.company_id = ? OR e.user_id = ? OR u.id = ?)
       ORDER BY j.created_at DESC
     `;
 
-    const [jobs] = await db.query(sql, [adminCompanyId]);
+    const [jobs] = await db.query(sql, [adminCompanyId, req.user.id, req.user.id]);
 
     // Format
     const formatted = jobs.map(j => ({
@@ -1701,18 +1702,24 @@ const updateJob = async (req, res, next) => {
 const deleteJob = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const adminCompanyId = req.user.company_id;
+    const adminCompanyId = req.user.company_id || null;
 
-    // Verify job belongs to admin's company
-    const [jobRows] = await db.query(`
-      SELECT j.id 
-      FROM jobs j 
-      JOIN employers e ON j.employer_id = e.id 
-      WHERE j.id = ? AND e.company_id = ?
-    `, [id, adminCompanyId]);
+    let canDelete = false;
+    if (req.user.role === 'superadmin') {
+      canDelete = true;
+    } else {
+      const [jobRows] = await db.query(`
+        SELECT j.id 
+        FROM jobs j 
+        LEFT JOIN employers e ON j.employer_id = e.id 
+        WHERE j.id = ? AND (e.company_id = ? OR e.user_id = ? OR ? IS NULL)
+      `, [id, adminCompanyId, req.user.id, adminCompanyId]);
+      if (jobRows.length > 0) canDelete = true;
+    }
 
-    if (jobRows.length === 0) return res.status(404).json({ success: false, message: 'Job not found or permission denied.' });
+    if (!canDelete) return res.status(404).json({ success: false, message: 'Job not found or permission denied.' });
 
+    await db.query('DELETE FROM job_applications WHERE job_id = ?', [id]);
     await db.query('DELETE FROM jobs WHERE id = ?', [id]);
     res.json({ success: true, message: 'Job deleted.' });
 
@@ -1837,7 +1844,7 @@ const getTrainings = async (req, res, next) => {
         (SELECT COUNT(*) FROM course_assignments ta WHERE ta.training_id = t.id AND ta.status = 'Completed') as completed
       FROM training_courses t
       LEFT JOIN employers e ON t.employer_id = e.id
-      WHERE (e.company_id = ? OR e.user_id = ? OR t.employer_id IN (SELECT id FROM employers WHERE company_id = ? OR user_id = ?) OR t.employer_id IS NULL)
+      WHERE (e.company_id = ? OR e.user_id = ? OR t.employer_id IN (SELECT id FROM employers WHERE company_id = ? OR user_id = ?))
       ORDER BY t.created_at DESC
     `, [adminCompanyId, req.user.id, adminCompanyId, req.user.id]);
 
@@ -1973,12 +1980,15 @@ const uploadTrainingMaterial = async (req, res, next) => {
  */
 const getTrainingMaterials = async (req, res, next) => {
   try {
+    const adminCompanyId = req.user.company_id || null;
     const [materials] = await db.query(`
-            SELECT tm.*, t.title as course_title 
-            FROM course_materials tm
-            LEFT JOIN training_courses t ON tm.training_id = t.id
-            ORDER BY tm.uploaded_at DESC
-        `);
+      SELECT tm.*, t.title as course_title 
+      FROM course_materials tm
+      JOIN training_courses t ON tm.training_id = t.id
+      LEFT JOIN employers e ON t.employer_id = e.id
+      WHERE (e.company_id = ? OR e.user_id = ? OR t.employer_id IN (SELECT id FROM employers WHERE company_id = ? OR user_id = ?))
+      ORDER BY tm.uploaded_at DESC
+    `, [adminCompanyId, req.user.id, adminCompanyId, req.user.id]);
     res.json({ success: true, data: materials });
   } catch (error) {
     next(error);
@@ -2422,10 +2432,10 @@ const parseSalary = (salaryInput) => {
 
 const getJobVacancies = async (req, res, next) => {
   try {
-    const adminCompanyId = req.user.company_id;
+    const adminCompanyId = req.user.company_id || null;
     const [vacancies] = await db.query(
-      'SELECT * FROM job_vacancies WHERE company_id = ? OR company_id IS NULL ORDER BY created_at DESC',
-      [adminCompanyId]
+      'SELECT * FROM job_vacancies WHERE (company_id = ? OR created_by = ?) ORDER BY created_at DESC',
+      [adminCompanyId, req.user.id]
     );
 
     const formatted = vacancies.map(v => {
@@ -2839,6 +2849,7 @@ const toggleUserStatus = async (req, res, next) => {
  */
 const getAuditLogs = async (req, res, next) => {
   try {
+    const adminCompanyId = req.user?.company_id || null;
     const { page, limit, search, action, startDate, endDate, userId, role } = req.query;
     const result = await auditService.getAuditLogs({
       page,
@@ -2848,7 +2859,8 @@ const getAuditLogs = async (req, res, next) => {
       startDate,
       endDate,
       userId,
-      role
+      role,
+      companyId: adminCompanyId
     });
 
     res.json({
@@ -2866,7 +2878,8 @@ const getAuditLogs = async (req, res, next) => {
  */
 const getAuditStats = async (req, res, next) => {
   try {
-    const stats = await auditService.getStats();
+    const adminCompanyId = req.user?.company_id || null;
+    const stats = await auditService.getStats(true, adminCompanyId);
     res.json({
       success: true,
       data: stats
@@ -2881,7 +2894,8 @@ const getAuditStats = async (req, res, next) => {
  */
 const getAuditActions = async (req, res, next) => {
   try {
-    const actions = await auditService.getUniqueActions();
+    const adminCompanyId = req.user?.company_id || null;
+    const actions = await auditService.getUniqueActions(true, adminCompanyId);
     res.json({
       success: true,
       data: actions

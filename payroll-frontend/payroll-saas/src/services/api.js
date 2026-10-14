@@ -5,8 +5,7 @@ const rawApiUrl = import.meta.env.VITE_API_URL;
 let API_BASE_URL = rawApiUrl || '/api/';
 
 if (typeof window !== 'undefined' && window.location.hostname === 'localhost' && window.location.port === '5173') {
-    // When running on localhost:5173, route through /api/ so Vite proxy connects to live backend
-    // and seamlessly resolves missing/undeployed endpoints with 200 OK
+    // Route through /api/ so Vite reverse proxy connects to live backend without CORS errors
     API_BASE_URL = '/api/';
 } else if (rawApiUrl && (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://'))) {
     API_BASE_URL = rawApiUrl.endsWith('/') ? rawApiUrl : rawApiUrl + '/';

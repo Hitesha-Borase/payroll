@@ -30,13 +30,7 @@ const SuperAdminDashboard = () => {
 
   // Monthly Sales Volume & Plan Share data
   const [salesVolumeData, setSalesVolumeData] = useState([]);
-  const [planDistribution, setPlanDistribution] = useState([
-    { plan: 'Free Trial', percentage: 20, count: 5, color: '#64748B' },
-    { plan: 'Starter Plan', percentage: 35, count: 12, color: '#3B82F6' },
-    { plan: 'Standard Plan (Popular)', percentage: 30, count: 10, color: '#C62828' },
-    { plan: 'Pro / Enterprise', percentage: 10, count: 3, color: '#10B981' },
-    { plan: 'Custom Plan', percentage: 5, count: 1, color: '#8B5CF6' }
-  ]);
+  const [planDistribution, setPlanDistribution] = useState([]);
 
   // Upcoming Renewals Queue Table State
   const [renewalsQueue, setRenewalsQueue] = useState([]);
@@ -49,38 +43,31 @@ const SuperAdminDashboard = () => {
         const data = res.data.data;
         const sum = data.summary || {};
         setSummary({
-          totalRevenue: sum.totalRevenue || sum.lifetimeRevenue || 249800,
-          monthlyRevenue: sum.monthlyRevenue || 48900,
-          totalCompanies: sum.totalCompanies || 31,
-          activePaid: sum.activePaid || 21,
-          freeTrial: sum.freeTrial || 5,
-          expiredBlocked: sum.expiredBlocked || sum.expiredPlans || 5,
-          openTickets: sum.openTickets || 3
+          totalRevenue: Number(sum.totalRevenue || sum.lifetimeRevenue || 0),
+          monthlyRevenue: Number(sum.monthlyRevenue || 0),
+          totalCompanies: Number(sum.totalCompanies || 0),
+          activePaid: Number(sum.activePaid || sum.activePlans || 0),
+          freeTrial: Number(sum.freeTrial || 0),
+          expiredBlocked: Number(sum.expiredBlocked || sum.expiredPlans || 0),
+          openTickets: Number(sum.openTickets || 0)
         });
 
-        if (data.salesVolume) {
+        if (data.salesVolume && Array.isArray(data.salesVolume)) {
           setSalesVolumeData(data.salesVolume);
         } else {
-          setSalesVolumeData([
-            { month: 'Apr', revenue: 32000 },
-            { month: 'May', revenue: 41000 },
-            { month: 'Jun', revenue: 38000 },
-            { month: 'Jul', revenue: 45000 },
-            { month: 'Aug', revenue: 44000 },
-            { month: 'Sep', revenue: 48900 }
-          ]);
+          setSalesVolumeData([]);
         }
 
-        if (data.renewalsQueue) {
+        if (data.planDistribution && Array.isArray(data.planDistribution)) {
+          setPlanDistribution(data.planDistribution);
+        } else {
+          setPlanDistribution([]);
+        }
+
+        if (data.renewalsQueue && Array.isArray(data.renewalsQueue)) {
           setRenewalsQueue(data.renewalsQueue);
         } else {
-          setRenewalsQueue([
-            { id: 1, companyName: 'Apex Logistics Pvt Ltd', ownerName: 'Rajesh Kumar', expiryDate: '2026-09-22', planName: 'Standard Plan', price: '₹1,299', daysRemaining: 3, status: 'expiring_soon' },
-            { id: 2, companyName: 'Zenith Tech Labs', ownerName: 'Ananya Sharma', expiryDate: '2026-09-24', planName: 'Starter Plan', price: '₹999', daysRemaining: 5, status: 'expiring_soon' },
-            { id: 3, companyName: 'Vanguard Manufacturing', ownerName: 'Sanjay Patel', expiryDate: '2026-09-26', planName: 'Enterprise Plan', price: '₹1,499', daysRemaining: 7, status: 'expiring_soon' },
-            { id: 4, companyName: 'Nexus Global Solutions', ownerName: 'Priya Verma', expiryDate: '2026-10-05', planName: 'Standard Plan', price: '₹1,299', daysRemaining: 16, status: 'active' },
-            { id: 5, companyName: 'BlueSky Digital', ownerName: 'Amit Shah', expiryDate: '2026-10-12', planName: 'Starter Plan', price: '₹999', daysRemaining: 23, status: 'active' }
-          ]);
+          setRenewalsQueue([]);
         }
       }
       setLastSynced(new Date().toLocaleTimeString());
@@ -312,18 +299,26 @@ const SuperAdminDashboard = () => {
               <Badge bg="danger" style={{ backgroundColor: '#C62828' }}>Past 6 Months</Badge>
             </Card.Header>
             <Card.Body className="p-3">
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={salesVolumeData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis dataKey="month" stroke="#64748B" fontSize={12} />
-                  <YAxis stroke="#64748B" fontSize={12} />
-                  <Tooltip
-                    formatter={(value) => [formatCurrency(value), 'Revenue']}
-                    contentStyle={{ backgroundColor: '#0F172A', color: '#FFF', borderRadius: '8px', border: 'none' }}
-                  />
-                  <Bar dataKey="revenue" fill="#C62828" radius={[4, 4, 0, 0]} name="Subscription Sales" />
-                </BarChart>
-              </ResponsiveContainer>
+              {salesVolumeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={salesVolumeData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="month" stroke="#64748B" fontSize={12} />
+                    <YAxis stroke="#64748B" fontSize={12} />
+                    <Tooltip
+                      formatter={(value) => [formatCurrency(value), 'Revenue']}
+                      contentStyle={{ backgroundColor: '#0F172A', color: '#FFF', borderRadius: '8px', border: 'none' }}
+                    />
+                    <Bar dataKey="revenue" fill="#C62828" radius={[4, 4, 0, 0]} name="Subscription Sales" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="d-flex flex-column align-items-center justify-content-center text-muted py-5" style={{ minHeight: '260px' }}>
+                  <TrendingUp size={36} className="text-secondary opacity-50 mb-2" />
+                  <p className="mb-0 small fw-semibold">No sales volume recorded yet</p>
+                  <span className="small text-muted" style={{ fontSize: '12px' }}>Sales transactions will automatically plot here.</span>
+                </div>
+              )}
             </Card.Body>
           </Card>
         </Col>
@@ -337,21 +332,29 @@ const SuperAdminDashboard = () => {
               </h6>
             </Card.Header>
             <Card.Body className="p-4 d-flex flex-column justify-content-center">
-              {planDistribution.map((item, idx) => (
-                <div key={idx} className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1 small fw-semibold">
-                    <span style={{ color: '#334155' }}>{item.plan} ({item.count} companies)</span>
-                    <span style={{ color: '#0F172A' }}>{item.percentage}%</span>
+              {planDistribution.length > 0 ? (
+                planDistribution.map((item, idx) => (
+                  <div key={idx} className="mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-1 small fw-semibold">
+                      <span style={{ color: '#334155' }}>{item.plan} ({item.count} companies)</span>
+                      <span style={{ color: '#0F172A' }}>{item.percentage}%</span>
+                    </div>
+                    <div className="progress" style={{ height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px' }}>
+                      <div
+                        className="progress-bar"
+                        role="progressbar"
+                        style={{ width: `${item.percentage}%`, backgroundColor: item.color, borderRadius: '4px' }}
+                      />
+                    </div>
                   </div>
-                  <div className="progress" style={{ height: '8px', backgroundColor: '#F1F5F9', borderRadius: '4px' }}>
-                    <div
-                      className="progress-bar"
-                      role="progressbar"
-                      style={{ width: `${item.percentage}%`, backgroundColor: item.color, borderRadius: '4px' }}
-                    />
-                  </div>
+                ))
+              ) : (
+                <div className="d-flex flex-column align-items-center justify-content-center text-muted py-5">
+                  <CheckCircle2 size={36} className="text-secondary opacity-50 mb-2" />
+                  <p className="mb-0 small fw-semibold">No plan subscriptions recorded yet</p>
+                  <span className="small text-muted" style={{ fontSize: '12px' }}>Active company subscriptions will reflect here.</span>
                 </div>
-              ))}
+              )}
             </Card.Body>
           </Card>
         </Col>
