@@ -76,6 +76,50 @@ function attendanceApiPlugin() {
           } catch (e) {}
         }
 
+        // Intercept public jobs to filter out demo/dummy test jobs for jobseekers
+        if (req.url && (req.url === '/api/public/jobs' || req.url.startsWith('/api/public/jobs?') || req.url.startsWith('/api/public/jobs/'))) {
+          try {
+            const fetchRes = await fetch('https://api.payroll.kiaantechnology.com' + req.url, {
+              method: req.method || 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': req.headers['authorization'] || '',
+              },
+            });
+            const json = await fetchRes.json().catch(() => null);
+            if (fetchRes.ok && json && json.success) {
+              const demoNames = ['madhav', "anurag's company", 'employer'];
+              const demoIds = [1, 3, 4, 5];
+
+              if (json.data && Array.isArray(json.data.jobs)) {
+                json.data.jobs = json.data.jobs.filter(job => {
+                  const empName = (job.emp_company_name || job.company_name || job.display_company_name || job.employer?.company_name || '').toLowerCase().trim();
+                  return !demoIds.includes(Number(job.id)) && !demoNames.includes(empName);
+                });
+                if (json.data.pagination) {
+                  json.data.pagination.total = json.data.jobs.length;
+                  json.data.pagination.totalPages = Math.max(1, Math.ceil(json.data.jobs.length / (json.data.pagination.limit || 10)));
+                }
+              } else if (Array.isArray(json.data)) {
+                json.data = json.data.filter(job => {
+                  const empName = (job.emp_company_name || job.company_name || job.display_company_name || job.employer?.company_name || '').toLowerCase().trim();
+                  return !demoIds.includes(Number(job.id)) && !demoNames.includes(empName);
+                });
+              } else if (json.data && json.data.id && demoIds.includes(Number(json.data.id))) {
+                res.setHeader('Content-Type', 'application/json');
+                res.statusCode = 404;
+                res.end(JSON.stringify({ success: false, message: 'Job not found.' }));
+                return;
+              }
+
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify(json));
+              return;
+            }
+          } catch (e) {}
+        }
+
         // Intercept admin audit-logs routes to guarantee strict company and admin isolation
         if (req.url && (req.url === '/api/admin/audit-logs' || req.url.startsWith('/api/admin/audit-logs?') || req.url.startsWith('/api/admin/audit-logs/'))) {
           let authHeader = req.headers['authorization'] || '';

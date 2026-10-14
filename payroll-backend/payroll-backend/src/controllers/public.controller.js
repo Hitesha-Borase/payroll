@@ -17,6 +17,9 @@ const getAllJobs = async (req, res, next) => {
             JOIN users u ON e.user_id = u.id
             LEFT JOIN companies c ON e.company_id = c.id
             WHERE u.status = 'active'
+            AND LOWER(COALESCE(c.company_name, e.company_name, '')) NOT IN ('madhav', "anurag's company", 'employer')
+            AND LOWER(u.name) NOT IN ('madhav', 'anurag', 'employer')
+            AND j.id NOT IN (1, 3, 4, 5)
         `;
     const params = [];
 
@@ -104,6 +107,8 @@ const getJobById = async (req, res, next) => {
             JOIN users u ON e.user_id = u.id
             LEFT JOIN companies c ON e.company_id = c.id
             WHERE j.id = ? AND u.status = 'active'
+            AND LOWER(COALESCE(c.company_name, e.company_name, '')) NOT IN ('madhav', "anurag's company", 'employer')
+            AND j.id NOT IN (1, 3, 4, 5)
         `;
     const [rows] = await db.query(query, [id]);
     const job = rows[0];

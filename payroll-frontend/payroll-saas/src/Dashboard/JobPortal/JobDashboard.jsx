@@ -221,7 +221,15 @@ const JobDashboard = () => {
           // Normalize jobs data
           const jobsData = response.data.data?.jobs || response.data.data || [];
           const list = Array.isArray(jobsData) ? jobsData : [];
-          const formatted = list.map(job => ({
+          const demoNames = ['madhav', "anurag's company", 'employer'];
+          const demoIds = [1, 3, 4, 5];
+          const filtered = list.filter(job => {
+            const empName = (job.emp_company_name || job.company_name || job.display_company_name || job.employer?.company_name || '').toLowerCase().trim();
+            if (demoIds.includes(Number(job.id))) return false;
+            if (demoNames.includes(empName)) return false;
+            return true;
+          });
+          const formatted = filtered.map(job => ({
             ...job,
             employer: job.employer || {
               company_name: job.emp_company_name || job.company_name || job.display_company_name || 'Organization',
