@@ -1,8 +1,8 @@
 {
   "packageId": "com.kiaantechnology.payroll",
   "host": "payroll.kiaantechnology.com",
-  "name": "Kiaan Technology - Workforce & Payroll SaaS",
-  "launcherName": "Kiaan Payroll",
+  "name": "PayrollPlus - Workforce & Payroll SaaS",
+  "launcherName": "PayrollPlus",
   "themeColor": "#1E293B",
   "navigationColor": "#000000",
   "backgroundColor": "#FFFFFF",
