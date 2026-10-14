@@ -282,19 +282,63 @@ const JobDashboard = () => {
     }
   }, [selectedJobId, userRole]);
 
+  // Sanitize localStorage on load to remove dummy Rohit resumes
+  useEffect(() => {
+    try {
+      let currentUser = null;
+      try {
+        currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      } catch (e) {}
+      const currentUserId = currentUser?.id || currentUser?.userId;
+      const currentUserEmail = (currentUser?.email || '').toLowerCase().trim();
+
+      const raw = JSON.parse(localStorage.getItem('my_resumes') || '[]');
+      if (Array.isArray(raw)) {
+        const cleaned = raw.filter(r => {
+          const title = (r.title || '').toLowerCase();
+          if (title.includes('rohit')) return false;
+          if (r.userId && currentUserId && String(r.userId) !== String(currentUserId)) return false;
+          if (r.userEmail && currentUserEmail && r.userEmail.toLowerCase().trim() !== currentUserEmail) return false;
+          return true;
+        });
+        localStorage.setItem('my_resumes', JSON.stringify(cleaned));
+      }
+    } catch (e) {}
+  }, []);
+
   const fetchResumes = async () => {
     try {
+      let currentUser = null;
+      try {
+        currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      } catch (e) {}
+      const currentUserId = currentUser?.id || currentUser?.userId;
+      const currentUserEmail = (currentUser?.email || '').toLowerCase().trim();
+
       const response = await publicAPI.getResumes();
       let list = [];
       if (response?.data?.success && Array.isArray(response.data.data)) {
-        list = response.data.data;
+        list = response.data.data.filter(r => {
+          const title = (r.title || '').toLowerCase();
+          return !title.includes('rohit');
+        });
       }
-      // Also combine with locally submitted resumes from "Submit Resume" menu
+
+      // Also combine with locally submitted resumes from "Submit Resume" menu, scoped strictly to current user
       try {
-        const local = JSON.parse(localStorage.getItem('my_resumes') || '[]');
-        if (Array.isArray(local) && local.length > 0) {
+        const rawLocal = JSON.parse(localStorage.getItem('my_resumes') || '[]');
+        if (Array.isArray(rawLocal)) {
+          const validLocal = rawLocal.filter(l => {
+            const title = (l.title || '').toLowerCase();
+            if (title.includes('rohit')) return false;
+            if (l.userId && currentUserId && String(l.userId) !== String(currentUserId)) return false;
+            if (l.userEmail && currentUserEmail && l.userEmail.toLowerCase().trim() !== currentUserEmail) return false;
+            return true;
+          });
+          localStorage.setItem('my_resumes', JSON.stringify(validLocal));
+
           const combined = [...list];
-          local.forEach(l => {
+          validLocal.forEach(l => {
             if (!combined.some(c => c.id === l.id || c.title === l.title)) {
               combined.push(l);
             }
@@ -307,16 +351,41 @@ const JobDashboard = () => {
       if (list.length > 0) {
         const defaultResume = list.find(r => r.is_default) || list[0];
         setApplyForm(prev => ({ ...prev, resume_id: String(defaultResume.id) }));
+      } else {
+        setApplyForm(prev => ({ ...prev, resume_id: '' }));
       }
     } catch (err) {
       console.error("Failed to fetch resumes", err);
       try {
-        const local = JSON.parse(localStorage.getItem('my_resumes') || '[]');
-        if (Array.isArray(local) && local.length > 0) {
-          setResumes(local);
-          setApplyForm(prev => ({ ...prev, resume_id: String(local[0].id) }));
+        let currentUser = null;
+        try {
+          currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        } catch (e) {}
+        const currentUserId = currentUser?.id || currentUser?.userId;
+        const currentUserEmail = (currentUser?.email || '').toLowerCase().trim();
+
+        const rawLocal = JSON.parse(localStorage.getItem('my_resumes') || '[]');
+        const validLocal = Array.isArray(rawLocal)
+          ? rawLocal.filter(l => {
+              const title = (l.title || '').toLowerCase();
+              if (title.includes('rohit')) return false;
+              if (l.userId && currentUserId && String(l.userId) !== String(currentUserId)) return false;
+              if (l.userEmail && currentUserEmail && l.userEmail.toLowerCase().trim() !== currentUserEmail) return false;
+              return true;
+            })
+          : [];
+        localStorage.setItem('my_resumes', JSON.stringify(validLocal));
+
+        setResumes(validLocal);
+        if (validLocal.length > 0) {
+          setApplyForm(prev => ({ ...prev, resume_id: String(validLocal[0].id) }));
+        } else {
+          setApplyForm(prev => ({ ...prev, resume_id: '' }));
         }
-      } catch (e) {}
+      } catch (e) {
+        setResumes([]);
+        setApplyForm(prev => ({ ...prev, resume_id: '' }));
+      }
     }
   };
 
@@ -327,6 +396,7 @@ const JobDashboard = () => {
       navigate('/login');
       return;
     }
+    setApplyForm(prev => ({ ...prev, resume_id: '', cover_letter: '' }));
     fetchResumes();
     setShowApplyModal(true);
   };

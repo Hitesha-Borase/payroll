@@ -81,12 +81,11 @@ const JobVacancies = () => {
       const localResumes = JSON.parse(localStorage.getItem('my_resumes') || '[]');
       if (localResumes.length > 0 && localResumes[0].title) {
         const extracted = localResumes[0].title.replace(/ - Resume.*/i, '').trim();
-        if (extracted) return extracted;
+        if (extracted && !extracted.toLowerCase().includes('rohit')) return extracted;
       }
     } catch (e) {}
     if (app.email && rawName === 'Job Seeker User') {
       const handle = app.email.split('@')[0];
-      if (handle === 'job') return 'Rohit (Candidate)';
       return handle.charAt(0).toUpperCase() + handle.slice(1);
     }
     return rawName || 'Candidate';
@@ -187,7 +186,7 @@ const JobVacancies = () => {
               }
               const applicantName = resolveApplicantName(app);
               const applicantEmail = app.email || app.jobseeker?.email || '';
-              const isCurrentApplicant = applicantEmail === 'job@gmail.com' || applicantName.toLowerCase().includes('rohit');
+              const isCurrentApplicant = applicantEmail === 'job@gmail.com';
               if (isCurrentApplicant && localApplied.length > 0) {
                 const matchesActiveJobId = activeCandidateJobIds.has(String(app.job_id));
                 const matchesActiveTitle = activeCandidateTitles.has(jobTitle);

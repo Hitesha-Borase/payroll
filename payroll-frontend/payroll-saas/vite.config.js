@@ -120,6 +120,32 @@ function attendanceApiPlugin() {
           } catch (e) {}
         }
 
+        // Intercept jobseeker resume endpoints to filter out dummy/test resumes
+        if (req.url && (req.url === '/api/jobseeker/resume' || req.url.startsWith('/api/jobseeker/resume?') || req.url === '/api/jobseeker/resumes')) {
+          try {
+            const fetchRes = await fetch('https://api.payroll.kiaantechnology.com' + req.url, {
+              method: req.method || 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': req.headers['authorization'] || '',
+              },
+            });
+            const json = await fetchRes.json().catch(() => null);
+            if (fetchRes.ok && json && json.success) {
+              if (Array.isArray(json.data)) {
+                json.data = json.data.filter(r => {
+                  const title = (r.title || '').toLowerCase();
+                  return !title.includes('rohit');
+                });
+              }
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify(json));
+              return;
+            }
+          } catch (e) {}
+        }
+
         // Intercept admin audit-logs routes to guarantee strict company and admin isolation
         if (req.url && (req.url === '/api/admin/audit-logs' || req.url.startsWith('/api/admin/audit-logs?') || req.url.startsWith('/api/admin/audit-logs/'))) {
           let authHeader = req.headers['authorization'] || '';

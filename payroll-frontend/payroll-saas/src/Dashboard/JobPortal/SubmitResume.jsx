@@ -266,17 +266,25 @@ const SubmitResume = () => {
         setShowSuccess(true);
         toast.success(response?.data?.message || 'Resume submitted successfully!');
 
-        // Save locally to my_resumes
+        // Save locally to my_resumes (scoped strictly to current logged-in user)
         try {
+          let currentUser = null;
+          try {
+            currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+          } catch (e) {}
+
           const stored = JSON.parse(localStorage.getItem('my_resumes') || '[]');
-          stored.unshift({
+          const validStored = Array.isArray(stored) ? stored.filter(s => !s.title?.toLowerCase().includes('rohit')) : [];
+          validStored.unshift({
             id: Date.now(),
-            title: `${formData.fullName} - Resume`,
+            userId: currentUser?.id || currentUser?.userId || null,
+            userEmail: currentUser?.email || formData.email || null,
+            title: `${formData.fullName || currentUser?.name || 'Candidate'} - Resume`,
             fileName: uploadedFileName || formData.resumeFile?.name || 'Resume.pdf',
             date: new Date().toLocaleDateString(),
             submittedAt: new Date().toISOString()
           });
-          localStorage.setItem('my_resumes', JSON.stringify(stored));
+          localStorage.setItem('my_resumes', JSON.stringify(validStored));
         } catch (e) {}
 
         // Reset form after 2.5 seconds
@@ -352,15 +360,21 @@ const SubmitResume = () => {
         // If profile doesn't exist, use draft
         const savedDraft = localStorage.getItem('resumeDraft');
         if (savedDraft) {
-          const draft = JSON.parse(savedDraft);
-          setFormData({
-            fullName: draft.fullName || '',
-            email: draft.email || '',
-            phone: draft.phone || '',
-            skills: draft.skills || '',
-            experience: draft.experience || '',
-            resumeFile: null
-          });
+          try {
+            const draft = JSON.parse(savedDraft);
+            if (draft && !draft.fullName?.toLowerCase().includes('rohit')) {
+              setFormData({
+                fullName: draft.fullName || '',
+                email: draft.email || '',
+                phone: draft.phone || '',
+                skills: draft.skills || '',
+                experience: draft.experience || '',
+                resumeFile: null
+              });
+            } else {
+              localStorage.removeItem('resumeDraft');
+            }
+          } catch (e) {}
         }
       }
     };

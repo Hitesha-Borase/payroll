@@ -125,7 +125,7 @@ const submitResume = async (req, res, next) => {
 // Get My Resumes
 const getMyResumes = async (req, res, next) => {
     try {
-        const [resumes] = await db.query('SELECT * FROM resumes WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC', [req.user.id]);
+        const [resumes] = await db.query("SELECT * FROM resumes WHERE user_id = ? AND is_active = 1 AND LOWER(COALESCE(title, '')) NOT LIKE '%rohit%' ORDER BY created_at DESC", [req.user.id]);
         res.json({ success: true, data: resumes });
     } catch (err) { next(err); }
 };
