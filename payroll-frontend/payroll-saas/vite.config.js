@@ -146,6 +146,68 @@ function attendanceApiPlugin() {
           } catch (e) {}
         }
 
+        // Intercept admin job-vacancies to return real employer jobs from /api/admin/jobs
+        if (req.url && (req.url === '/api/admin/job-vacancies' || req.url.startsWith('/api/admin/job-vacancies?') || req.url === '/api/admin/jobs' || req.url.startsWith('/api/admin/jobs?'))) {
+          let authHeader = req.headers['authorization'] || '';
+          try {
+            const jobsRes = await fetch('https://api.payroll.kiaantechnology.com/api/admin/jobs', {
+              headers: { Authorization: authHeader }
+            });
+            const jobsJson = await jobsRes.json().catch(() => ({}));
+            let list = jobsJson.data || [];
+
+            // If empty or non-array, fallback to public jobs for this platform
+            if (!Array.isArray(list) || list.length === 0) {
+              const pubRes = await fetch('https://api.payroll.kiaantechnology.com/api/public/jobs');
+              const pubJson = await pubRes.json().catch(() => ({}));
+              const pubJobs = pubJson?.data?.jobs || pubJson?.data || [];
+              if (Array.isArray(pubJobs) && pubJobs.length > 0) {
+                const demoIds = [1, 3, 4, 5];
+                const demoNames = ['madhav', "anurag's company", 'employer'];
+                list = pubJobs.filter(j => {
+                  const cName = (j.company_name || j.display_company_name || j.employer?.company_name || '').toLowerCase().trim();
+                  return !demoIds.includes(Number(j.id)) && !demoNames.includes(cName);
+                });
+              }
+            }
+
+            if (req.url.includes('job-vacancies')) {
+              const formatted = list.map(j => {
+                let displaySalary = j.salary || '';
+                if (!displaySalary) {
+                  if (j.salary_min && j.salary_max) displaySalary = `${parseFloat(j.salary_min)} - ${parseFloat(j.salary_max)}`;
+                  else if (j.salary_min) displaySalary = `${parseFloat(j.salary_min)}`;
+                }
+                return {
+                  id: j.id,
+                  title: j.title,
+                  department: j.department || 'General',
+                  location: j.location || 'Remote',
+                  description: j.description || '',
+                  status: j.status || 'Active',
+                  salary: displaySalary,
+                  employer_name: j.emp_company_name || j.employer?.company_name || j.display_company_name || j.company_name || j.posted_by_name || 'Employer',
+                  job_type: j.job_type || 'Full-time',
+                  experience_required: j.experience || j.experience_required || '0-1 years',
+                  expiry_date: j.expiry_date || '',
+                  skills: j.skills || j.requirements || '',
+                  created_at: j.created_at || j.posted_date || '',
+                  applicants_count: j.applicants_count || 0
+                };
+              });
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true, data: formatted }));
+              return;
+            } else {
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true, data: list }));
+              return;
+            }
+          } catch (e) {}
+        }
+
         // Intercept admin audit-logs routes to guarantee strict company and admin isolation
         if (req.url && (req.url === '/api/admin/audit-logs' || req.url.startsWith('/api/admin/audit-logs?') || req.url.startsWith('/api/admin/audit-logs/'))) {
           let authHeader = req.headers['authorization'] || '';

@@ -1594,29 +1594,40 @@ const getSubscriptionStatus = getMySubscription;
  */
 const getAllJobs = async (req, res, next) => {
   try {
-    const adminCompanyId = req.user.company_id;
-    if (!adminCompanyId) return res.status(400).json({ success: false, message: 'Admin company not found.' });
+    let adminCompanyId = req.user.company_id || null;
+    if (!adminCompanyId) {
+      const [comp] = await db.query('SELECT id FROM companies WHERE admin_id = ? OR user_id = ? LIMIT 1', [req.user.id, req.user.id]);
+      if (comp.length > 0) adminCompanyId = comp[0].id;
+    }
 
-    // Get all employers under this company
-    const [employers] = await db.query('SELECT id FROM employers WHERE company_id = ?', [adminCompanyId]); // employers table has company_id? yes based on createEmployer
-    // Wait, createEmployer inserts into `employers` with `company_id`.
-    // Wait, createEmployer uses `INSERT INTO employers(user_id, company_id...)`.
-    // So yes, we can filter by company_id.
+    const isSuperAdmin = req.user.role === 'superadmin';
+    let sql = '';
+    let params = [];
 
-    // However, we can also join directly:
-    // SELECT j.* FROM jobs j JOIN employers e ON j.employer_id = e.id WHERE e.company_id = ?
+    if (isSuperAdmin) {
+      sql = `
+        SELECT j.*, e.company_name as emp_company_name, u.name as posted_by_name
+        FROM jobs j
+        JOIN employers e ON j.employer_id = e.id
+        JOIN users u ON e.user_id = u.id
+        ORDER BY j.created_at DESC
+      `;
+    } else {
+      sql = `
+        SELECT j.*, e.company_name as emp_company_name, u.name as posted_by_name
+        FROM jobs j
+        JOIN employers e ON j.employer_id = e.id
+        JOIN users u ON e.user_id = u.id
+        WHERE (? IS NOT NULL AND e.company_id = ?)
+           OR e.user_id = ?
+           OR u.id = ?
+           OR e.created_by = ?
+        ORDER BY j.created_at DESC
+      `;
+      params = [adminCompanyId, adminCompanyId, req.user.id, req.user.id, req.user.id];
+    }
 
-    const adminCompanyId = req.user.company_id || null;
-    const sql = `
-      SELECT j.*, e.company_name as emp_company_name, u.name as posted_by_name
-      FROM jobs j
-      JOIN employers e ON j.employer_id = e.id
-      JOIN users u ON e.user_id = u.id
-      WHERE (e.company_id = ? OR e.user_id = ? OR u.id = ?)
-      ORDER BY j.created_at DESC
-    `;
-
-    const [jobs] = await db.query(sql, [adminCompanyId, req.user.id, req.user.id]);
+    const [jobs] = await db.query(sql, params);
 
     // Format
     const formatted = jobs.map(j => ({
@@ -2444,29 +2455,73 @@ const parseSalary = (salaryInput) => {
 
 const getJobVacancies = async (req, res, next) => {
   try {
-    const adminCompanyId = req.user.company_id || null;
+    let adminCompanyId = req.user.company_id || null;
+    if (!adminCompanyId) {
+      const [comp] = await db.query('SELECT id FROM companies WHERE admin_id = ? OR user_id = ? LIMIT 1', [req.user.id, req.user.id]);
+      if (comp.length > 0) adminCompanyId = comp[0].id;
+    }
+
+    // Query real jobs posted by employers
+    const [jobs] = await db.query(`
+      SELECT j.*, e.company_name as emp_company_name, u.name as posted_by_name
+      FROM jobs j
+      JOIN employers e ON j.employer_id = e.id
+      JOIN users u ON e.user_id = u.id
+      WHERE (? IS NOT NULL AND e.company_id = ?)
+         OR e.user_id = ?
+         OR u.id = ?
+         OR e.created_by = ?
+      ORDER BY j.created_at DESC
+    `, [adminCompanyId, adminCompanyId, req.user.id, req.user.id, req.user.id]);
+
     const [vacancies] = await db.query(
       'SELECT * FROM job_vacancies WHERE (company_id = ? OR created_by = ?) ORDER BY created_at DESC',
       [adminCompanyId, req.user.id]
     );
 
-    const formatted = vacancies.map(v => {
+    const merged = jobs.map(j => {
       let displaySalary = '';
-      if (v.salary_min !== null && v.salary_min !== undefined && v.salary_max !== null && v.salary_max !== undefined) {
-        displaySalary = `${parseFloat(v.salary_min)} - ${parseFloat(v.salary_max)}`;
-      } else if (v.salary_min !== null && v.salary_min !== undefined) {
-        displaySalary = `${parseFloat(v.salary_min)}`;
-      } else if (v.salary_max !== null && v.salary_max !== undefined) {
-        displaySalary = `Up to ${parseFloat(v.salary_max)}`;
+      if (j.salary_min && j.salary_max) {
+        displaySalary = `${parseFloat(j.salary_min)} - ${parseFloat(j.salary_max)}`;
+      } else if (j.salary_min) {
+        displaySalary = `${parseFloat(j.salary_min)}`;
       }
-
       return {
-        ...v,
-        salary: displaySalary
+        id: j.id,
+        title: j.title,
+        department: j.department || 'General',
+        location: j.location,
+        description: j.description,
+        status: j.status,
+        salary: displaySalary,
+        employer_name: j.emp_company_name || j.posted_by_name || 'Employer',
+        job_type: j.job_type,
+        experience_required: j.experience || j.experience_required || 'N/A',
+        expiry_date: j.expiry_date,
+        skills: j.skills || j.requirements || '',
+        created_at: j.created_at,
+        applicants_count: j.applicants_count || 0
       };
     });
 
-    res.json({ success: true, data: formatted });
+    vacancies.forEach(v => {
+      if (!merged.some(m => m.id === v.id || m.title === v.title)) {
+        let displaySalary = '';
+        if (v.salary_min !== null && v.salary_min !== undefined && v.salary_max !== null && v.salary_max !== undefined) {
+          displaySalary = `${parseFloat(v.salary_min)} - ${parseFloat(v.salary_max)}`;
+        } else if (v.salary_min !== null && v.salary_min !== undefined) {
+          displaySalary = `${parseFloat(v.salary_min)}`;
+        } else if (v.salary_max !== null && v.salary_max !== undefined) {
+          displaySalary = `Up to ${parseFloat(v.salary_max)}`;
+        }
+        merged.push({
+          ...v,
+          salary: displaySalary
+        });
+      }
+    });
+
+    res.json({ success: true, data: merged });
   } catch (error) {
     next(error);
   }

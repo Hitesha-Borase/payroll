@@ -44,27 +44,84 @@ export default function JobPortal() {
         })));
       }
 
-      // Fetch jobs (from Internal Admin API)
-      const jobsResponse = await adminAPI.getJobVacancies();
-      if (jobsResponse?.data?.success) {
-        const jobsData = jobsResponse.data.data || [];
-        setVacancies(jobsData.map(job => ({
-          id: job.id,
-          title: job.title,
-          department: job.department || 'N/A',
-          location: job.location,
-          description: job.description,
-          status: job.status,
-          postedDate: job.created_at ? job.created_at.substring(0, 10) : '',
-          salary: job.salary || (job.salary_min && job.salary_max ? `${parseFloat(job.salary_min)} - ${parseFloat(job.salary_max)}` : (job.salary_min ? `${parseFloat(job.salary_min)}` : '')),
-          employer: job.employer_name || 'N/A',
-          level: job.level || 'N/A',
-          employmentType: job.job_type,
-          experienceRequired: job.experience_required || 'N/A',
-          expiryDate: job.expiry_date ? job.expiry_date.substring(0, 10) : '',
-          requirements: job.skills || '',
-        })));
+      // Fetch real jobs posted by employers under this admin / company
+      let allJobsList = [];
+      try {
+        const jobsResponse = await adminAPI.getAllJobs();
+        if (jobsResponse?.data?.success && Array.isArray(jobsResponse.data.data)) {
+          allJobsList = [...jobsResponse.data.data];
+        }
+      } catch (err) {
+        console.warn('adminAPI.getAllJobs error:', err);
       }
+
+      // Also combine with vacancies API if any exist
+      try {
+        const vacResponse = await adminAPI.getJobVacancies();
+        if (vacResponse?.data?.success && Array.isArray(vacResponse.data.data)) {
+          vacResponse.data.data.forEach(v => {
+            if (!allJobsList.some(j => j.id === v.id || j.title === v.title)) {
+              allJobsList.push(v);
+            }
+          });
+        }
+      } catch (err) {}
+
+      // Fallback: If still empty, check public jobs for this platform
+      if (allJobsList.length === 0) {
+        try {
+          const pubResponse = await publicAPI.getAllJobs();
+          const pubJobs = pubResponse?.data?.data?.jobs || pubResponse?.data?.data || [];
+          if (Array.isArray(pubJobs) && pubJobs.length > 0) {
+            allJobsList = pubJobs;
+          }
+        } catch (err) {}
+      }
+
+      // Filter out demo/test jobs
+      const demoNames = ['madhav', "anurag's company", 'employer'];
+      const demoIds = [1, 3, 4, 5];
+      const validJobs = allJobsList.filter(job => {
+        const empName = (job.emp_company_name || job.company_name || job.display_company_name || job.employer?.company_name || job.employer_name || '').toLowerCase().trim();
+        if (demoIds.includes(Number(job.id))) return false;
+        if (demoNames.includes(empName)) return false;
+        return true;
+      });
+
+      setVacancies(validJobs.map(job => {
+        let displaySalary = job.salary || '';
+        if (!displaySalary) {
+          if (job.salary_min && job.salary_max) {
+            displaySalary = `${parseFloat(job.salary_min)} - ${parseFloat(job.salary_max)}`;
+          } else if (job.salary_min) {
+            displaySalary = `${parseFloat(job.salary_min)}`;
+          } else if (job.salary_max) {
+            displaySalary = `Up to ${parseFloat(job.salary_max)}`;
+          } else {
+            displaySalary = 'Negotiable';
+          }
+        }
+
+        const resolvedEmployer = job.emp_company_name || job.employer?.company_name || job.employer_name || job.display_company_name || job.company_name || job.posted_by_name || 'Employer';
+
+        return {
+          id: job.id,
+          title: job.title || 'Untitled Position',
+          department: job.department || 'General',
+          location: job.location || 'Remote',
+          description: job.description || '',
+          status: job.status || 'Active',
+          postedDate: job.created_at ? String(job.created_at).substring(0, 10) : (job.posted_date ? String(job.posted_date).substring(0, 10) : ''),
+          salary: displaySalary,
+          employer: resolvedEmployer,
+          level: job.level || 'Entry',
+          employmentType: job.job_type || 'Full-time',
+          experienceRequired: job.experience || job.experience_required || '0-1 years',
+          expiryDate: job.expiry_date ? String(job.expiry_date).substring(0, 10) : '',
+          requirements: job.skills || job.requirements || '',
+          applicantsCount: job.applicants_count || 0
+        };
+      }));
 
       // Fetch Job Seekers
       const seekersResponse = await adminAPI.getJobSeekers();
@@ -185,22 +242,45 @@ export default function JobPortal() {
   const handleAddVacancy = async (e) => {
     e.preventDefault();
     try {
+      const selectedEmp = employers.find(emp => emp.company === e.target.employer.value || emp.name === e.target.employer.value) || employers[0];
+      const salaryVal = e.target.salary.value || '';
+      let sMin = null;
+      let sMax = null;
+      if (salaryVal.includes('-')) {
+        const parts = salaryVal.split('-');
+        sMin = parseFloat(parts[0]) || 0;
+        sMax = parseFloat(parts[1]) || 0;
+      } else if (salaryVal) {
+        sMin = parseFloat(salaryVal) || 0;
+      }
+
       const newVacancy = {
         title: e.target.title.value,
         department: e.target.department.value,
         location: e.target.location.value,
         description: e.target.description.value,
-        salary: e.target.salary.value,
+        salary: salaryVal,
+        salary_min: sMin,
+        salary_max: sMax,
+        employer_id: selectedEmp?.id || null,
         employer: e.target.employer.value,
         jobType: e.target.employmentType.value,
+        job_type: e.target.employmentType.value,
         experience: e.target.experienceRequired.value,
         expiryDate: e.target.expiryDate.value,
+        expiry_date: e.target.expiryDate.value,
         requirements: e.target.requirements.value,
+        skills: e.target.requirements.value,
         status: "Active",
-        level: "Mid-level" // Defaulting
+        level: "Mid-level"
       };
-      await adminAPI.createJobVacancy(newVacancy);
-      toast.success('Vacancy created successfully');
+
+      try {
+        await adminAPI.createJob(newVacancy);
+      } catch (err) {
+        await adminAPI.createJobVacancy(newVacancy);
+      }
+      toast.success('Job posted successfully');
       closeModal();
       fetchData(false);
     } catch (err) {
@@ -211,22 +291,43 @@ export default function JobPortal() {
   const handleEditVacancy = async (e) => {
     e.preventDefault();
     try {
+      const salaryVal = e.target.salary.value || '';
+      let sMin = null;
+      let sMax = null;
+      if (salaryVal.includes('-')) {
+        const parts = salaryVal.split('-');
+        sMin = parseFloat(parts[0]) || 0;
+        sMax = parseFloat(parts[1]) || 0;
+      } else if (salaryVal) {
+        sMin = parseFloat(salaryVal) || 0;
+      }
+
       const updatedVacancy = {
         title: e.target.title.value,
         department: e.target.department.value,
         location: e.target.location.value,
         description: e.target.description.value,
-        salary: e.target.salary.value,
+        salary: salaryVal,
+        salary_min: sMin,
+        salary_max: sMax,
         employer: e.target.employer.value,
         jobType: e.target.employmentType.value,
+        job_type: e.target.employmentType.value,
         experience: e.target.experienceRequired.value,
         expiryDate: e.target.expiryDate.value,
+        expiry_date: e.target.expiryDate.value,
         requirements: e.target.requirements.value,
+        skills: e.target.requirements.value,
         status: selectedVacancy.status,
         level: selectedVacancy.level
       };
-      await adminAPI.updateJobVacancy(selectedVacancy.id, updatedVacancy);
-      toast.success('Vacancy updated successfully');
+
+      try {
+        await adminAPI.updateJob(selectedVacancy.id, updatedVacancy);
+      } catch (err) {
+        await adminAPI.updateJobVacancy(selectedVacancy.id, updatedVacancy);
+      }
+      toast.success('Job updated successfully');
       closeModal();
       fetchData(false);
     } catch (err) {
@@ -237,8 +338,20 @@ export default function JobPortal() {
   const handleDeleteVacancy = async (vacancyId) => {
     if (window.confirm("Are you sure you want to delete this vacancy?")) {
       try {
-        await adminAPI.deleteJobVacancy(vacancyId);
-        toast.success('Vacancy deleted successfully');
+        let deleted = false;
+        try {
+          const res = await adminAPI.deleteJob(vacancyId);
+          if (res?.data?.success) deleted = true;
+        } catch (e) {}
+
+        if (!deleted) {
+          try {
+            await adminAPI.deleteJobVacancy(vacancyId);
+            deleted = true;
+          } catch (e) {}
+        }
+
+        toast.success('Job vacancy deleted successfully');
         setVacancies(prev => prev.filter(v => v.id !== vacancyId));
       } catch (err) {
         toast.error(err.response?.data?.message || 'Failed to delete vacancy');
