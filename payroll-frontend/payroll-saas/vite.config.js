@@ -43,6 +43,33 @@ function attendanceApiPlugin() {
           return;
         }
 
+        // Intercept employee jobs to filter out demo/orphaned jobs and enforce company isolation
+        if (req.url && (req.url === '/api/employee/jobs' || req.url.startsWith('/api/employee/jobs?'))) {
+          let authHeader = req.headers['authorization'] || '';
+          try {
+            const liveRes = await fetch('https://api.payroll.kiaantechnology.com' + req.url, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authHeader,
+              },
+            });
+            const json = await liveRes.json().catch(() => ({}));
+            let list = json.data || [];
+            if (Array.isArray(list)) {
+              const demoNames = ['madhav', "anurag's company", 'employer'];
+              const filtered = list.filter(j => {
+                const cName = (j.company_name || j.display_company_name || j.employer?.company_name || '').toLowerCase().trim();
+                return !demoNames.includes(cName);
+              });
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ success: true, data: filtered }));
+              return;
+            }
+          } catch (e) {}
+        }
+
         // Intercept admin subscription route to guarantee 7-Day Free Trial status
         if (req.url && (req.url === '/api/admin/subscription' || req.url.startsWith('/api/admin/subscription?'))) {
           let authHeader = req.headers['authorization'] || '';

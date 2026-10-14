@@ -140,7 +140,26 @@ const JobApplication = () => {
         // Fetch available jobs
         const jobsRes = await employeeAPI.getAllJobs();
         if (jobsRes?.data?.success) {
-          const jobs = jobsRes.data.data || [];
+          const rawJobs = jobsRes.data.data || [];
+          let myCompany = '';
+          try {
+            const u = JSON.parse(localStorage.getItem('user') || '{}');
+            myCompany = (u.company_name || u.company || '').toLowerCase().trim();
+          } catch (e) {}
+
+          const demoNames = ['madhav', "anurag's company", 'employer'];
+
+          const jobs = rawJobs.filter(job => {
+            const jobComp = (job.employer?.company_name || job.company_name || '').toLowerCase().trim();
+            // Filter out old demo jobs
+            if (demoNames.includes(jobComp)) return false;
+            // If employee has a specific company assigned, ensure matching
+            if (myCompany && jobComp && !jobComp.includes(myCompany) && !myCompany.includes(jobComp)) {
+              return false;
+            }
+            return true;
+          });
+
           setNewJobs(jobs.map(job => ({
             id: job.id,
             title: job.title,
