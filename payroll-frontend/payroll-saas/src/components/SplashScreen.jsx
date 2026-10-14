@@ -45,8 +45,8 @@ export const SplashScreen = ({ minDuration = 1200, onComplete }) => {
         <div className="kiaan-splash-logo-wrapper">
           <div className="kiaan-splash-logo-glow" />
           <img 
-            src="/kiaan_logo.png" 
-            alt="Kiaan Technology Logo" 
+            src="/payrollplus_mark.png" 
+            alt="PayrollPlus Logo" 
             className="kiaan-splash-logo"
           />
         </div>
@@ -54,10 +54,10 @@ export const SplashScreen = ({ minDuration = 1200, onComplete }) => {
         {/* Brand Name & Tagline */}
         <div className="kiaan-splash-text-group">
           <h1 className="kiaan-splash-title">
-            KIAAN <span className="kiaan-splash-title-highlight">TECHNOLOGY</span>
+            PAYROLL<span className="kiaan-splash-title-highlight">PLUS</span>
           </h1>
           <p className="kiaan-splash-subtitle">
-            Next-Gen Workforce & Payroll SaaS
+            Next-Gen Workforce &amp; Payroll SaaS
           </p>
         </div>
 

@@ -7,6 +7,9 @@ const CACHE_NAME = 'kiaan-payroll-v1.0.1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/payrollplus_mark.svg',
+  '/payrollplus_logo.svg',
+  '/payrollplus_mark.png',
   '/kiaan_logo.png',
   '/pwa-icon-192.png',
   '/pwa-icon-512.png',

@@ -437,13 +437,19 @@ const VendorPayments = () => {
           }));
         }
 
-        // Merge saved imported payments
+        // Merge saved imported payments scoped strictly to the current vendor
         try {
-          const savedImported = JSON.parse(localStorage.getItem('vendor_imported_payments') || '[]');
-          if (Array.isArray(savedImported) && savedImported.length > 0) {
-            const existingRefs = new Set(paymentList.map(p => p.reference));
-            const uniqueImported = savedImported.filter(p => !existingRefs.has(p.reference));
-            paymentList = [...uniqueImported, ...paymentList];
+          // Clean up legacy unscoped storage key immediately so old test data never leaks to new accounts
+          localStorage.removeItem('vendor_imported_payments');
+
+          const currentVendorKey = localStorage.getItem('userId') || localStorage.getItem('userEmail');
+          if (currentVendorKey) {
+            const savedImported = JSON.parse(localStorage.getItem(`vendor_imported_payments_${currentVendorKey}`) || '[]');
+            if (Array.isArray(savedImported) && savedImported.length > 0) {
+              const existingRefs = new Set(paymentList.map(p => p.reference));
+              const uniqueImported = savedImported.filter(p => !existingRefs.has(p.reference));
+              paymentList = [...uniqueImported, ...paymentList];
+            }
           }
         } catch (e) {
           console.error("Error loading imported payments:", e);
@@ -688,10 +694,13 @@ const VendorPayments = () => {
           console.warn("API upload warning (gracefully handled):", apiErr);
         }
 
-        // Save to localStorage for persistent state across refreshes
-        const prevImported = JSON.parse(localStorage.getItem('vendor_imported_payments') || '[]');
+        // Save to localStorage scoped to current vendor for persistent state across refreshes
+        const currentVendorKey = localStorage.getItem('userId') || localStorage.getItem('userEmail') || 'default';
+        const vendorStorageKey = `vendor_imported_payments_${currentVendorKey}`;
+        const prevImported = JSON.parse(localStorage.getItem(vendorStorageKey) || '[]');
         const updatedStorage = [...importedRecords, ...prevImported];
-        localStorage.setItem('vendor_imported_payments', JSON.stringify(updatedStorage));
+        localStorage.setItem(vendorStorageKey, JSON.stringify(updatedStorage));
+        localStorage.removeItem('vendor_imported_payments');
 
         // Update active table
         setPayments(prev => [...importedRecords, ...prev]);

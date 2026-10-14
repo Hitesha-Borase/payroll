@@ -292,8 +292,8 @@ const Navbar = ({ toggleSidebar }) => {
 
             <div className="d-flex align-items-center">
               <img
-                src="/kiaan_logo.png"
-                alt="Kiaan Technology Logo"
+                src="/payrollplus_mark.png"
+                alt="PayrollPlus Logo"
                 style={{
                   height: "32px",
                   width: "auto",
@@ -304,7 +304,7 @@ const Navbar = ({ toggleSidebar }) => {
                 }}
               />
               <span className="navbar-brand-text d-none d-md-inline" style={{ letterSpacing: '0.6px', fontWeight: 800 }}>
-                KIAAN TECHNOLOGY
+                PayrollPlus
               </span>
             </div>
           </div>

@@ -103,7 +103,7 @@ const AdminLogin = () => {
             </div>
             <div className="card shadow-lg p-4 p-md-5 auth-card" style={{ maxWidth: "450px", width: "100%", borderRadius: "20px", backgroundColor: colors.white }}>
                 <div className="text-center mb-3">
-                    <img src="/kiaan_logo.png" alt="Kiaan Technology Logo" style={{ height: "65px", width: "auto", objectFit: "contain" }} />
+                    <img src="/payrollplus_logo.png" alt="PayrollPlus Logo" style={{ height: "65px", width: "auto", objectFit: "contain" }} />
                 </div>
                 <h2 className="text-center fw-bold mb-2" style={{ color: colors.primaryRed }}>Admin Access</h2>
                 <p className="text-center text-muted mb-4">Secure Gateway for Administrators</p>

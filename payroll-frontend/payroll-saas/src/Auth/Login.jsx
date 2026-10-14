@@ -182,8 +182,8 @@ const Login = () => {
             <div className="w-100">
               <div className="text-center mb-3">
                 <img
-                  src="/kiaan_logo.png"
-                  alt="Kiaan Technology Logo"
+                  src="/payrollplus_logo.png"
+                  alt="PayrollPlus Logo"
                   className="auth-logo-img"
                 />
               </div>

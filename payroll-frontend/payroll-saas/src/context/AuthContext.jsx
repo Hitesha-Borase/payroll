@@ -174,7 +174,8 @@ export const AuthProvider = ({ children }) => {
       const syncBackup = localStorage.getItem('payroll_training_sync');
       const authKeys = [
         'token', 'authToken', 'accessToken', 'refreshToken',
-        'user', 'role', 'userRole', 'userId', 'userName', 'userEmail'
+        'user', 'role', 'userRole', 'userId', 'userName', 'userEmail',
+        'vendor_imported_payments'
       ];
       authKeys.forEach(k => {
         localStorage.removeItem(k);

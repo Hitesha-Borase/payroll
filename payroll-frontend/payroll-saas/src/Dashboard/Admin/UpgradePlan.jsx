@@ -110,9 +110,9 @@ const UpgradePlan = () => {
         key: key_id,
         amount: amount,
         currency: currency,
-        name: 'Payroll',
+        name: 'PayrollPlus',
         description: `${plan_name} SaaS Subscription`,
-        image: '/kiaan_logo.png',
+        image: '/payrollplus_mark.png',
         order_id: order_id,
         handler: async function (response) {
           // Step 3: Backend HMAC-SHA256 Signature Verification & Subscription Activation

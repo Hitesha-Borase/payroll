@@ -330,8 +330,8 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
             <div className="sidebar">
                 <div className={`sidebar-brand px-3 pb-3 mb-2 border-bottom d-flex align-items-center ${collapsed ? "justify-content-center" : ""}`}>
                     <img
-                        src="/kiaan_logo.png"
-                        alt="Kiaan Technology Logo"
+                        src="/payrollplus_mark.png"
+                        alt="PayrollPlus Logo"
                         style={{
                             height: collapsed ? "32px" : "34px",
                             width: "auto",
@@ -344,7 +344,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                     {!collapsed && (
                         <div className="d-flex flex-column flex-grow-1" style={{ minWidth: 0 }}>
                             <span className="fw-bold text-dark text-nowrap" style={{ fontSize: "0.85rem", letterSpacing: "0.3px", lineHeight: "1.2" }}>
-                                KIAAN TECHNOLOGY
+                                PayrollPlus
                             </span>
                             <span className="text-muted text-nowrap" style={{ fontSize: "0.68rem", lineHeight: "1.2" }}>
                                 Workforce &amp; Payroll

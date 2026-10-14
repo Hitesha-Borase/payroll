@@ -26,7 +26,7 @@ import LanguageSwitcher from './src/components/LanguageSwitcher';
 import PayrollPricingSection from './src/components/PayrollPricingSection';
 import Captcha from './src/components/Captcha';
 import { useRegional } from './src/context/RegionalContext';
-import ktLogo from './src/assets/kt_logo_transparent.png';
+import payrollPlusLogo from './src/assets/payrollplus_mark.png';
 
 // High quality professional hero image (preserves existing software image)
 const heroImageUrl = "https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=1200&h=800&fit=crop&q=80";
@@ -346,9 +346,9 @@ const LandingPage = () => {
                     order_id,
                     amount,
                     currency,
-                    name: 'Kiaan Technology | Payroll & HRMS',
+                    name: 'PayrollPlus | Payroll & HRMS',
                     description: `${selectedPlanDetails.name} (${selectedPlanDetails.price})`,
-                    image: ktLogo,
+                    image: payrollPlusLogo,
                     prefill: {
                         name: signupData.contact_name,
                         email: signupData.email,
@@ -483,13 +483,13 @@ const LandingPage = () => {
                         {/* Responsive Logo */}
                         <a href="/" className="navbar-brand d-flex align-items-center gap-1.5 text-decoration-none py-1 flex-shrink-0" style={{ maxWidth: '58%' }}>
                             <img 
-                                src={ktLogo} 
-                                alt="Kiaan Technology" 
+                                src={payrollPlusLogo} 
+                                alt="PayrollPlus" 
                                 style={{ height: '32px', width: 'auto', maxHeight: '34px', objectFit: 'contain', background: 'transparent', border: 'none' }}
                             />
                             <div className="d-flex flex-column text-truncate" style={{ minWidth: 0 }}>
                                 <span className="fw-extrabold text-dark text-truncate" style={{ fontSize: '1.02rem', letterSpacing: '0.2px', lineHeight: 1.15 }}>
-                                    KIAAN <span style={{ color: '#C62828' }}>TECH</span><span className="d-none d-sm-inline" style={{ color: '#C62828' }}>NOLOGY</span>
+                                    Payroll<span style={{ color: '#C62828' }}>Plus</span>
                                 </span>
                             </div>
                         </a>
@@ -1204,11 +1204,11 @@ const LandingPage = () => {
                         <div className="col-lg-4 col-md-6 col-12">
                             <div className="d-flex align-items-center gap-2 mb-3">
                                 <img 
-                                    src={ktLogo} 
-                                    alt="Kiaan Technology" 
+                                    src={payrollPlusLogo} 
+                                    alt="PayrollPlus" 
                                     style={{ height: '38px', width: 'auto', objectFit: 'contain', background: 'transparent', border: 'none' }}
                                 />
-                                <h5 className="fw-bold text-white mb-0" style={{ letterSpacing: '0.5px', fontSize: '1.2rem' }}>KIAAN TECHNOLOGY</h5>
+                                <h5 className="fw-bold text-white mb-0" style={{ letterSpacing: '0.5px', fontSize: '1.2rem' }}>PayrollPlus</h5>
                             </div>
                             <p className="small mb-4" style={{ color: '#94A3B8', lineHeight: '1.7', maxWidth: '360px', fontSize: '0.88rem' }}>
                                 Next-generation workforce &amp; payroll SaaS platform empowering businesses with intelligent salary automation, attendance tracking, LMS training, and modern recruitment.

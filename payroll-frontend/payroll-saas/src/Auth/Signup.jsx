@@ -255,11 +255,11 @@ const Signup = () => {
             style={{ animation: 'fadeInRight 0.6s ease-out' }}
           >
             <div className="w-100">
-              {/* Kiaan Logo (Identical to Login) */}
+              {/* PayrollPlus Logo (Identical to Login) */}
               <div className="text-center mb-3">
                 <img
-                  src="/kiaan_logo.png"
-                  alt="Kiaan Technology Logo"
+                  src="/payrollplus_logo.png"
+                  alt="PayrollPlus Logo"
                   style={{ height: "60px", width: "auto", objectFit: "contain" }}
                 />
               </div>

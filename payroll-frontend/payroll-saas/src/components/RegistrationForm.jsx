@@ -156,9 +156,9 @@ const RegistrationForm = () => {
           key: key_id,
           amount: amount,
           currency: currency,
-          name: 'Kiaan Technology',
+          name: 'PayrollPlus',
           description: `${plan_name} SaaS Subscription`,
-          image: '/kt_logo_transparent.png',
+          image: '/payrollplus_mark.png',
           order_id: order_id,
           handler: async function (response) {
             try {
