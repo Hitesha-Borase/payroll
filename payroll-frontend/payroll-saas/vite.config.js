@@ -150,6 +150,23 @@ function attendanceApiPlugin() {
                 logs = logs.filter(l => {
                   const lEmail = (l.user_email || '').toLowerCase().trim();
                   const lRole = (l.user_role || '').toLowerCase().trim();
+                  const details = (l.details || '').toLowerCase();
+
+                  // Exclude any temp/test admin or orphaned logs
+                  if (details.includes('temp admin') || details.includes('temp inspector') || details.includes('temp job cleaner') || details.includes('tempcleanadmin')) {
+                    return false;
+                  }
+
+                  // Exclude fallback demo admin@example.com
+                  if (lEmail === 'admin@example.com') {
+                    return false;
+                  }
+
+                  // Exclude orphaned logs without email
+                  if (!lEmail && l.user_id !== currentId) {
+                    return false;
+                  }
+
                   if (lRole === 'admin' && lEmail && lEmail !== currentEmail) {
                     return false;
                   }

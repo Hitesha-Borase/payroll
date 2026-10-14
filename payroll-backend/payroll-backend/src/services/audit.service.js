@@ -66,20 +66,19 @@ class AuditService {
 
     // Strict multi-tenant isolation for Admin view
     if (currentUserId) {
-      // Exclude other admins
-      conditions.push('(u.role IS NULL OR LOWER(u.role) != "admin" OR al.user_id = ?)');
-      params.push(parseInt(currentUserId));
-
       if (companyId) {
         conditions.push(`(
           al.user_id = ?
-          OR u.company_id = ?
-          OR al.user_id IN (
-            SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
-            UNION
-            SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
-            UNION
-            SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+          OR (
+            u.id IS NOT NULL 
+            AND (u.company_id = ? OR al.user_id IN (
+              SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
+              UNION
+              SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
+              UNION
+              SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+            ))
+            AND LOWER(u.role) NOT IN ('superadmin', 'admin')
           )
         )`);
         params.push(
@@ -197,19 +196,19 @@ class AuditService {
       }
 
       if (currentUserId) {
-        conditions.push('(u.role IS NULL OR LOWER(u.role) != "admin" OR al.user_id = ?)');
-        params.push(parseInt(currentUserId));
-
         if (companyId) {
           conditions.push(`(
             al.user_id = ?
-            OR u.company_id = ?
-            OR al.user_id IN (
-              SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
-              UNION
-              SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
-              UNION
-              SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+            OR (
+              u.id IS NOT NULL 
+              AND (u.company_id = ? OR al.user_id IN (
+                SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+              ))
+              AND LOWER(u.role) NOT IN ('superadmin', 'admin')
             )
           )`);
           params.push(
@@ -313,19 +312,19 @@ class AuditService {
       }
 
       if (currentUserId) {
-        conditions.push('(u.role IS NULL OR LOWER(u.role) != "admin" OR al.user_id = ?)');
-        params.push(parseInt(currentUserId));
-
         if (companyId) {
           conditions.push(`(
             al.user_id = ?
-            OR u.company_id = ?
-            OR al.user_id IN (
-              SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
-              UNION
-              SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
-              UNION
-              SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+            OR (
+              u.id IS NOT NULL 
+              AND (u.company_id = ? OR al.user_id IN (
+                SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
+                UNION
+                SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+              ))
+              AND LOWER(u.role) NOT IN ('superadmin', 'admin')
             )
           )`);
           params.push(

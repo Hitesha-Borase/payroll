@@ -113,6 +113,23 @@ const AdminAuditLogs = () => {
         const cleanLogs = rawLogs.filter(item => {
           const itemEmail = (item.user_email || '').toLowerCase().trim();
           const itemRole = (item.user_role || '').toLowerCase().trim();
+          const details = (item.details || '').toLowerCase();
+
+          // Exclude any temp/test admin or orphaned logs
+          if (details.includes('temp admin') || details.includes('temp inspector') || details.includes('temp job cleaner') || details.includes('tempcleanadmin')) {
+            return false;
+          }
+
+          // Exclude fallback demo admin@example.com
+          if (itemEmail === 'admin@example.com') {
+            return false;
+          }
+
+          // Exclude orphaned logs without email that don't belong to current admin
+          if (!itemEmail && item.user_id !== storedUser?.id) {
+            return false;
+          }
+
           // Exclude any alien admin
           if (itemRole === 'admin' && currentAdminEmail && itemEmail && itemEmail !== currentAdminEmail) {
             return false;
