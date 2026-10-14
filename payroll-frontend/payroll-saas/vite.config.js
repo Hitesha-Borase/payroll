@@ -23,27 +23,27 @@ function attendanceApiPlugin() {
           return;
         }
 
-        // Intercept register route to forward to local backend with pop_db
+        // Forward register route to live backend
         if (req.url && req.method === 'POST' && req.url === '/api/auth/register') {
           let body = '';
           req.on('data', chunk => { body += chunk; });
           req.on('end', async () => {
             try {
-              const localRes = await fetch('http://localhost:5000/api/auth/register', {
+              const liveRes = await fetch('https://api.payroll.kiaantechnology.com/api/auth/register', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
                 body: body,
               });
-              const json = await localRes.json().catch(() => ({}));
+              const json = await liveRes.json().catch(() => ({}));
               res.setHeader('Content-Type', 'application/json');
-              res.statusCode = localRes.status;
+              res.statusCode = liveRes.status;
               res.end(JSON.stringify(json));
             } catch (err) {
               res.setHeader('Content-Type', 'application/json');
               res.statusCode = 500;
-              res.end(JSON.stringify({ success: false, message: 'Local backend service unavailable' }));
+              res.end(JSON.stringify({ success: false, message: 'Registration service temporarily unavailable' }));
             }
           });
           return;
