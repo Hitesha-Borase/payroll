@@ -55,7 +55,19 @@ const VendorDashboard = () => {
         if (response?.data?.data) {
           const { summary, contracts, payments } = response.data.data;
           if (summary) setDashboardData(summary);
-          if (contracts) setContracts(contracts || []);
+          if (contracts) {
+            const resolvedContracts = (contracts || []).map(contract => {
+              let employerName = contract.employer;
+              if (!employerName || employerName === 'Main Employer') {
+                employerName = contract.employer_name || profile?.data?.vendor?.employer_name || profile?.data?.vendor?.company_name || 'Employer';
+              }
+              return {
+                ...contract,
+                employer: employerName
+              };
+            });
+            setContracts(resolvedContracts);
+          }
           if (payments) setPayments(payments || []);
         }
       } catch (err) {
@@ -172,7 +184,7 @@ const VendorDashboard = () => {
               {contracts.map(contract => (
                 <tr key={contract.id}>
                   <td>{contract.id}</td>
-                  <td>{contract.employer}</td>
+                  <td>{contract.employer && contract.employer !== 'Main Employer' ? contract.employer : (contract.employer_name || profile?.data?.vendor?.employer_name || profile?.data?.vendor?.company_name || 'Employer')}</td>
                   <td>{formatCurrency(contract.amount)}</td>
                   <td>{formatDate(contract.startDate)}</td>
                   <td>{formatDate(contract.endDate)}</td>
@@ -194,7 +206,7 @@ const VendorDashboard = () => {
   const DashboardView = () => (
     <Container fluid className="px-3 px-md-4 py-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 style={{ color: colors.black }}>Welcome, {profile?.companyName}!</h2>
+        <h2 style={{ color: colors.black }}>Welcome, {profile?.data?.vendor?.company_name || profile?.companyName || 'Vendor'}!</h2>
       </div>
 
       {/* Key Metrics */}
@@ -276,7 +288,7 @@ const VendorDashboard = () => {
                     {contracts.filter(c => c.status === 'Active').slice(0, 5).map(contract => (
                       <tr key={contract.id}>
                         <td>{contract.id}</td>
-                        <td>{contract.employer}</td>
+                        <td>{contract.employer && contract.employer !== 'Main Employer' ? contract.employer : (contract.employer_name || profile?.data?.vendor?.employer_name || profile?.data?.vendor?.company_name || 'Employer')}</td>
                         <td>{formatCurrency(contract.amount)}</td>
                         <td>{formatDate(contract.startDate)}</td>
                         <td>{formatDate(contract.endDate)}</td>

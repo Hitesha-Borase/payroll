@@ -1150,17 +1150,29 @@ const createVendor = async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const adminCompanyId = req.user.company_id || null;
+    let defaultEmployerId = null;
+    if (adminCompanyId) {
+      const [employerRows] = await connection.query(
+        'SELECT id FROM employers WHERE company_id = ? ORDER BY id ASC LIMIT 1',
+        [adminCompanyId]
+      );
+      if (employerRows.length > 0) {
+        defaultEmployerId = employerRows[0].id;
+      }
+    }
+
     const [userResult] = await connection.query(
-      `INSERT INTO users(name, email, password, role, status, created_at, updated_at)
-    VALUES(?, ?, ?, 'vendor', 'active', NOW(), NOW())`,
-      [name, email, hashedPassword]
+      `INSERT INTO users(name, email, password, role, company_id, status, created_at, updated_at)
+    VALUES(?, ?, ?, 'vendor', ?, 'active', NOW(), NOW())`,
+      [name, email, hashedPassword, adminCompanyId]
     );
     const userId = userResult.insertId;
 
     const [vendorResult] = await connection.query(
-      `INSERT INTO vendors(user_id, company_name, service_type, payment_status, created_at, updated_at)
-    VALUES(?, ?, ?, 'pending', NOW(), NOW())`, // assuming default payment status
-      [userId, company_name, services]
+      `INSERT INTO vendors(user_id, company_id, employer_id, company_name, contact_person, email, service_type, payment_status, status, created_at, updated_at)
+    VALUES(?, ?, ?, ?, ?, ?, ?, 'pending', 'active', NOW(), NOW())`,
+      [userId, adminCompanyId, defaultEmployerId, company_name || name, name, email, services]
     );
 
     await connection.commit();

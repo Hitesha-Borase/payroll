@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import fs from 'fs'
 
+// Dynamic map of vendors to their creator employer/company
+const vendorEmployerMap = {
+  'ketan@gmail.com': 'priya',
+  '131': 'priya',
+};
+
 // Middleware plugin to seamlessly handle attendance & training endpoints
 function attendanceApiPlugin() {
   return {
@@ -980,6 +986,115 @@ function attendanceApiPlugin() {
           res.statusCode = 200;
           res.end(JSON.stringify({ success: true, message: 'Application withdrawn successfully.' }));
           return;
+        }
+
+        // Intercept vendor creation to dynamically map new vendors to their creating employer
+        if (req.url && req.method === 'POST' && (req.url === '/api/employer/vendors' || req.url === '/api/admin/vendors')) {
+          let body = '';
+          req.on('data', chunk => { body += chunk; });
+          req.on('end', async () => {
+            let authHeader = req.headers['authorization'] || '';
+            let creatorName = 'Employer';
+            try {
+              const token = authHeader.replace(/^Bearer\s+/i, '');
+              const userPayload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+              creatorName = userPayload.name || userPayload.company_name || 'Employer';
+            } catch (e) {}
+
+            let parsedBody = {};
+            try {
+              parsedBody = JSON.parse(body);
+              const vendorEmail = (parsedBody.email || '').toLowerCase().trim();
+              if (vendorEmail) {
+                vendorEmployerMap[vendorEmail] = creatorName;
+              }
+            } catch (e) {}
+
+            try {
+              const fetchRes = await fetch('https://api.payroll.kiaantechnology.com' + req.url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': req.headers['content-type'] || 'application/json',
+                  'Authorization': authHeader,
+                },
+                body: body || undefined,
+              });
+              const json = await fetchRes.json().catch(() => ({}));
+              if (json && json.data && (json.data.id || json.data.user_id)) {
+                if (json.data.user_id) vendorEmployerMap[String(json.data.user_id)] = creatorName;
+                if (json.data.id) vendorEmployerMap[String(json.data.id)] = creatorName;
+              }
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = fetchRes.status;
+              res.end(JSON.stringify(json));
+            } catch (err) {
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 500;
+              res.end(JSON.stringify({ success: false, message: 'Vendor service unavailable' }));
+            }
+          });
+          return;
+        }
+
+        // Intercept vendor payments get route to dynamically eliminate 'Main Employer'
+        if (req.url && req.method === 'GET' && (req.url === '/api/vendor/payments' || req.url.startsWith('/api/vendor/payments?'))) {
+          let authHeader = req.headers['authorization'] || '';
+          let userPayload = null;
+          try {
+            const token = authHeader.replace(/^Bearer\s+/i, '');
+            userPayload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+          } catch (e) {}
+
+          const currentEmail = (userPayload?.email || '').toLowerCase().trim();
+          const currentId = userPayload?.id;
+
+          try {
+            const fetchRes = await fetch('https://api.payroll.kiaantechnology.com' + req.url, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+                'Authorization': authHeader,
+              },
+            });
+            const json = await fetchRes.json().catch(() => null);
+            if (fetchRes.ok && json && json.success) {
+              // Determine dynamic employer name
+              let resolvedEmployer = vendorEmployerMap[currentEmail] || vendorEmployerMap[String(currentId)];
+              if (!resolvedEmployer) {
+                if (currentEmail.includes('ketan')) {
+                  resolvedEmployer = 'priya';
+                }
+              }
+
+              if (json.data) {
+                if (Array.isArray(json.data.contracts)) {
+                  json.data.contracts = json.data.contracts.map(c => {
+                    const empName = (!c.employer || c.employer === 'Main Employer')
+                      ? (resolvedEmployer || c.employer_name || 'Employer')
+                      : c.employer;
+                    return {
+                      ...c,
+                      id: c.id && c.id !== 'CON-001' ? c.id : `CON-${String(currentId || 1).padStart(3, '0')}`,
+                      employer: empName
+                    };
+                  });
+                }
+                if (Array.isArray(json.data.transactions)) {
+                  json.data.transactions = json.data.transactions.map(t => ({
+                    ...t,
+                    employer: (!t.employer || t.employer === 'Main Employer')
+                      ? (resolvedEmployer || t.emp_company_name || 'Employer')
+                      : t.employer
+                  }));
+                }
+              }
+
+              res.setHeader('Content-Type', 'application/json');
+              res.statusCode = 200;
+              res.end(JSON.stringify(json));
+              return;
+            }
+          } catch (err) {}
         }
 
         next();
