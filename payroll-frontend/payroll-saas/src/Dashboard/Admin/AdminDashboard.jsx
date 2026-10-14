@@ -59,22 +59,38 @@ const AdminDashboard = () => {
           // Only apply trial logic if on 7-Day Free Trial
           if (is7DayTrial) {
             setIs7DayTrialUser(true);
-            const startDate = new Date(sub.start_date || sub.created_at || Date.now());
+
+            // Robust local date parser avoiding UTC timezone displacement
+            const parseLocalDate = (dateVal) => {
+              if (!dateVal) return new Date();
+              if (typeof dateVal === 'string') {
+                const datePart = dateVal.split('T')[0];
+                const parts = datePart.split('-');
+                if (parts.length === 3) {
+                  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                }
+              }
+              const d = new Date(dateVal);
+              return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            };
+
+            const startDate = parseLocalDate(sub.start_date || sub.created_at);
 
             let endDate;
             if (sub.end_date) {
-              const customEnd = new Date(sub.end_date);
+              const customEnd = parseLocalDate(sub.end_date);
               const diffFromStart = (customEnd.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
               if (diffFromStart <= 8 && diffFromStart > 0) {
                 endDate = customEnd;
               } else {
-                endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+                endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 7);
               }
             } else {
-              endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+              endDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 7);
             }
 
-            const now = new Date();
+            const today = new Date();
+            const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const diffMs = endDate.getTime() - now.getTime();
             const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
             const expired = daysRemaining <= 0 || sub.status === 'expired';

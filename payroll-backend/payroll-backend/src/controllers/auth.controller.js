@@ -85,13 +85,15 @@ const register = async (req, res, next) => {
       const employerId = empResult.insertId;
 
       // Automatically assign 7-Day Free Trial Subscription
-      const startDate = new Date();
-      const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const now = new Date();
+      const startDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const endObj = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const endDateStr = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}`;
       try {
         await connection.query(
           `INSERT INTO subscriptions (employer_id, plan_id, start_date, end_date, status, auto_renew, created_at, updated_at)
            VALUES (?, 1, ?, ?, 'active', 0, NOW(), NOW())`,
-          [employerId, startDate, endDate]
+          [employerId, startDateStr, endDateStr]
         );
       } catch (subErr) {
         console.warn('Subscription auto-assign skipped:', subErr.message);
@@ -187,38 +189,36 @@ const login = async (req, res, next) => {
       });
     }
 
-    // Normalize email (trim whitespace)
-    const normalizedEmail = email.trim();
+    // Normalize email (trim whitespace & lowercase)
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const rawPassword = String(password || '');
+    const trimmedPassword = rawPassword.trim();
 
-    // 1. Fetch User (SQL)
-    const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
+    // 1. Fetch User (SQL - case insensitive and trimmed)
+    const [rows] = await db.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = ?', [normalizedEmail]);
     let user = rows[0];
 
-    // Fallback: case-insensitive lookup
-    if (!user) {
-      const [rows2] = await db.query('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [normalizedEmail]);
-      user = rows2[0];
-    }
-
-    // Safe debug log
     if (!user) {
       console.log(`[LOGIN] User not found for email: ${normalizedEmail}`);
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.',
+        message: 'No account found with this email address. Please verify your email or register.',
       });
     }
 
     console.log(`[LOGIN] User found: ${user.email} (ID: ${user.id}, Role: ${user.role})`);
 
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Check password (try exact first, then trimmed)
+    let isPasswordValid = await bcrypt.compare(rawPassword, user.password);
+    if (!isPasswordValid && trimmedPassword !== rawPassword) {
+      isPasswordValid = await bcrypt.compare(trimmedPassword, user.password);
+    }
 
     if (!isPasswordValid) {
       console.log(`[LOGIN] Password mismatch for user: ${user.email} (ID: ${user.id})`);
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.',
+        message: 'Incorrect password. Please verify your password or use Forgot Password.',
       });
     }
 
@@ -253,6 +253,23 @@ const login = async (req, res, next) => {
             redirectTo: '/#pricing'
           });
         }
+      }
+    }
+
+    // Start 7-Day Free Trial from the date of first login if not yet activated
+    if (!user.last_login && (user.role === 'employer' || user.role === 'admin')) {
+      const [freeTrialSubs] = await db.query(
+        `SELECT s.id FROM subscriptions s
+         JOIN employers e ON s.employer_id = e.id
+         WHERE (e.user_id = ? OR e.admin_id = ?) AND s.plan_id = 1 AND s.status = 'active'`,
+        [user.id, user.id]
+      );
+      if (freeTrialSubs.length > 0) {
+        const now = new Date();
+        const startDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const endObj = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const endDateStr = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}`;
+        await db.query('UPDATE subscriptions SET start_date = ?, end_date = ? WHERE id = ?', [startDateStr, endDateStr, freeTrialSubs[0].id]);
       }
     }
 
@@ -310,21 +327,51 @@ const adminLogin = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
     }
 
-    const [rows] = await db.query('SELECT * FROM users WHERE email = ? AND role IN ("admin", "superadmin")', [email.trim()]);
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const rawPassword = String(password || '');
+    const trimmedPassword = rawPassword.trim();
+
+    const [rows] = await db.query('SELECT * FROM users WHERE LOWER(TRIM(email)) = ? AND role IN ("admin", "superadmin")', [normalizedEmail]);
     let user = rows[0];
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+      return res.status(401).json({ success: false, message: 'No administrative account found with this email address.' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    let isMatch = await bcrypt.compare(rawPassword, user.password);
+    if (!isMatch && trimmedPassword !== rawPassword) {
+      isMatch = await bcrypt.compare(trimmedPassword, user.password);
+    }
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials.' });
+      return res.status(401).json({ success: false, message: 'Incorrect password for admin account.' });
     }
 
     if (user.status !== 'active') {
       return res.status(403).json({ success: false, message: 'Admin account is inactive.' });
     }
+
+    // Start 7-Day Free Trial from the date of first login if not yet activated
+    if (!user.last_login) {
+      const [adminRecs] = await db.query('SELECT id FROM admins WHERE user_id = ?', [user.id]);
+      if (adminRecs.length > 0) {
+        const [freeTrialSubs] = await db.query(
+          `SELECT s.id FROM subscriptions s
+           JOIN employers e ON s.employer_id = e.id
+           WHERE e.admin_id = ? AND s.plan_id = 1 AND s.status = 'active'`,
+          [adminRecs[0].id]
+        );
+        if (freeTrialSubs.length > 0) {
+          const now = new Date();
+          const startDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const endObj = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          const endDateStr = `${endObj.getFullYear()}-${String(endObj.getMonth() + 1).padStart(2, '0')}-${String(endObj.getDate()).padStart(2, '0')}`;
+          await db.query('UPDATE subscriptions SET start_date = ?, end_date = ? WHERE id = ?', [startDateStr, endDateStr, freeTrialSubs[0].id]);
+        }
+      }
+    }
+
+    // Update last login
+    await db.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
 
     const tokens = generateTokens(user);
     const redirectInfo = getLoginRedirect(user.role);

@@ -6,7 +6,7 @@ const registerSchema = Joi.object({
     'string.min': 'Name must be at least 2 characters',
     'string.max': 'Name must not exceed 100 characters',
   }),
-  email: Joi.string().email().required().messages({
+  email: Joi.string().trim().lowercase().email().required().messages({
     'string.empty': 'Email is required',
     'string.email': 'Please provide a valid email address',
   }),
@@ -17,18 +17,18 @@ const registerSchema = Joi.object({
   role: Joi.string()
     .trim()
     .lowercase()
-    .valid('jobseeker')
+    .valid('jobseeker', 'employer')
     .optional()
     .allow('', null)
     .messages({
-      'any.only': 'Public registration is restricted to jobseeker accounts only. Privileged roles cannot be created via public registration.',
+      'any.only': 'Public registration is restricted to jobseeker and employer trial accounts.',
     }),
   phone: Joi.string().optional().allow('', null),
   company_name: Joi.string().optional().allow('', null),
 });
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required().messages({
+  email: Joi.string().trim().lowercase().email().required().messages({
     'string.empty': 'Email is required',
     'string.email': 'Please provide a valid email address',
   }),

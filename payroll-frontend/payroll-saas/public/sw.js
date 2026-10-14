@@ -3,11 +3,14 @@
  * Provides offline caching, asset precaching, and network fallback strategies
  */
 
-const CACHE_NAME = 'kiaan-payroll-v1.0.0';
+const CACHE_NAME = 'kiaan-payroll-v1.0.1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/kiaan_logo.png',
+  '/pwa-icon-192.png',
+  '/pwa-icon-512.png',
+  '/pwa-maskable-512.png',
   '/manifest.json'
 ];
 

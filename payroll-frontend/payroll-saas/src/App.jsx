@@ -236,6 +236,7 @@ function App() {
                                 <Route path="/employee/how-to-use" element={<ProtectedRoute allowedRoles={['employee', 'admin', 'superadmin']}><HowToUsePage /></ProtectedRoute>} />
 
                                 {/* ---------------- JOB PORTAL ---------------- */}
+                                <Route path="/jobseeker/dashboard" element={<ProtectedRoute allowedRoles={['jobseeker', 'admin', 'superadmin', 'employer', 'employee']}><JobDashboard /></ProtectedRoute>} />
                                 <Route path="/job-portal/dashboard" element={<ProtectedRoute allowedRoles={['jobseeker', 'admin', 'superadmin', 'employer', 'employee']}><JobDashboard /></ProtectedRoute>} />
                                 <Route path="/job-portal/profile" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin', 'superadmin']}><UserProfilePage /></ProtectedRoute>} />
                                 <Route path="/job-portal/job-list" element={<ProtectedRoute allowedRoles={['jobseeker', 'employee', 'employer', 'admin', 'superadmin']}><JobList /></ProtectedRoute>} />

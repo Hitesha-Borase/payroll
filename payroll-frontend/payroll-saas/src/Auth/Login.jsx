@@ -69,10 +69,13 @@ const Login = () => {
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim();
+      const cleanPassword = password.trim();
+
       // Use specialized adminLogin if mode is active, otherwise standard login
       const result = isAdminMode
-        ? await adminLogin(email, password)
-        : await login(email, password);
+        ? await adminLogin(cleanEmail, cleanPassword)
+        : await login(cleanEmail, cleanPassword);
 
       if (result.success) {
         sessionStorage.removeItem('trial_modal_dismissed');

@@ -117,6 +117,50 @@ const clientTestimonials = [
 
 const LandingPage = () => {
     const isNativeApp = Capacitor.isNativePlatform();
+
+    // Detect if running inside installed PWA / Android APK / TWA shell
+    const [isPwaOrApk, setIsPwaOrApk] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            const isStandalone = 
+                window.matchMedia('(display-mode: standalone)').matches ||
+                window.matchMedia('(display-mode: fullscreen)').matches ||
+                window.matchMedia('(display-mode: minimal-ui)').matches ||
+                window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+                (window.navigator && window.navigator.standalone === true) ||
+                (document.referrer && document.referrer.includes('android-app://')) ||
+                (window.location.search && (window.location.search.includes('source=pwa') || window.location.search.includes('mode=pwa'))) ||
+                Capacitor.isNativePlatform();
+            return Boolean(isStandalone);
+        } catch (e) {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        const checkAppMode = () => {
+            try {
+                const isStandalone = 
+                    window.matchMedia('(display-mode: standalone)').matches ||
+                    window.matchMedia('(display-mode: fullscreen)').matches ||
+                    window.matchMedia('(display-mode: minimal-ui)').matches ||
+                    window.matchMedia('(display-mode: window-controls-overlay)').matches ||
+                    (window.navigator && window.navigator.standalone === true) ||
+                    (document.referrer && document.referrer.includes('android-app://')) ||
+                    Capacitor.isNativePlatform();
+                setIsPwaOrApk(Boolean(isStandalone));
+            } catch (e) {}
+        };
+        checkAppMode();
+        try {
+            const matcher = window.matchMedia('(display-mode: standalone)');
+            if (matcher && matcher.addEventListener) {
+                matcher.addEventListener('change', checkAppMode);
+                return () => matcher.removeEventListener('change', checkAppMode);
+            }
+        } catch (e) {}
+    }, []);
+
     const { edition } = useRegional();
     const [activeTab, setActiveTab] = useState('home');
     const [scrolled, setScrolled] = useState(false);
@@ -682,8 +726,8 @@ const LandingPage = () => {
                                 </button>
                             </motion.div>
 
-                            {/* Android & iOS App Download Buttons (Red & White Theme) - Web / Browser Only */}
-                            {!isNativeApp && (
+                            {/* Android & iOS App Download Buttons - Always visible in web software, invisible in PWA APK */}
+                            {(!isNativeApp && !isPwaOrApk) && (
                                 <motion.div 
                                     className="d-flex flex-wrap align-items-center gap-3 mb-5"
                                     initial={{ opacity: 0, y: 20 }}
@@ -694,7 +738,12 @@ const LandingPage = () => {
                                 <a 
                                     href="/kiaan-payroll.apk" 
                                     download="kiaan-payroll.apk"
-                                    onClick={() => toast.success("📱 Downloading Kiaan Payroll Android APK...", { icon: '⬇️' })}
+                                    onClick={() => {
+                                        try {
+                                            localStorage.setItem('kiaan_pwa_apk_downloaded', 'true');
+                                        } catch (e) {}
+                                        toast.success("📱 Downloading Kiaan Payroll Android APK...", { icon: '⬇️' });
+                                    }}
                                     className="btn d-inline-flex align-items-center text-decoration-none shadow-sm flex-fill"
                                     style={{ 
                                         backgroundColor: '#FFFFFF', 
@@ -743,7 +792,12 @@ const LandingPage = () => {
                                 <a 
                                     href="/kiaan-payroll.apk" 
                                     download="kiaan-payroll-ios.apk"
-                                    onClick={() => toast.success("🍎 Downloading Kiaan Payroll for iOS...", { icon: '⬇️' })}
+                                    onClick={() => {
+                                        try {
+                                            localStorage.setItem('kiaan_pwa_apk_downloaded', 'true');
+                                        } catch (e) {}
+                                        toast.success("🍎 Downloading Kiaan Payroll for iOS...", { icon: '⬇️' });
+                                    }}
                                     className="btn d-inline-flex align-items-center text-decoration-none shadow-sm flex-fill"
                                     style={{ 
                                         backgroundColor: '#FFFFFF', 
