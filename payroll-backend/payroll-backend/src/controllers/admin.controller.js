@@ -2844,12 +2844,44 @@ const toggleUserStatus = async (req, res, next) => {
  * ============================================================================
  */
 
+const getResolvedAdminCompanyId = async (user) => {
+  if (user?.company_id) return user.company_id;
+  if (!user?.id) return null;
+  try {
+    const [admRows] = await db.query('SELECT id FROM admins WHERE user_id = ? LIMIT 1', [user.id]);
+    let compId = null;
+    if (admRows.length > 0) {
+      const [empRows] = await db.query('SELECT id FROM employers WHERE admin_id = ? LIMIT 1', [admRows[0].id]);
+      if (empRows.length > 0) compId = empRows[0].id;
+      else {
+        const [coRows] = await db.query('SELECT id FROM companies WHERE admin_id = ? LIMIT 1', [admRows[0].id]);
+        if (coRows.length > 0) compId = coRows[0].id;
+      }
+    }
+    if (!compId) {
+      const [empRows] = await db.query('SELECT id FROM employers WHERE user_id = ? LIMIT 1', [user.id]);
+      if (empRows.length > 0) compId = empRows[0].id;
+      else {
+        const [coRows] = await db.query('SELECT id FROM companies WHERE user_id = ? LIMIT 1', [user.id]);
+        if (coRows.length > 0) compId = coRows[0].id;
+      }
+    }
+    if (compId) {
+      user.company_id = compId;
+      db.query('UPDATE users SET company_id = ? WHERE id = ?', [compId, user.id]).catch(() => {});
+    }
+    return compId;
+  } catch (err) {
+    return null;
+  }
+};
+
 /**
  * Get Paginated Audit Logs for Admin
  */
 const getAuditLogs = async (req, res, next) => {
   try {
-    const adminCompanyId = req.user?.company_id || null;
+    const adminCompanyId = await getResolvedAdminCompanyId(req.user);
     const { page, limit, search, action, startDate, endDate, userId, role } = req.query;
     const result = await auditService.getAuditLogs({
       page,
@@ -2860,7 +2892,8 @@ const getAuditLogs = async (req, res, next) => {
       endDate,
       userId,
       role,
-      companyId: adminCompanyId
+      companyId: adminCompanyId,
+      currentUserId: req.user?.id || null
     });
 
     res.json({
@@ -2878,8 +2911,8 @@ const getAuditLogs = async (req, res, next) => {
  */
 const getAuditStats = async (req, res, next) => {
   try {
-    const adminCompanyId = req.user?.company_id || null;
-    const stats = await auditService.getStats(true, adminCompanyId);
+    const adminCompanyId = await getResolvedAdminCompanyId(req.user);
+    const stats = await auditService.getStats(true, adminCompanyId, req.user?.id || null);
     res.json({
       success: true,
       data: stats
@@ -2894,8 +2927,8 @@ const getAuditStats = async (req, res, next) => {
  */
 const getAuditActions = async (req, res, next) => {
   try {
-    const adminCompanyId = req.user?.company_id || null;
-    const actions = await auditService.getUniqueActions(true, adminCompanyId);
+    const adminCompanyId = await getResolvedAdminCompanyId(req.user);
+    const actions = await auditService.getUniqueActions(true, adminCompanyId, req.user?.id || null);
     res.json({
       success: true,
       data: actions

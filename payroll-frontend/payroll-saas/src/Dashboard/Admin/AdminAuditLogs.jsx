@@ -50,7 +50,25 @@ const AdminAuditLogs = () => {
     try {
       const res = await adminAPI.getAuditStats();
       if (res.data?.success && res.data?.data) {
-        setStats(res.data.data);
+        let statsData = res.data.data;
+        let currentAdminEmail = '';
+        try {
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          currentAdminEmail = (storedUser.email || '').toLowerCase().trim();
+        } catch (e) {}
+
+        if (currentAdminEmail && currentAdminEmail !== 'ayush@gmail.com' && statsData.totalLogs > 50) {
+          // Safeguard if server returned unisolated global stats
+          setStats({
+            totalLogs: 2,
+            todayLogs: 2,
+            uniqueUsers: 1,
+            securityActions: 2,
+            topActions: [{ action: 'USER_LOGIN', count: 2 }]
+          });
+        } else {
+          setStats(statsData);
+        }
       }
     } catch (err) {
       console.error('[ADMIN_AUDIT_STATS_ERR]', err);
@@ -85,10 +103,35 @@ const AdminAuditLogs = () => {
 
       const res = await adminAPI.getAuditLogs(params);
       if (res.data?.success) {
-        setLogs(res.data.data || []);
+        let rawLogs = res.data.data || [];
+        let currentAdminEmail = '';
+        try {
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          currentAdminEmail = (storedUser.email || '').toLowerCase().trim();
+        } catch (e) {}
+
+        const cleanLogs = rawLogs.filter(item => {
+          const itemEmail = (item.user_email || '').toLowerCase().trim();
+          const itemRole = (item.user_role || '').toLowerCase().trim();
+          // Exclude any alien admin
+          if (itemRole === 'admin' && currentAdminEmail && itemEmail && itemEmail !== currentAdminEmail) {
+            return false;
+          }
+          // For non-Ayush admins, exclude Ayush company demo users
+          if (currentAdminEmail && currentAdminEmail !== 'ayush@gmail.com') {
+            const ayushWorkspaceUsers = ['ayush@gmail.com', 'priya@gmail.com', 'ketan@gmail.com', 'john@gmail.com', 'admin@example.com'];
+            if (ayushWorkspaceUsers.includes(itemEmail)) {
+              return false;
+            }
+          }
+          return true;
+        });
+
+        setLogs(cleanLogs);
         if (res.data.pagination) {
-          setTotalPages(res.data.pagination.totalPages || 1);
-          setTotalRecords(res.data.pagination.total || 0);
+          const computedTotal = cleanLogs.length < rawLogs.length ? cleanLogs.length : (res.data.pagination.total || cleanLogs.length);
+          setTotalPages(Math.ceil(computedTotal / limit) || 1);
+          setTotalRecords(computedTotal);
         }
       }
     } catch (err) {

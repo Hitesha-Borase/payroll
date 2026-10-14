@@ -49,7 +49,8 @@ class AuditService {
     userId = null,
     role = '',
     excludeSuperadmin = true,
-    companyId = null
+    companyId = null,
+    currentUserId = null
   } = {}) {
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.max(1, Math.min(200, parseInt(limit) || 20));
@@ -63,8 +64,37 @@ class AuditService {
       conditions.push('(u.role IS NULL OR LOWER(u.role) != "superadmin")');
     }
 
-    // Company isolation for multi-tenancy
-    if (companyId) {
+    // Strict multi-tenant isolation for Admin view
+    if (currentUserId) {
+      // Exclude other admins
+      conditions.push('(u.role IS NULL OR LOWER(u.role) != "admin" OR al.user_id = ?)');
+      params.push(parseInt(currentUserId));
+
+      if (companyId) {
+        conditions.push(`(
+          al.user_id = ?
+          OR u.company_id = ?
+          OR al.user_id IN (
+            SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
+            UNION
+            SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
+            UNION
+            SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+          )
+        )`);
+        params.push(
+          parseInt(currentUserId),
+          parseInt(companyId),
+          parseInt(companyId), parseInt(companyId),
+          parseInt(companyId),
+          parseInt(companyId)
+        );
+      } else {
+        // If companyId is not resolved, strictly limit to this admin's own logs
+        conditions.push('al.user_id = ?');
+        params.push(parseInt(currentUserId));
+      }
+    } else if (companyId) {
       conditions.push('u.company_id = ?');
       params.push(parseInt(companyId));
     }
@@ -156,7 +186,7 @@ class AuditService {
   /**
    * Get aggregate statistics for Audit Logs Dashboard view
    */
-  async getStats(excludeSuperadmin = true, companyId = null) {
+  async getStats(excludeSuperadmin = true, companyId = null, currentUserId = null) {
     try {
       const joinClause = 'LEFT JOIN users u ON al.user_id = u.id';
       let conditions = [];
@@ -165,7 +195,35 @@ class AuditService {
       if (excludeSuperadmin) {
         conditions.push('(u.role IS NULL OR LOWER(u.role) != "superadmin")');
       }
-      if (companyId) {
+
+      if (currentUserId) {
+        conditions.push('(u.role IS NULL OR LOWER(u.role) != "admin" OR al.user_id = ?)');
+        params.push(parseInt(currentUserId));
+
+        if (companyId) {
+          conditions.push(`(
+            al.user_id = ?
+            OR u.company_id = ?
+            OR al.user_id IN (
+              SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
+              UNION
+              SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
+              UNION
+              SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+            )
+          )`);
+          params.push(
+            parseInt(currentUserId),
+            parseInt(companyId),
+            parseInt(companyId), parseInt(companyId),
+            parseInt(companyId),
+            parseInt(companyId)
+          );
+        } else {
+          conditions.push('al.user_id = ?');
+          params.push(parseInt(currentUserId));
+        }
+      } else if (companyId) {
         conditions.push('u.company_id = ?');
         params.push(parseInt(companyId));
       }
@@ -245,7 +303,7 @@ class AuditService {
   /**
    * Get list of all distinct actions in the audit_logs table for filtering
    */
-  async getUniqueActions(excludeSuperadmin = true, companyId = null) {
+  async getUniqueActions(excludeSuperadmin = true, companyId = null, currentUserId = null) {
     try {
       let conditions = ['al.action IS NOT NULL', 'al.action != ""'];
       let params = [];
@@ -253,7 +311,35 @@ class AuditService {
       if (excludeSuperadmin) {
         conditions.push('(u.role IS NULL OR LOWER(u.role) != "superadmin")');
       }
-      if (companyId) {
+
+      if (currentUserId) {
+        conditions.push('(u.role IS NULL OR LOWER(u.role) != "admin" OR al.user_id = ?)');
+        params.push(parseInt(currentUserId));
+
+        if (companyId) {
+          conditions.push(`(
+            al.user_id = ?
+            OR u.company_id = ?
+            OR al.user_id IN (
+              SELECT user_id FROM employers WHERE (company_id = ? OR id = ?) AND user_id IS NOT NULL
+              UNION
+              SELECT user_id FROM employees WHERE company_id = ? AND user_id IS NOT NULL
+              UNION
+              SELECT user_id FROM vendors WHERE company_id = ? AND user_id IS NOT NULL
+            )
+          )`);
+          params.push(
+            parseInt(currentUserId),
+            parseInt(companyId),
+            parseInt(companyId), parseInt(companyId),
+            parseInt(companyId),
+            parseInt(companyId)
+          );
+        } else {
+          conditions.push('al.user_id = ?');
+          params.push(parseInt(currentUserId));
+        }
+      } else if (companyId) {
         conditions.push('u.company_id = ?');
         params.push(parseInt(companyId));
       }
