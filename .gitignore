@@ -51,3 +51,33 @@ sessions/
 Thumbs.db
 **/.idea/
 **/.vscode/
+
+# Android Keystores & Signing Secrets
+*.keystore
+**/*.keystore
+*.jks
+**/*.jks
+*.p12
+**/*.p12
+*signing*.properties
+**/*signing*.properties
+*key*.properties
+**/*key*.properties
+
+# Database Dumps, SQL Snapshots & Backups
+*.sql
+**/*.sql
+*.dump
+**/*.dump
+*.rdb
+**/*.rdb
+
+# Private Keys, Public Keys & Certificates
+*.pem
+**/*.pem
+*.key
+**/*.key
+*.crt
+**/*.crt
+*.cer
+**/*.cer
